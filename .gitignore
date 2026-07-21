@@ -1,0 +1,42 @@
+# --- Data (never commit large or derived data) ---
+data/raw/*
+!data/raw/.gitkeep
+data/*.duckdb
+data/*.duckdb.wal
+*.parquet
+
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+config/secrets*
+
+# --- Python ---
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.ruff_cache/
+.pytest_cache/
+
+# --- dbt ---
+transform/target/
+transform/dbt_packages/
+transform/logs/
+transform/.user.yml
+
+# --- Claude Code ---
+.claude/tsc-cache/
+docs/superpowers/
+.superpowers/
+thoughts/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- OneDrive sync noise ---
+*~
+*.tmp

@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: stg_film_log
+    description: One watch per row from the ratings log seed; rating on a 0-100 scale.
+    columns:
+      - name: tmdb_id
+        description: TMDB film identifier — the primary film key.
+        tests: [not_null]
+      - name: imdb_id
+      - name: watched_date
+        tests: [not_null]
+
+  - name: stg_film_enrichment
+    description: One row per film — TMDB + OMDb attributes keyed by tmdb_id.
+    columns:
+      - name: tmdb_id
+        description: TMDB film identifier — the primary film key.
+        tests: [unique, not_null]
+      - name: imdb_id
+        tests: [not_null]

@@ -1,0 +1,10 @@
+# Local profile. Points dbt at the DuckDB file the ingest step builds.
+# No secrets here, so it's safe to commit. Run dbt from this dir with
+# --profiles-dir .
+cinemetrics:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../data/movies.duckdb
+      threads: 4

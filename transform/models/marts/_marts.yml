@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: dim_film
+    description: >
+      One row per film, keyed by tmdb_id. Title/year come from the ratings log;
+      attributes come from the enrichment seed — TMDB (genres, keywords, runtime,
+      budget, revenue) and OMDb (Metascore, Rotten Tomatoes, IMDb, box office,
+      director, cast).
+    columns:
+      - name: tmdb_id
+        description: TMDB film identifier — the primary film key.
+        tests: [unique, not_null]
+      - name: imdb_id
+        description: IMDb id (tt#######) — kept for external linking.
+      - name: title
+        tests: [not_null]
+
+  - name: fct_watches
+    description: >
+      One row per watch event, from the consolidated ratings log (pre-Letterboxd
+      history plus Letterboxd, with new watches appended from the Letterboxd feed).
+    columns:
+      - name: watch_id
+        tests: [unique, not_null]
+      - name: tmdb_id
+        description: Foreign key to dim_film.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_film')
+                field: tmdb_id
+      - name: imdb_id
+        description: IMDb id — kept for external linking.
+      - name: watched_date
+        tests: [not_null]

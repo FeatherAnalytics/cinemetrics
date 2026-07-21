@@ -1,0 +1,36 @@
+name: cinemetrics
+version: "1.0.0"
+config-version: 2
+profile: cinemetrics
+
+model-paths: ["models"]
+test-paths: ["tests"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  cinemetrics:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
+
+seeds:
+  cinemetrics:
+    film_log:
+      +column_types:
+        tmdb_id: bigint
+        release_year: integer
+        my_rating: double
+        star_rating: double
+    film_enrichment:
+      +column_types:
+        tmdb_id: bigint
+        runtime: integer
+        budget: bigint
+        revenue: bigint
+        metascore: integer
+        rt_rating: integer
+        imdb_rating: double
+        imdb_votes: bigint
+        box_office: bigint
