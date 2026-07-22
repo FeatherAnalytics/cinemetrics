@@ -6,10 +6,10 @@ ROOT = Path(__file__).resolve().parents[1]
 SEEDS_DIR = ROOT / "transform" / "seeds"
 
 FEATURE_WEIGHTS = {
-    "keywords": 3.0,
-    "genres": 2.0,
-    "director": 2.0,
-    "actors": 2.0,
-    "country": 1.5,
-    "critic_scores": 1.0,
+    "keywords": 2.0,
+    "genres": 3.0,
+    "director": 0.0,
+    "actors": 0.0,
+    "country": 1.0,
+    "critic_scores": 3.0,
 }

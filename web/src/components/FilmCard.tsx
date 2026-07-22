@@ -5,7 +5,7 @@ import type { Reason } from "@/lib/explainClient";
 
 type Props = {
   metadata: CandidateMetadata;
-  predictedRating: number;
+  score: number;
   reasons: Reason[];
 };
 
@@ -30,7 +30,7 @@ function letterboxdSlug(title: string, year: number | null): string {
   return year ? `${base}-${year}` : base;
 }
 
-export function FilmCard({ metadata, predictedRating, reasons }: Props) {
+export function FilmCard({ metadata, score, reasons }: Props) {
   const m = metadata;
   const genres = m.genres ? m.genres.split(", ").filter(Boolean) : [];
   const isEnglish = m.language === "en";
@@ -62,17 +62,16 @@ export function FilmCard({ metadata, predictedRating, reasons }: Props) {
               {m.year}{runtimeStr ? ` · ${runtimeStr}` : ""}{m.rated ? ` · ${m.rated}` : ""}
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-lg font-bold" style={{ color: "#4ade80" }}>
-              {Math.round(predictedRating)}
+          {score > 0 && (
+            <div className="text-right">
+              <span
+                className="text-[11px] font-medium"
+                style={{ color: "#a5b4fc" }}
+              >
+                {Math.round(score * 100)}% match
+              </span>
             </div>
-            <div
-              className="text-[8px] uppercase tracking-wider"
-              style={{ color: "#4ade80" }}
-            >
-              predicted
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="flex gap-1 flex-wrap mb-2">

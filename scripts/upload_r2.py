@@ -11,7 +11,7 @@ load_dotenv()
 ROOT = Path(__file__).resolve().parents[1]
 ML_DIR = ROOT / "data" / "ml"
 
-FILES = ["embeddings.json", "predictions.json"]
+FILES = ["embeddings.json"]
 
 
 def main() -> None:

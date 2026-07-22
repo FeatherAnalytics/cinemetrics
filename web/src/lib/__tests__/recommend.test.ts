@@ -22,8 +22,6 @@ const METADATA: Record<number, CandidateMetadata> = {
   4: { title: "Film D", year: 2018, genres: "Sci-Fi, Drama", language: "de", runtime: 150, rated: "R", director: "", actors: "", keywords: "", imdb_id: "tt0000004", production_countries: "DE", metascore: 90, rt_rating: 92, imdb_rating: 8.5 },
 };
 
-const PREDICTIONS: Record<number, number> = { 1: 85, 2: 78, 3: 65, 4: 90 };
-
 const DATA: EmbeddingData = { vectors: VECTORS, metadata: METADATA };
 
 describe("cosineSimilarity", () => {
@@ -44,32 +42,32 @@ describe("cosineSimilarity", () => {
 
 describe("topNSimilar", () => {
   it("returns correct number of results", () => {
-    const results = topNSimilar(1, DATA, PREDICTIONS, 2, new Set([1]));
+    const results = topNSimilar(1, DATA, 2, new Set([1]));
     expect(results).toHaveLength(2);
   });
 
   it("excludes specified ids", () => {
-    const results = topNSimilar(1, DATA, PREDICTIONS, 3, new Set([1]));
+    const results = topNSimilar(1, DATA, 3, new Set([1]));
     expect(results.every((r) => r.tmdb_id !== 1)).toBe(true);
   });
 
   it("ranks by similarity", () => {
-    const results = topNSimilar(1, DATA, PREDICTIONS, 3, new Set([1]));
+    const results = topNSimilar(1, DATA, 3, new Set([1]));
     expect(results[0].tmdb_id).toBe(2);
   });
 
-  it("includes predicted rating and metadata", () => {
-    const results = topNSimilar(1, DATA, PREDICTIONS, 1, new Set([1]));
-    expect(results[0].predictedRating).toBe(78);
+  it("includes score and metadata", () => {
+    const results = topNSimilar(1, DATA, 1, new Set([1]));
+    expect(results[0].score).toBeGreaterThan(0);
     expect(results[0].metadata.title).toBe("Film B");
   });
 });
 
 describe("filterRecommendations", () => {
   const recs = [
-    { tmdb_id: 2, similarity: 0.99, predictedRating: 78, metadata: METADATA[2] },
-    { tmdb_id: 3, similarity: 0.1, predictedRating: 65, metadata: METADATA[3] },
-    { tmdb_id: 4, similarity: 0.95, predictedRating: 90, metadata: METADATA[4] },
+    { tmdb_id: 2, score: 0.99, metadata: METADATA[2] },
+    { tmdb_id: 3, score: 0.1, metadata: METADATA[3] },
+    { tmdb_id: 4, score: 0.95, metadata: METADATA[4] },
   ];
 
   it("filters english only", () => {
@@ -97,4 +95,3 @@ describe("filterRecommendations", () => {
     expect(result).toHaveLength(3);
   });
 });
-

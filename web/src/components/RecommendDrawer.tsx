@@ -41,7 +41,7 @@ function weightedSample(pool: Recommendation[], n: number): Recommendation[] {
   const remaining = [...pool];
   const picked: Recommendation[] = [];
   while (picked.length < n && remaining.length > 0) {
-    const weights = remaining.map((r) => Math.max(r.predictedRating, 1));
+    const weights = remaining.map((r) => Math.max(r.score, 0.01));
     const total = weights.reduce((a, b) => a + b, 0);
     let rand = Math.random() * total;
     for (let i = 0; i < remaining.length; i++) {
@@ -53,7 +53,7 @@ function weightedSample(pool: Recommendation[], n: number): Recommendation[] {
       }
     }
   }
-  return picked.sort((a, b) => b.predictedRating - a.predictedRating);
+  return picked.sort((a, b) => b.score - a.score);
 }
 
 async function fetchRecs(
@@ -64,7 +64,7 @@ async function fetchRecs(
   dashFilters: Filters,
 ): Promise<{ recs: Recommendation[]; reasons: Record<number, Reason[]>; boostCount: number }> {
   if (!R2_URL) return { recs: [], reasons: {}, boostCount: 0 };
-  const { data, predictions } = await loadEmbeddings(R2_URL);
+  const { data } = await loadEmbeddings(R2_URL);
   const TARGET = 10;
   let finalRecs: Recommendation[] = [];
   let boostCount = 0;
@@ -73,7 +73,7 @@ async function fetchRecs(
     const excludeIds = state.hideRated
       ? new Set([...ratedIds, state.sourceTmdbId])
       : new Set([state.sourceTmdbId]);
-    let results = topNSimilar(state.sourceTmdbId, data, predictions, 20, excludeIds);
+    let results = topNSimilar(state.sourceTmdbId, data, 20, excludeIds);
     results = filterRecommendations(results, {
       ...state.filters,
     } as { language?: "en" | "non-en"; genre?: string });
@@ -86,7 +86,7 @@ async function fetchRecs(
       if (excludeIds.has(id)) continue;
       const meta = data.metadata[id];
       if (!meta) continue;
-      pool.push({ tmdb_id: id, similarity: 0, predictedRating: predictions[id] ?? 0, metadata: meta });
+      pool.push({ tmdb_id: id, score: 0, metadata: meta });
     }
     pool = filterRecommendations(pool, {
       ...state.filters,
@@ -242,7 +242,7 @@ export function RecommendDrawer() {
                 <div className="min-w-[200px] md:min-w-0">
                   <FilmCard
                     metadata={r.metadata}
-                    predictedRating={r.predictedRating}
+                    score={r.score}
                     reasons={reasonsMap[r.tmdb_id] ?? []}
                   />
                 </div>
