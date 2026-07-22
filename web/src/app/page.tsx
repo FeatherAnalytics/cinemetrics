@@ -8,7 +8,7 @@ import { FilterBar } from "@/components/FilterBar";
 import { SwimLaneChart } from "@/components/SwimLaneChart";
 import { ResidualScatter } from "@/components/ResidualScatter";
 import { KeywordBars } from "@/components/KeywordBars";
-import { WorldMap } from "@/components/WorldMap";
+import { CountryBars } from "@/components/CountryBars";
 import { RewatchCadence } from "@/components/RewatchCadence";
 import { RollingRating } from "@/components/RollingRating";
 import { SelectionPanel } from "@/components/SelectionPanel";
@@ -143,14 +143,15 @@ function Explorer() {
             <KeywordBars />
           </section>
 
-          <section style={chartStyle("map")}>
-            <StoryAnnotation target="map" />
-            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Where they come from</h2>
+          <section style={chartStyle("countries")}>
+            <StoryAnnotation target="countries" />
+            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">What travels well</h2>
             <p className="mb-2 text-xs text-[#67655f]">
-              Each country is shaded by its production count and coloured by the genre I watch most
-              from there. Click a country to filter the other charts.
+              Countries ranked by how many of my films they helped produce, coloured by the genre
+              I watch most from each. The right column shows how I rate that country&rsquo;s films
+              against prediction. Click a row to filter the other charts.
             </p>
-            <WorldMap />
+            <CountryBars />
           </section>
 
           <section style={chartStyle("rolling")}>

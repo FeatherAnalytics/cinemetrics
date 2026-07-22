@@ -4,7 +4,7 @@ import type { Film, EnrichedWatch } from "./types";
 import { primaryGenre, type GenreKey } from "./palette";
 import { watchKey } from "./brush";
 
-export type ChartId = "spiral" | "contrarian" | "map" | "rolling" | "rewatch" | "keywords";
+export type ChartId = "spiral" | "contrarian" | "countries" | "rolling" | "rewatch" | "keywords";
 
 export type StoryFocus = {
   primary: ChartId;
@@ -184,13 +184,13 @@ export const STORIES: StoryConfig[] = [
   {
     id: "spooktober",
     label: "Spooktober",
-    focus: { primary: "spiral", emphasize: ["spiral", "rolling"], dim: ["map"] },
+    focus: { primary: "spiral", emphasize: ["spiral", "rolling"], dim: ["countries"] },
     compute: computeSpooktober,
   },
   {
     id: "rating-drift",
     label: "Rating Drift",
-    focus: { primary: "rewatch", emphasize: ["rewatch", "contrarian"], dim: ["map"] },
+    focus: { primary: "rewatch", emphasize: ["rewatch", "contrarian"], dim: ["countries"] },
     compute: computeRatingDrift,
   },
   {
