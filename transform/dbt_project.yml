@@ -34,3 +34,14 @@ seeds:
         imdb_rating: double
         imdb_votes: bigint
         box_office: bigint
+    candidate_enrichment:
+      +column_types:
+        tmdb_id: bigint
+        runtime: integer
+        budget: bigint
+        revenue: bigint
+        metascore: integer
+        rt_rating: integer
+        imdb_rating: double
+        imdb_votes: bigint
+        box_office: bigint
