@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { ExplorerProvider, useExplorer } from "@/lib/store";
+import { RecommendProvider, useRecommend } from "@/lib/recommendStore";
+import { RecommendDrawer } from "@/components/RecommendDrawer";
 import { FilterBar } from "@/components/FilterBar";
 import { SwimLaneChart } from "@/components/SwimLaneChart";
 import { ResidualScatter } from "@/components/ResidualScatter";
@@ -16,10 +18,10 @@ import type { ChartId } from "@/lib/stories";
 
 function Explorer() {
   const { loading, storyFocus } = useExplorer();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const { state: recState } = useRecommend();
+  const [drawerOpenRaw, setDrawerOpen] = useState(false);
+  const drawerOpen = drawerOpenRaw && !recState.open;
 
-  // Lock body scroll while the mobile drawer is open, and close it if the
-  // viewport grows to the desktop breakpoint (where the panel is a sidebar).
   useEffect(() => {
     if (drawerOpen) {
       document.body.style.overflow = "hidden";
@@ -176,6 +178,7 @@ function Explorer() {
           )}
         </div>
       </div>
+      <RecommendDrawer />
     </main>
   );
 }
@@ -183,7 +186,9 @@ function Explorer() {
 export default function Page() {
   return (
     <ExplorerProvider>
-      <Explorer />
+      <RecommendProvider>
+        <Explorer />
+      </RecommendProvider>
     </ExplorerProvider>
   );
 }
