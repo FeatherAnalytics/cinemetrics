@@ -172,10 +172,7 @@ export function CountryBars() {
         <div
           className="pointer-events-none absolute z-10 whitespace-nowrap rounded-md px-2 py-1 text-xs shadow"
           style={{
-            left: `${Math.min(
-              80,
-              Math.max(12, ((LABEL_W + (hoverRow.count / maxCount) * BAR_W) / WIDTH) * 100),
-            )}%`,
+            left: `${(LABEL_W / WIDTH) * 100}%`,
             top: `${((20 + hoverIdx * (BAR_H + GAP) + BAR_H / 2) / HEIGHT) * 100}%`,
             transform: "translate(-50%, -150%)",
             background: INK.primary,
@@ -183,13 +180,7 @@ export function CountryBars() {
           }}
         >
           <span className="font-medium">{countryName(hoverRow.iso)}</span>
-          <span style={{ color: "#c3c2b7" }}>
-            {" "}
-            · {hoverRow.count} film{hoverRow.count === 1 ? "" : "s"} · mostly {hoverRow.genre}
-            {hoverRow.residual != null
-              ? ` · I rate ${fmtResidual(hoverRow.residual)} vs predicted`
-              : ""}
-          </span>
+          <span style={{ color: "#c3c2b7" }}> · mostly {hoverRow.genre}</span>
         </div>
       )}
     </figure>
