@@ -1,35 +1,6 @@
-"""Cosine similarity search and rating prediction."""
+"""Cosine similarity search and embedding export."""
 
 import numpy as np
-from sklearn.linear_model import Ridge
-
-
-class RatingPredictor:
-    """Ridge regression: embedding → predicted rating (0-100)."""
-
-    def __init__(self) -> None:
-        self._model = Ridge(alpha=1.0)
-        self._fitted = False
-
-    def fit(
-        self,
-        matrix: np.ndarray,
-        ids: list[int],
-        ratings: dict[int, float],
-    ) -> None:
-        mask = [i for i, tid in enumerate(ids) if tid in ratings]
-        if not mask:
-            raise ValueError("No rated films found in matrix")
-        X = matrix[mask]
-        y = np.array([ratings[ids[i]] for i in mask])
-        self._model.fit(X, y)
-        self._fitted = True
-
-    def predict(self, matrix: np.ndarray) -> list[float]:
-        if not self._fitted:
-            raise RuntimeError("Call fit first")
-        raw = self._model.predict(matrix)
-        return [float(np.clip(p, 0, 100)) for p in raw]
 
 
 def _clean(val: object) -> object:

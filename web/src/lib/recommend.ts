@@ -22,8 +22,7 @@ export type EmbeddingData = {
 
 export type Recommendation = {
   tmdb_id: number;
-  similarity: number;
-  predictedRating: number;
+  score: number; // cosine similarity (0-1)
   metadata: CandidateMetadata;
 };
 
@@ -49,7 +48,6 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 export function topNSimilar(
   sourceTmdbId: number,
   data: EmbeddingData,
-  predictions: Record<number, number>,
   n: number,
   excludeIds: Set<number>,
 ): Recommendation[] {
@@ -64,13 +62,12 @@ export function topNSimilar(
     if (!meta) continue;
     scored.push({
       tmdb_id: id,
-      similarity: cosineSimilarity(sourceVec, vec),
-      predictedRating: predictions[id] ?? 0,
+      score: cosineSimilarity(sourceVec, vec),
       metadata: meta,
     });
   }
 
-  scored.sort((a, b) => b.similarity - a.similarity);
+  scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, n);
 }
 
@@ -94,19 +91,15 @@ export function filterRecommendations(
   });
 }
 
-let _cache: { data: EmbeddingData; predictions: Record<number, number> } | null = null;
+let _cache: { data: EmbeddingData } | null = null;
 
 export async function loadEmbeddings(
   r2Url: string,
-): Promise<{ data: EmbeddingData; predictions: Record<number, number> }> {
+): Promise<{ data: EmbeddingData }> {
   if (_cache) return _cache;
-  const [embRes, predRes] = await Promise.all([
-    fetch(`${r2Url}/embeddings.json`, { cache: "no-store" }),
-    fetch(`${r2Url}/predictions.json`, { cache: "no-store" }),
-  ]);
-  if (!embRes.ok || !predRes.ok) throw new Error("Failed to load embeddings");
+  const embRes = await fetch(`${r2Url}/embeddings.json`, { cache: "no-store" });
+  if (!embRes.ok) throw new Error("Failed to load embeddings");
   const data: EmbeddingData = await embRes.json();
-  const predictions: Record<number, number> = await predRes.json();
-  _cache = { data, predictions };
+  _cache = { data };
   return _cache;
 }

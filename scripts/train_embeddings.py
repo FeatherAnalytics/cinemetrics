@@ -1,8 +1,7 @@
 """Train film embeddings and export for the recommendation engine.
 
 Loads rated films from dim_film and candidates from dim_candidate,
-encodes features, trains a rating predictor, and exports embeddings.json
-and predictions.json for upload to R2.
+encodes features, and exports embeddings.json for upload to R2.
 
 Skips training if source data hasn't changed (hash check).
 """
@@ -16,7 +15,7 @@ import duckdb
 
 from recommend import ROOT, SEEDS_DIR
 from recommend.encode import FeatureEncoder
-from recommend.model import RatingPredictor, build_embeddings_export
+from recommend.model import build_embeddings_export
 
 DB = ROOT / "data" / "movies.duckdb"
 OUT_DIR = ROOT / "data" / "ml"
@@ -114,26 +113,18 @@ def main(force: bool = False) -> None:
     matrix = encoder.fit_transform(all_films)
     ids = [f["tmdb_id"] for f in all_films]
 
-    print("training rating predictor...")
-    predictor = RatingPredictor()
-    predictor.fit(matrix, ids, ratings)
-    predicted = predictor.predict(matrix)
-    predictions = {tid: round(p, 1) for tid, p in zip(ids, predicted, strict=False)}
-
     print("building export...")
     export = build_embeddings_export(matrix, ids, all_films)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     emb_path = OUT_DIR / "embeddings.json"
-    pred_path = OUT_DIR / "predictions.json"
 
     emb_path.write_text(json.dumps(export), encoding="utf-8")
-    pred_path.write_text(json.dumps(predictions), encoding="utf-8")
 
     LAST_TRAIN.write_text(_data_hash(), encoding="utf-8")
 
     emb_kb = emb_path.stat().st_size / 1024
-    print(f"wrote {emb_path.name} ({emb_kb:.0f} KB), {pred_path.name}")
+    print(f"wrote {emb_path.name} ({emb_kb:.0f} KB)")
     print(f"embeddings: {matrix.shape[1]} dimensions, {len(ids)} films")
 
 
