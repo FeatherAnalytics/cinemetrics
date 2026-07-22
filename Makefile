@@ -10,6 +10,7 @@ dev:
 build:
 	cd transform && uv run dbt build --profiles-dir .
 	uv run python scripts/export_web.py
+	uv run python scripts/train_embeddings.py
 	cd web && npm run build
 
 test:
@@ -28,9 +29,22 @@ export:
 ingest:
 	uv run python -m ingest.tmdb
 	uv run python -m ingest.omdb
+	uv run python scripts/fetch_candidates.py
 
 update:
 	uv run python scripts/update.py
+
+candidates:
+	uv run python scripts/fetch_candidates.py
+
+train:
+	uv run python scripts/train_embeddings.py
+
+retrain:
+	uv run python scripts/train_embeddings.py --force
+
+upload:
+	uv run python scripts/upload_r2.py
 
 clean:
 	rm -rf transform/target web/out web/.next __pycache__

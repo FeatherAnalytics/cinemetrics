@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useExplorer } from "@/lib/store";
+import { useRecommend } from "@/lib/recommendStore";
 import { GENRE_COLORS, GENRE_KEYS, type GenreKey } from "@/lib/palette";
 import { RangeSlider } from "./RangeSlider";
 import type { TextField } from "@/lib/store";
@@ -59,6 +60,7 @@ export function FilterBar() {
     activeStory,
     setStory,
   } = useExplorer();
+  const { dispatch: recDispatch } = useRecommend();
   const [wLo, wHi] = filters.yearRange ?? yearBounds;
   const [rLo, rHi] = filters.releaseYearRange ?? releaseYearBounds;
 
@@ -82,6 +84,17 @@ export function FilterBar() {
             </option>
           ))}
         </select>
+      </FieldGroup>
+
+      <FieldGroup label="discover">
+        <button
+          onClick={() => recDispatch({ type: "OPEN_RECOMMEND" })}
+          className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[#f7f6f3] transition"
+          style={{ background: "#7b2cbf" }}
+        >
+          <span aria-hidden>🎲</span>
+          <span>Recommend</span>
+        </button>
       </FieldGroup>
 
       {/* Search */}

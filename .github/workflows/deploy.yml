@@ -30,6 +30,7 @@ jobs:
         working-directory: web
         env:
           NEXT_PUBLIC_BASE_PATH: /cinemetrics
+          NEXT_PUBLIC_R2_URL: https://pub-bae843ba963040f3a245bf2b7b1ac0b6.r2.dev
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/out

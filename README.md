@@ -1,28 +1,22 @@
 # cinemetrics
 
-An analytics pipeline over several years of my personal film-watching data. It takes my
+An end-to-end analytics pipeline over seven years of personal film-watching data. It takes my
 Letterboxd ratings, enriches them via the TMDB and OMDb APIs, models them with dbt in DuckDB,
-and answers questions about how and what I watch — in an interactive dashboard.
+and surfaces the results in an interactive dashboard — including an ML-powered recommendation
+engine that suggests what to watch next.
 
-**Live:** https://www.featheranalytics.dev/cinemetrics/
+**Live:** [featheranalytics.dev/cinemetrics](https://featheranalytics.dev/cinemetrics)
 
-Stack: Python, DuckDB, dbt, TMDB + OMDb APIs, Next.js. Deployed to GitHub Pages and refreshed
-daily from my Letterboxd feed.
+Stack: Python, DuckDB, dbt, scikit-learn, TMDB + OMDb APIs, Next.js, Cloudflare R2.
 
-## What the dashboard shows
+## What it does
 
-- **When I watch** — every watch on year-by-year swim lanes (Jan → Dec); higher dots = higher ratings.
-- **Where I align and deviate** — each film as my rating vs. critics, against a diagonal of perfect
-  agreement; above the line I rated higher than expected, below I rated lower.
-- **Where my taste deviates** — after controlling for critic scores, the keywords I systematically
-  rate higher or lower than predicted.
-- **Where they come from** — a world map shaded by production count and my most-watched genre.
-- **How my taste settles** — my rolling 10-watch average rating as small multiples, grouped by
-  genre, language, country, runtime, release decade, or content rating.
-- **Rewatches** — each film I return to, its ratings tracked over time.
-
-Everything cross-filters, with a live stat bar and guided "story" presets. Brush (drag) any chart —
-or click a country / keyword — to pull the matching films into a table (linked to Letterboxd).
+- Cross-filtered dashboard: every chart responds to every filter in real time.
+- Viewing habits over time — pace, seasonality, genre drift.
+- Taste alignment with critics (Metascore, Rotten Tomatoes, IMDb).
+- Rewatch patterns and rating changes.
+- ML recommendation engine: "Recommend a film" (weighted random from predicted taste),
+  with EN/Non-EN toggle, dashboard filter integration, and explainable results ("Why this film").
 
 ## How it fits together
 
@@ -30,48 +24,56 @@ or click a country / keyword — to pull the matching films into a table (linked
 Letterboxd (ratings log)   ─┐
 TMDB   (genres, keywords)  ─┼─► seeds ─► dbt (staging → marts) ─► export ─► dashboard
 OMDb   (critic scores)     ─┘
+                                  │
+                            candidate pool ─► scikit-learn (embeddings + Ridge predictor)
+                                  │
+                            Cloudflare R2 ─► browser (cosine similarity, client-side)
 ```
 
-- **seeds**: two committed files — `film_log.csv` (the ratings log) and `film_enrichment.csv`
-  (per-film attributes from TMDB + OMDb, keyed by TMDB id).
-- **staging**: cleaned, typed views over the seeds.
-- **marts**: analysis-ready tables — `dim_film` (one row per film) and `fct_watches`
-  (one row per watch).
-- New watches are appended daily from the Letterboxd RSS feed.
+- **Seeds**: committed CSVs — `film_log.csv` (watch history), `film_enrichment.csv` (rated films),
+  `candidate_enrichment.csv` (recommendation pool from TMDB similar + popular).
+- **Staging**: cleaned, typed views over the seeds.
+- **Marts**: `dim_film`, `fct_watches`, `dim_candidate`.
+- **ML pipeline**: TF-IDF + multi-hot feature encoding → Ridge regression rating predictor →
+  cosine similarity. Pre-computed at build time, served from R2, similarity math runs client-side.
+- **Auto-updates**: daily GitHub Action fetches Letterboxd RSS, enriches new films, retrains
+  if data changed, uploads to R2, deploys.
 
 ## Layout
 
 ```
+recommend/  Python: ML pipeline (feature encoding, model, explainability)
 ingest/     Python: TMDB + OMDb enrichment
 transform/  dbt project (seeds → staging → marts)
-scripts/    export marts to the app's JSON
-web/        Next.js dashboard
-data/       movies.duckdb (gitignored)
+scripts/    export, candidate fetch, training, R2 upload
+tests/      pytest: encoding, model, explainability
+web/        Next.js dashboard + recommendation drawer
+data/       movies.duckdb, ml/ (gitignored)
 ```
-
-## Data sources
-
-See [data/README.md](data/README.md). In short: Letterboxd for the watch log, TMDB for
-genres/keywords/runtime/budget/revenue/language/collection, and OMDb for critic scores, box
-office, and cast. Films are keyed by TMDB id, with IMDb id kept as a secondary identifier.
 
 ## Setup
 
+```bash
+make setup                # install Python (uv) + Node dependencies
+cp .env.example .env      # add your TMDB, OMDb, and R2 keys
+make build                # full pipeline: dbt → export → train → web build
+make dev                  # start Next.js dev server at localhost:3000
 ```
-uv sync              # install Python + dependencies
-cp .env.example .env # then add your TMDB + OMDb keys
-cd transform && uv run dbt build --profiles-dir .   # build the marts from the seeds
-```
 
-## Deployment
+### Commands
 
-- Static export hosted on **GitHub Pages** at https://www.featheranalytics.dev/cinemetrics/.
-- A daily GitHub Action pulls new Letterboxd watches, enriches them, rebuilds, and redeploys.
+| Command | What it does |
+|---------|-------------|
+| `make build` | Full pipeline: dbt build → export JSON → train embeddings → web build |
+| `make dev` | Start Next.js dev server |
+| `make test` | Run all tests: ruff + eslint + dbt + vitest |
+| `make candidates` | Fetch candidate films from TMDB (similar + popular) |
+| `make train` | Train embeddings + rating predictor (skips if data unchanged) |
+| `make retrain` | Force retrain regardless of data changes |
+| `make upload` | Upload embeddings to Cloudflare R2 |
+| `make update` | Auto-update from Letterboxd RSS |
 
-## Roadmap
+## Data sources
 
-- [x] Data model: consolidated ratings log + TMDB/OMDb enrichment, dbt marts, tests
-- [x] Dashboard: swim lanes, critic-agreement scatter, keyword residuals, world map,
-      rolling-average small multiples, and rewatches — all cross-filtered, with brush-to-select
-- [x] Automated daily updates from the Letterboxd RSS feed
-- [x] Deploy to GitHub Pages
+Letterboxd for the watch log, TMDB for genres/keywords/runtime/budget/revenue/similar films,
+OMDb for critic scores, box office, and cast. Primary key: `tmdb_id`.

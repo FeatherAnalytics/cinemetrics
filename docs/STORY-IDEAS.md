@@ -197,24 +197,10 @@ Two new charts, replacing/augmenting the contrarian section:
 
 Both integrate with existing filter/brush/selection system. No new dependencies.
 
-### Phase 3: Replace Spiral with Swim Lanes
+### Phase 3: Replace Spiral with Swim Lanes ✅ DONE
 
-Current spiral chart has a lie factor — outer loops (recent years) have larger circumference
-than inner loops (older years), making older years look denser even at equal watch rate.
-
-Replace with swim lane chart:
-- One horizontal row per year, months run left to right (Jan → Dec)
-- All rows equal width — honest representation
-- Dots placed by day within their month
-- Rating encodes vertical offset within the lane (higher = higher rating)
-- Genre-colored dots, same palette
-- Same interactions: click, brush, hover tooltip
-- Seasonal patterns (Spooktober, binge months) more visible than in spiral
-- Partial years (2026) naturally look partial, not artificially sparse
-
-Alternatives explored and deferred:
-- Small multiple circles (visually interesting but less readable)
-- Compensated spiral (sqrt-scaled ring widths — didn't solve legibility)
+Completed 2026-07-21. Swim lane chart (`SwimLaneChart.tsx`) replaced the spiral.
+Equal-width rows per year, rating as vertical offset, all interactions preserved.
 - Unrolled spiral (diagonal layout wastes space)
 
 ### Tech Stack

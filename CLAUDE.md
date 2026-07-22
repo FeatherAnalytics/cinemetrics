@@ -4,7 +4,8 @@ Personal film analytics pipeline: Letterboxd watch history → dbt/DuckDB → Ne
 
 ## Git
 
-- **Commits**: Conventional format (`feat:`, `fix:`, `data:`, `docs:`, `refactor:`, `test:`). 
+- **Account**: All git/GitHub operations use the `FeatherAnalytics` GitHub account. Check `gh auth status` before any git command and switch if needed: `gh auth switch --user FeatherAnalytics`. Switch back to `dhardage-apex` when done.
+- **Commits**: Conventional format (`feat:`, `fix:`, `data:`, `docs:`, `refactor:`, `test:`). Use the `/commit` skill.
 - **Branches**: Feature branches only; no direct commits to main (except automated data updates).
 
 ## Tech Stack
