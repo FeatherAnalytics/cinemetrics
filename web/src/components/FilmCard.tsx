@@ -20,14 +20,21 @@ function LetterboxdIcon({ size = 14 }: { size?: number }) {
   );
 }
 
-function letterboxdSlug(title: string, year: number | null): string {
-  const base = title
+function letterboxdSlug(title: string): string {
+  return title
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
-  return year ? `${base}-${year}` : base;
+}
+
+// Letterboxd resolves /imdb/{id}/ to the correct film page via redirect, which
+// avoids guessing the slug (its slugs only append the year for disambiguation).
+// Fall back to a title slug for the rare film with no imdb_id.
+function letterboxdUrl(m: CandidateMetadata): string {
+  if (m.imdb_id) return `https://letterboxd.com/imdb/${m.imdb_id}/`;
+  return `https://letterboxd.com/film/${letterboxdSlug(m.title)}/`;
 }
 
 export function FilmCard({ metadata, score, reasons }: Props) {
@@ -35,7 +42,7 @@ export function FilmCard({ metadata, score, reasons }: Props) {
   const genres = m.genres ? m.genres.split(", ").filter(Boolean) : [];
   const isEnglish = m.language === "en";
   const langLabel = isEnglish ? "EN" : (m.language || "").toUpperCase();
-  const slug = letterboxdSlug(m.title, m.year);
+  const filmUrl = letterboxdUrl(m);
 
   const runtimeStr = m.runtime ? `${Math.floor(m.runtime / 60)}h ${m.runtime % 60}m` : null;
 
@@ -50,7 +57,7 @@ export function FilmCard({ metadata, score, reasons }: Props) {
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-semibold text-white">{m.title}</span>
               <a
-                href={`https://letterboxd.com/film/${slug}/`}
+                href={filmUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 title="View on Letterboxd"
