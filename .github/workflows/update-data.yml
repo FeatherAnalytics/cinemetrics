@@ -33,12 +33,31 @@ jobs:
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: Fetch candidates
+        if: steps.diff.outputs.changed == 'true'
+        run: uv run python scripts/fetch_candidates.py
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
+      - name: Build dbt
+        if: steps.diff.outputs.changed == 'true'
+        run: cd transform && uv run dbt build --profiles-dir .
+      - name: Train embeddings
+        if: steps.diff.outputs.changed == 'true'
+        run: uv run python scripts/train_embeddings.py
+      - name: Upload to R2
+        if: steps.diff.outputs.changed == 'true'
+        run: uv run python scripts/upload_r2.py
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
       - name: Commit and push
         if: steps.diff.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add transform/seeds/film_log.csv transform/seeds/film_enrichment.csv web/public/data/cinemetrics.json
+          git add transform/seeds/film_log.csv transform/seeds/film_enrichment.csv transform/seeds/candidate_enrichment.csv web/public/data/cinemetrics.json
           git commit -m "data: update from Letterboxd RSS"
           git push
       - name: Trigger deploy
