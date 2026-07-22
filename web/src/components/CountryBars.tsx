@@ -42,11 +42,8 @@ export function CountryBars() {
 
   const handleRow = (row: CountryRow) => setCountry(row.iso);
 
-  const hoverIdx = hover == null ? -1 : agg.rows.findIndex((r) => r.iso === hover);
-  const hoverRow = hoverIdx >= 0 ? agg.rows[hoverIdx] : null;
-
   return (
-    <figure className="relative m-0">
+    <figure className="m-0">
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
@@ -165,24 +162,6 @@ export function CountryBars() {
           </text>
         )}
       </svg>
-
-      {/* HTML tooltip: auto-sizes to its text and always sits above the svg,
-          so it can't be undersized or painted over by later bars. */}
-      {hoverRow && (
-        <div
-          className="pointer-events-none absolute z-10 whitespace-nowrap rounded-md px-2 py-1 text-xs shadow"
-          style={{
-            left: `${(LABEL_W / WIDTH) * 100}%`,
-            top: `${((20 + hoverIdx * (BAR_H + GAP) + BAR_H / 2) / HEIGHT) * 100}%`,
-            transform: "translate(-50%, -150%)",
-            background: INK.primary,
-            color: INK.surface,
-          }}
-        >
-          <span className="font-medium">{countryName(hoverRow.iso)}</span>
-          <span style={{ color: "#c3c2b7" }}> · mostly {hoverRow.genre}</span>
-        </div>
-      )}
     </figure>
   );
 }
