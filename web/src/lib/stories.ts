@@ -66,8 +66,8 @@ function computeSpooktober(films: Film[], watches: EnrichedWatch[]): StoryResult
     rollingDimension: "genre",
     monthFocus: 9,
     notes: {
-      spiral: "The tenth column lights up — horror clusters into October year after year.",
-      rolling: "Horror's rolling line rides its own path against my overall average.",
+      spiral: "The tenth column lights up. Horror packs into October year after year.",
+      rolling: "Horror rates just below my overall average, yet it's still what I watch most.",
     },
   };
 }
@@ -111,7 +111,7 @@ function computeHiddenGems(films: Film[], watches: EnrichedWatch[]): StoryResult
     chip: "Hidden gems",
     selection,
     notes: {
-      contrarian: "The highlighted films sit far right — I rate them well above the small crowd that saw them.",
+      contrarian: "The highlighted films sit far right: I rate them well above the small crowd that saw them.",
       spiral: "Highlighted dots are films almost no one else logged.",
     },
   };
@@ -154,7 +154,7 @@ function computeGenreContrarian(films: Film[], watches: EnrichedWatch[]): StoryR
     filters: { genres: new Set([top.genre]) },
     rollingDimension: "genre",
     notes: {
-      contrarian: `${top.genre} sits furthest from the critics' line — ${absDelta} points ${direction} it.`,
+      contrarian: `${top.genre} sits furthest from the critics' line, ${absDelta} points ${direction} it.`,
       rolling: `Watch ${top.genre}'s line ride ${direction} my overall baseline.`,
     },
   };
@@ -189,7 +189,7 @@ function computeRuntime(films: Film[], watches: EnrichedWatch[]): StoryResult {
     chip: "The longer, the better",
     selection: new Set(longWatches.map(watchKey)),
     notes: {
-      spiral: "The highlighted films run 150 minutes or more — they sit high in nearly every year band.",
+      spiral: "The highlighted films all run 150 minutes or more. They sit high in nearly every year band.",
       contrarian: "Critics barely reward length. I do: the long films skew right of the model here.",
     },
   };
@@ -223,7 +223,7 @@ function computePickier(films: Film[], watches: EnrichedWatch[]): StoryResult {
     headline,
     chip: "Getting pickier",
     notes: {
-      stripes: "Recent stripes lean crimson — higher scores, packed into fewer films per year.",
+      stripes: "Recent stripes lean crimson: higher scores across fewer films each year.",
       spiral: "The later year-rows average higher than the early ones.",
       rolling: "My overall average drifts up as the yearly pace slows.",
     },
