@@ -59,7 +59,7 @@ def explain_recommendation(
     if best_genre_name and best_genre_boost > 0:
         reasons.append({
             "type": "genre",
-            "text": f"You rate {best_genre_name} +{int(best_genre_boost)} above avg",
+            "text": f"I rate {best_genre_name} +{int(best_genre_boost)} above avg",
             "score": best_genre_boost,
         })
 

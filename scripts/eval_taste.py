@@ -72,13 +72,10 @@ def main() -> None:
     res = cross_validate_knn(X, y, k=best_k, n_splits=5, seed=42)
     print(f"k-NN embedding (k={best_k:>2})      MAE={res['mae']:5.2f}   R^2={res['r2']:6.3f}")
 
-    verdict = "beats" if res["mae"] < crit_preds_mae(crit_preds, y) else "loses to"
+    crit_mae = float(np.mean(np.abs(crit_preds - y)))
+    verdict = "beats" if res["mae"] < crit_mae else "loses to"
     print(f"\nk-NN {verdict} critics-only. "
           f"{'Consider shipping.' if verdict == 'beats' else 'Do not ship a taste panel.'}")
-
-
-def crit_preds_mae(preds: np.ndarray, y: np.ndarray) -> float:
-    return float(np.mean(np.abs(preds - y)))
 
 
 if __name__ == "__main__":

@@ -221,6 +221,10 @@ export function RecommendDrawer() {
             </button>
           </div>
 
+          <p className="mb-3 text-[11px]" style={{ color: INK.muted }}>
+            Based on my ratings and taste.
+          </p>
+
           <div className="mb-3 flex flex-wrap gap-2">
             <button
               onClick={() =>

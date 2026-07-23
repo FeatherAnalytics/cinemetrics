@@ -1,11 +1,11 @@
 """Tests for the similarity-weighted k-NN taste predictor."""
 
 import numpy as np
+import pytest
 
 from recommend.taste import (
     cross_validate_knn,
     knn_predict,
-    predict_all,
     select_k,
 )
 
@@ -65,6 +65,10 @@ class TestCrossValidate:
         assert res["n"] == 60
         assert res["k"] == 5
 
+    def test_raises_on_fewer_than_two_samples(self):
+        with pytest.raises(ValueError):
+            cross_validate_knn(np.zeros((1, 3)), np.array([50.0]), k=1)
+
 
 class TestSelectK:
     def test_returns_candidate_with_lowest_cv_mae(self):
@@ -75,14 +79,3 @@ class TestSelectK:
         best_k, scores = select_k(X, ratings, ks=(5, 10, 20), n_splits=5, seed=42)
         assert best_k in (5, 10, 20)
         assert scores[best_k] == min(scores.values())
-
-
-class TestPredictAll:
-    def test_leave_one_out_excludes_self(self):
-        # Identical vectors, different ratings -> each predicts the other's rating.
-        X = np.array([[1.0, 0.0], [1.0, 0.0]])
-        ratings = np.array([80.0, 60.0])
-        ids = [1, 2]
-        preds = predict_all(X, ratings, ids, k=1)
-        assert abs(preds[1] - 60.0) < 1e-6
-        assert abs(preds[2] - 80.0) < 1e-6

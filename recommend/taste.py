@@ -19,17 +19,14 @@ are cross-validated against the predict-the-mean baseline before being trusted.
 import numpy as np
 from sklearn.model_selection import KFold
 
-MIN_RATED = 30
 DEFAULT_KS = (5, 10, 15, 20, 30)
 _EPS = 1e-12
 
 
 def _cosine_sims(target: np.ndarray, neighbors: np.ndarray) -> np.ndarray:
-    tn = np.linalg.norm(target)
-    nn = np.linalg.norm(neighbors, axis=1)
-    denom = nn * tn
+    denom = np.linalg.norm(neighbors, axis=1) * np.linalg.norm(target)
     dots = neighbors @ target
-    return np.where(denom > _EPS, dots / (denom + _EPS), 0.0)
+    return np.divide(dots, denom, out=np.zeros_like(dots), where=denom > _EPS)
 
 
 def knn_predict(
@@ -67,6 +64,8 @@ def cross_validate_knn(
     vectors = np.asarray(vectors, dtype=float)
     ratings = np.asarray(ratings, dtype=float)
     n = len(ratings)
+    if n < 2:
+        raise ValueError(f"need at least 2 rated films for cross-validation, got {n}")
     preds = np.empty(n)
     baseline = np.empty(n)
 
@@ -101,21 +100,3 @@ def select_k(
     }
     best_k = min(scores, key=scores.get)
     return best_k, scores
-
-
-def predict_all(
-    vectors: np.ndarray,
-    ratings: np.ndarray,
-    ids: list[int],
-    k: int,
-) -> dict[int, float]:
-    """Leave-one-out predictions for every rated film (each excludes itself)."""
-    vectors = np.asarray(vectors, dtype=float)
-    ratings = np.asarray(ratings, dtype=float)
-    out: dict[int, float] = {}
-    n = len(ids)
-    for i in range(n):
-        mask = np.ones(n, dtype=bool)
-        mask[i] = False
-        out[ids[i]] = knn_predict(vectors[i], vectors[mask], ratings[mask], k)
-    return out
