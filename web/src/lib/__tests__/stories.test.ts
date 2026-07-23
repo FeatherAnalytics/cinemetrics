@@ -25,6 +25,58 @@ function makeWatch(film: Film, overrides: Partial<EnrichedWatch> = {}): Enriched
 const spooktober = STORIES.find((s) => s.id === "spooktober")!;
 const hiddenGems = STORIES.find((s) => s.id === "hidden-gems")!;
 const genreContrarian = STORIES.find((s) => s.id === "genre-contrarian")!;
+const runtime = STORIES.find((s) => s.id === "runtime")!;
+const pickier = STORIES.find((s) => s.id === "getting-pickier")!;
+
+describe("runtime", () => {
+  it("reports how much higher long films score and highlights them", () => {
+    const long1 = makeFilm({ tmdb_id: 1, runtime: 165 });
+    const long2 = makeFilm({ tmdb_id: 2, runtime: 152 });
+    const short1 = makeFilm({ tmdb_id: 3, runtime: 82 });
+    const short2 = makeFilm({ tmdb_id: 4, runtime: 78 });
+    const watches = [
+      makeWatch(long1, { tmdb_id: 1, rating: 92, date: "2023-01-01" }),
+      makeWatch(long2, { tmdb_id: 2, rating: 88, date: "2023-02-01" }),
+      makeWatch(short1, { tmdb_id: 3, rating: 60, date: "2023-03-01" }),
+      makeWatch(short2, { tmdb_id: 4, rating: 64, date: "2023-04-01" }),
+    ];
+    const result = runtime.compute([long1, long2, short1, short2], watches);
+    expect(result.headline).toMatch(/min\+/);
+    expect(result.headline).toMatch(/above/);
+    expect(result.notes).toBeDefined();
+    expect(Object.keys(result.notes!).length).toBeGreaterThan(0);
+    // Long films highlighted so they read as clustering high.
+    expect(result.selection!.size).toBe(2);
+  });
+
+  it("degrades when a runtime bucket is empty", () => {
+    const only = makeFilm({ tmdb_id: 1, runtime: 100 });
+    const result = runtime.compute([only], [makeWatch(only, { tmdb_id: 1, rating: 70 })]);
+    expect(result.headline).toBeTruthy();
+    expect(result.selection).toBeUndefined();
+  });
+});
+
+describe("getting-pickier", () => {
+  it("reports fewer watches at a higher average over time", () => {
+    const films: Film[] = [];
+    const watches: EnrichedWatch[] = [];
+    for (let i = 0; i < 8; i++) {
+      const f = makeFilm({ tmdb_id: 100 + i });
+      films.push(f);
+      watches.push(makeWatch(f, { tmdb_id: f.tmdb_id, rating: 62, date: `2019-0${(i % 8) + 1}-10` }));
+    }
+    for (let i = 0; i < 3; i++) {
+      const f = makeFilm({ tmdb_id: 200 + i });
+      films.push(f);
+      watches.push(makeWatch(f, { tmdb_id: f.tmdb_id, rating: 85, date: `2026-0${i + 1}-10` }));
+    }
+    const result = pickier.compute(films, watches);
+    expect(result.headline).toBeTruthy();
+    expect(result.notes).toBeDefined();
+    expect(Object.keys(result.notes!).length).toBeGreaterThan(0);
+  });
+});
 
 describe("spooktober", () => {
   it("focuses horror in October when any October horror exists", () => {

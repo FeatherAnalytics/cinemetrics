@@ -19,6 +19,18 @@ export type StoryFocus = {
   dim: ChartId[];
 };
 
+// Display titles per chart — kept in sync with the section headings in page.tsx.
+// Used to label story notes in the story panel.
+export const CHART_TITLES: Record<ChartId, string> = {
+  spiral: "When I watch",
+  contrarian: "Me versus the critics",
+  keywords: "The keywords that give me away",
+  countries: "What travels well",
+  stripes: "Streaks and slumps",
+  rolling: "Warming up or wearing out",
+  rewatch: "Second thoughts",
+};
+
 export type StoryResult = {
   headline: string; // the finding, shown as the annotation on the primary chart
   chip?: string; // short label for the invitation chip (falls back to the story label)
@@ -28,6 +40,9 @@ export type StoryResult = {
   extras?: ReactNode;
   rollingDimension?: string;
   monthFocus?: number; // 0–11: the swim lane spotlights this month, dims the rest
+  // Per-chart prose tying the story to what each relevant chart shows. Rendered
+  // in the right-hand story panel (desktop) and inline under each chart (mobile).
+  notes?: Partial<Record<ChartId, string>>;
 };
 
 export type StoryConfig = {
@@ -50,6 +65,10 @@ function computeSpooktober(films: Film[], watches: EnrichedWatch[]): StoryResult
     filters: { genres: new Set(["Horror"]) },
     rollingDimension: "genre",
     monthFocus: 9,
+    notes: {
+      spiral: "The tenth column lights up — horror clusters into October year after year.",
+      rolling: "Horror's rolling line rides its own path against my overall average.",
+    },
   };
 }
 
@@ -91,6 +110,10 @@ function computeHiddenGems(films: Film[], watches: EnrichedWatch[]): StoryResult
     headline: `Hidden gem: ${gems[0].film.title}`,
     chip: "Hidden gems",
     selection,
+    notes: {
+      contrarian: "The highlighted films sit far right — I rate them well above the small crowd that saw them.",
+      spiral: "Highlighted dots are films almost no one else logged.",
+    },
   };
 }
 
@@ -130,6 +153,80 @@ function computeGenreContrarian(films: Film[], watches: EnrichedWatch[]): StoryR
     chip: top.genre === "Comedy" ? "Laugh to live" : top.genre,
     filters: { genres: new Set([top.genre]) },
     rollingDimension: "genre",
+    notes: {
+      contrarian: `${top.genre} sits furthest from the critics' line — ${absDelta} points ${direction} it.`,
+      rolling: `Watch ${top.genre}'s line ride ${direction} my overall baseline.`,
+    },
+  };
+}
+
+const LONG_MIN = 150; // minutes
+const SHORT_MAX = 90;
+
+function computeRuntime(films: Film[], watches: EnrichedWatch[]): StoryResult {
+  const longWatches: EnrichedWatch[] = [];
+  let longSum = 0;
+  let longN = 0;
+  let shortSum = 0;
+  let shortN = 0;
+  for (const w of watches) {
+    if (w.rating == null || !w.film || w.film.runtime == null) continue;
+    if (w.film.runtime >= LONG_MIN) {
+      longSum += w.rating;
+      longN += 1;
+      longWatches.push(w);
+    } else if (w.film.runtime < SHORT_MAX) {
+      shortSum += w.rating;
+      shortN += 1;
+    }
+  }
+  if (longN === 0 || shortN === 0) {
+    return { headline: "Not enough films to compare runtimes" };
+  }
+  const delta = Math.round(longSum / longN - shortSum / shortN);
+  return {
+    headline: `I rate ${LONG_MIN}-min+ films ${delta} points above sub-90s`,
+    chip: "The longer, the better",
+    selection: new Set(longWatches.map(watchKey)),
+    notes: {
+      spiral: "The highlighted films run 150 minutes or more — they sit high in nearly every year band.",
+      contrarian: "Critics barely reward length. I do: the long films skew right of the model here.",
+    },
+  };
+}
+
+function computePickier(films: Film[], watches: EnrichedWatch[]): StoryResult {
+  const byYear = new Map<number, { n: number; sum: number; rated: number }>();
+  for (const w of watches) {
+    const y = w.d.getUTCFullYear();
+    const e = byYear.get(y) ?? { n: 0, sum: 0, rated: 0 };
+    e.n += 1;
+    if (w.rating != null) {
+      e.sum += w.rating;
+      e.rated += 1;
+    }
+    byYear.set(y, e);
+  }
+  const years = [...byYear.keys()].sort((a, b) => a - b);
+  if (years.length < 2) {
+    return { headline: "Not enough years to see a trend" };
+  }
+  const first = byYear.get(years[0])!;
+  const last = byYear.get(years[years.length - 1])!;
+  const firstAvg = first.rated ? first.sum / first.rated : 0;
+  const lastAvg = last.rated ? last.sum / last.rated : 0;
+  const headline =
+    last.n < first.n && lastAvg > firstAvg
+      ? "I watch less now, but rate higher"
+      : `From ${years[0]} to ${years[years.length - 1]}, my pace and taste shifted`;
+  return {
+    headline,
+    chip: "Getting pickier",
+    notes: {
+      stripes: "Recent stripes lean crimson — higher scores, packed into fewer films per year.",
+      spiral: "The later year-rows average higher than the early ones.",
+      rolling: "My overall average drifts up as the yearly pace slows.",
+    },
   };
 }
 
@@ -151,6 +248,18 @@ export const STORIES: StoryConfig[] = [
     label: "Genre Contrarian",
     focus: { primary: "contrarian", emphasize: ["contrarian", "rolling"], dim: ["rewatch"] },
     compute: computeGenreContrarian,
+  },
+  {
+    id: "runtime",
+    label: "The longer, the better",
+    focus: { primary: "spiral", emphasize: ["spiral", "contrarian"], dim: ["countries", "keywords"] },
+    compute: computeRuntime,
+  },
+  {
+    id: "getting-pickier",
+    label: "Getting pickier",
+    focus: { primary: "stripes", emphasize: ["stripes", "spiral", "rolling"], dim: ["countries", "keywords"] },
+    compute: computePickier,
   },
 ];
 

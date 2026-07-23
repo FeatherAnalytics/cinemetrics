@@ -15,6 +15,8 @@ import { RollingRating } from "@/components/RollingRating";
 import { SelectionPanel } from "@/components/SelectionPanel";
 import { StatBar } from "@/components/StatBar";
 import { StoryAnnotation } from "@/components/StoryAnnotation";
+import { StoryChartNote } from "@/components/StoryChartNote";
+import { StoryPanel } from "@/components/StoryPanel";
 import { StoryChips } from "@/components/StoryChips";
 import { Footer } from "@/components/Footer";
 import type { ChartId } from "@/lib/stories";
@@ -234,6 +236,7 @@ function Explorer() {
               <StoryAnnotation target={id} />
               <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">{title}</h2>
               <p className={blurbClass}>{blurb}</p>
+              <StoryChartNote target={id} />
               <Chart />
             </section>
           ))}
@@ -242,6 +245,7 @@ function Explorer() {
         </div>
       </div>
       {!loading && <Footer />}
+      <StoryPanel />
       <RecommendDrawer />
     </main>
   );
