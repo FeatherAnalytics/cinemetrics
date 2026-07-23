@@ -131,8 +131,7 @@ function Explorer() {
               Each dot is a film. The predicted rating is a regression fit of my ratings on
               Metacritic, Rotten Tomatoes, and IMDB scores — the diagonal is where the
               prediction and my actual rating agree. Above = I liked it more than the critics
-              suggest; below = less. Dots are jittered a few points vertically for visibility;
-              my real ratings land on steps of ten.
+              suggest; below = less. My ratings land on steps of ten, so films line up in rows.
             </p>
             <ResidualScatter />
           </section>

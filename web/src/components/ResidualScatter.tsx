@@ -10,15 +10,6 @@ const SIZE = 600;
 const M = 48;
 const W = SIZE - 2 * M;
 
-// My ratings are quantized to tens, which stacks dots into solid stripes.
-// Spread each film ±3 rating points vertically, deterministically from its id,
-// so dots stay put across renders. Disclosed in the section caption.
-const JITTER = 3;
-function jitterOf(tmdbId: number): number {
-  const h = (tmdbId * 2654435761) % 4294967296;
-  return (h / 4294967296) * 2 * JITTER - JITTER;
-}
-
 type Dot = FilmResidual & { film: GenreKey };
 
 export function ResidualScatter() {
@@ -75,7 +66,7 @@ export function ResidualScatter() {
       const ids = new Set<number>();
       for (const d of dots) {
         const x = xScale(d.predicted);
-        const y = yScale(d.me + jitterOf(d.tmdb_id));
+        const y = yScale(d.me);
         if (rectContains(r, x, y)) ids.add(d.tmdb_id);
       }
       const keys = new Set<string>();
@@ -180,7 +171,7 @@ export function ResidualScatter() {
         {/* Dots */}
         {ordered.map((d) => {
           const x = xScale(d.predicted);
-          const y = yScale(d.me + jitterOf(d.tmdb_id));
+          const y = yScale(d.me);
           const sel = d.tmdb_id === selectedId;
           return (
             <circle
