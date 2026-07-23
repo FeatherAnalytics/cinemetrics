@@ -20,12 +20,14 @@ export type StoryFocus = {
 };
 
 export type StoryResult = {
-  headline: string;
+  headline: string; // the finding, shown as the annotation on the primary chart
+  chip?: string; // short label for the invitation chip (falls back to the story label)
   subtext?: string;
   filters?: Partial<Filters>;
   selection?: Set<string>;
   extras?: ReactNode;
   rollingDimension?: string;
+  monthFocus?: number; // 0–11: the swim lane spotlights this month, dims the rest
 };
 
 export type StoryConfig = {
@@ -59,53 +61,11 @@ function computeSpooktober(films: Film[], watches: EnrichedWatch[]): StoryResult
     return { headline: "No horror films watched in October yet" };
   }
   return {
-    headline: `Spooktober ${peakYear}: ${peakCount} horror films`,
+    headline: `October is my horror season — ${peakCount} in ${peakYear} alone`,
+    chip: "Spooktober",
     filters: { genres: new Set(["Horror"]) },
     rollingDimension: "genre",
-  };
-}
-
-function computeRatingDrift(films: Film[], watches: EnrichedWatch[]): StoryResult {
-  const byFilm = new Map<number, EnrichedWatch[]>();
-  for (const w of watches) {
-    if (w.rating != null) {
-      const arr = byFilm.get(w.tmdb_id) || [];
-      arr.push(w);
-      byFilm.set(w.tmdb_id, arr);
-    }
-  }
-
-  const drifts: Array<{ film: Film; delta: number; watches: EnrichedWatch[] }> = [];
-  for (const [, ws] of byFilm) {
-    if (ws.length < 2) continue;
-    const sorted = ws.slice().sort((a, b) => a.date.localeCompare(b.date));
-    const first = sorted[0].rating!;
-    const last = sorted[sorted.length - 1].rating!;
-    const delta = last - first;
-    const film = sorted[0].film;
-    if (!film) continue;
-    drifts.push({ film, delta, watches: ws });
-  }
-
-  drifts.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
-  const top5 = drifts.slice(0, 5);
-
-  const selection = new Set<string>();
-  for (const { watches: ws } of top5) {
-    for (const w of ws) {
-      selection.add(watchKey(w));
-    }
-  }
-
-  if (top5.length === 0) {
-    return { headline: "No rating changes on rewatches yet" };
-  }
-  const top = top5[0];
-  const sign = top.delta > 0 ? "+" : "";
-  return {
-    headline: `${top.film.title}: ${sign}${top.delta} points on rewatch`,
-    filters: { rewatch: "rewatch" as const },
-    selection,
+    monthFocus: 9,
   };
 }
 
@@ -145,6 +105,7 @@ function computeHiddenGems(films: Film[], watches: EnrichedWatch[]): StoryResult
 
   return {
     headline: `Hidden gem: ${gems[0].film.title}`,
+    chip: "Hidden gems",
     selection,
   };
 }
@@ -181,7 +142,8 @@ function computeGenreContrarian(films: Film[], watches: EnrichedWatch[]): StoryR
   const absDelta = Math.abs(top.delta).toFixed(0);
 
   return {
-    headline: `I rate ${top.genre} ${absDelta} points ${direction} Metacritic`,
+    headline: `I rate ${top.genre} ${absDelta} points ${direction} the critics`,
+    chip: top.genre,
     filters: { genres: new Set([top.genre]) },
     rollingDimension: "genre",
   };
@@ -193,12 +155,6 @@ export const STORIES: StoryConfig[] = [
     label: "Spooktober",
     focus: { primary: "spiral", emphasize: ["spiral", "rolling"], dim: ["countries"] },
     compute: computeSpooktober,
-  },
-  {
-    id: "rating-drift",
-    label: "Rating Drift",
-    focus: { primary: "rewatch", emphasize: ["rewatch", "contrarian"], dim: ["countries"] },
-    compute: computeRatingDrift,
   },
   {
     id: "hidden-gems",
@@ -213,3 +169,14 @@ export const STORIES: StoryConfig[] = [
     compute: computeGenreContrarian,
   },
 ];
+
+// All story headlines computed once from the full dataset, for the chip strip.
+export function computeStoryHeadlines(
+  films: Film[],
+  watches: EnrichedWatch[],
+): { id: string; label: string; headline: string; chip: string }[] {
+  return STORIES.map((s) => {
+    const r = s.compute(films, watches);
+    return { id: s.id, label: s.label, headline: r.headline, chip: r.chip ?? s.label };
+  });
+}

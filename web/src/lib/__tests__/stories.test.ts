@@ -23,7 +23,6 @@ function makeWatch(film: Film, overrides: Partial<EnrichedWatch> = {}): Enriched
 }
 
 const spooktober = STORIES.find((s) => s.id === "spooktober")!;
-const ratingDrift = STORIES.find((s) => s.id === "rating-drift")!;
 const hiddenGems = STORIES.find((s) => s.id === "hidden-gems")!;
 const genreContrarian = STORIES.find((s) => s.id === "genre-contrarian")!;
 
@@ -42,21 +41,6 @@ describe("spooktober", () => {
     expect(result.headline).toContain("2023");
     expect(result.headline).toContain("2");
     expect(result.filters?.genres).toBeDefined();
-  });
-});
-
-describe("rating-drift", () => {
-  it("finds film with biggest rating change on rewatch", () => {
-    const film = makeFilm({ tmdb_id: 1, title: "Drifter" });
-    const watches = [
-      makeWatch(film, { tmdb_id: 1, date: "2022-01-01", rating: 50, rewatch: false }),
-      makeWatch(film, { tmdb_id: 1, date: "2023-06-01", rating: 80, rewatch: true }),
-    ];
-    const result = ratingDrift.compute([film], watches);
-    expect(result.headline).toContain("Drifter");
-    expect(result.headline).toContain("30");
-    expect(result.selection).toBeDefined();
-    expect(result.selection!.size).toBeGreaterThan(0);
   });
 });
 

@@ -3,10 +3,9 @@
 import type { ReactNode } from "react";
 import { useExplorer } from "@/lib/store";
 import { useRecommend } from "@/lib/recommendStore";
-import { GENRE_COLORS, GENRE_KEYS, type GenreKey } from "@/lib/palette";
+import { ACCENT, GENRE_COLORS, GENRE_KEYS, type GenreKey } from "@/lib/palette";
 import { RangeSlider } from "./RangeSlider";
 import type { TextField } from "@/lib/store";
-import { STORIES } from "@/lib/stories";
 
 const REWATCH: Array<"all" | "first" | "rewatch"> = ["all", "first", "rewatch"];
 
@@ -66,25 +65,23 @@ export function FilterBar() {
 
   return (
     <div className="flex flex-col gap-4 text-sm">
-      <FieldGroup label="story">
-        <select
-          value={activeStory ?? ""}
-          onChange={(e) => setStory(e.target.value || null)}
-          className="w-full rounded-md border px-2.5 py-1 text-sm outline-none focus:border-[#c01023]"
-          style={{
-            borderColor: "rgba(11,11,11,0.2)",
-            background: "transparent",
-            color: activeStory ? "#0b0b0b" : "rgba(11,11,11,0.5)",
-          }}
+      {activeStory && (
+        <div
+          className="flex items-center justify-between rounded-md border px-2.5 py-1.5"
+          style={{ borderColor: ACCENT, background: "rgba(192,16,35,0.06)" }}
         >
-          <option value="">Free explore</option>
-          {STORIES.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-      </FieldGroup>
+          <span className="font-mono text-[10px] uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
+            story active
+          </span>
+          <button
+            onClick={() => setStory(null)}
+            className="text-xs underline underline-offset-2"
+            style={{ color: ACCENT }}
+          >
+            clear
+          </button>
+        </div>
+      )}
 
       <FieldGroup label="discover">
         <button

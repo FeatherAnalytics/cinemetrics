@@ -15,6 +15,7 @@ import { RollingRating } from "@/components/RollingRating";
 import { SelectionPanel } from "@/components/SelectionPanel";
 import { StatBar } from "@/components/StatBar";
 import { StoryAnnotation } from "@/components/StoryAnnotation";
+import { StoryChips } from "@/components/StoryChips";
 import type { ChartId } from "@/lib/stories";
 
 function Explorer() {
@@ -54,9 +55,16 @@ function Explorer() {
         <h1 className="font-display text-4xl font-bold tracking-tight text-[#0b0b0b]">
           cinemetrics<span style={{ color: "#c01023" }}>.</span>
         </h1>
-        <p className="mt-1 max-w-2xl text-sm text-[#3d3c38]">
-          Every film I&rsquo;ve logged, cross-filtered — change any control and both charts
-          move together. Click a film to trace it across them.
+        <p className="mt-2 max-w-2xl text-sm text-[#3d3c38]">
+          Seven years and 794 films, scored on my own scale and lined up against the critics.
+          A few things the numbers turned up — tap one to see it on the charts:
+        </p>
+        <div className="mt-3">
+          <StoryChips />
+        </div>
+        <p className="mt-3 max-w-2xl text-xs text-[#67655f]">
+          Or explore freely: every control cross-filters all the charts, and clicking a film
+          traces it across them.
         </p>
       </header>
 
@@ -119,8 +127,8 @@ function Explorer() {
             <StoryAnnotation target="spiral" />
             <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">When I watch</h2>
             <p className="mb-2 text-xs text-[#67655f]">
-              One row per year, January to December. Height within a row is my rating —
-              dots above the upper guide line scored 75+, dots below the lower one under 25.
+              One row per year, January to December. Height within a row is my rating.
+              Dots above the upper guide line scored 75+, dots below the lower one under 25.
             </p>
             <SwimLaneChart />
           </section>
@@ -129,7 +137,7 @@ function Explorer() {
             <StoryAnnotation target="contrarian" />
             <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Me versus the critics</h2>
             <p className="mb-2 max-w-2xl text-xs text-[#67655f]">
-              Each dot is a film, stacked by how far my rating sits from a prediction — a
+              Each dot is a film, stacked by how far my rating sits from a prediction from a
               regression fit on Metacritic, Rotten Tomatoes, and IMDB scores. Dots right of
               zero are films I liked more than the critics suggest; left, less. Click a dot to
               trace that film; drag to select a range.
@@ -141,7 +149,7 @@ function Explorer() {
             <StoryAnnotation target="keywords" />
             <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">The keywords that give me away</h2>
             <p className="mb-3 max-w-2xl text-xs text-[#67655f]">
-              After controlling for critic scores — keywords where I systematically rate
+              After controlling for critic scores, keywords where I systematically rate
               higher or lower than predicted. Click a bar to see those films.
             </p>
             <KeywordBars />
@@ -162,8 +170,8 @@ function Explorer() {
             <StoryAnnotation target="stripes" />
             <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Streaks and slumps</h2>
             <p className="mb-2 max-w-2xl text-xs text-[#67655f]">
-              Seven years of watching as a barcode: one stripe per rated watch, in order —
-              crimson when I scored it above my median, blue below, pale at par.
+              Seven years of watching as a barcode: one stripe per rated watch, in order.
+              Crimson when I scored it above my median, blue below, pale at par.
             </p>
             <StreakStripes />
           </section>
@@ -184,8 +192,8 @@ function Explorer() {
             <StoryAnnotation target="rewatch" />
             <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Second thoughts</h2>
             <p className="mb-4 max-w-2xl text-xs text-[#67655f]">
-              Films I&rsquo;ve returned to, grouped by whether coming back changed my mind —
-              biggest rating swings first. Every dot is a watch, placed left-to-right by date and
+              Films I&rsquo;ve returned to, grouped by whether coming back changed my mind.
+              Biggest rating swings first. Every dot is a watch, placed left-to-right by date and
               up-or-down by my rating; the numbers at the right of a row are my first and latest
               scores.
             </p>

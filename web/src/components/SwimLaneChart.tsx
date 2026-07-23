@@ -18,8 +18,10 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 type Pt = { w: EnrichedWatch; x: number; y: number; color: string; op: number; r: number; sel: boolean };
 
 export function SwimLaneChart() {
-  const { all, filtered, yearBounds, selectedId, setSelected, setSelection } = useExplorer();
+  const { all, filtered, yearBounds, selectedId, setSelected, setSelection, storyResult } =
+    useExplorer();
   const [hover, setHover] = useState<{ x: number; y: number; w: EnrichedWatch } | null>(null);
+  const monthFocus = storyResult?.monthFocus ?? null;
 
   const [startYear, endYear] = yearBounds;
   const nYears = Math.max(1, endYear - startYear + 1);
@@ -65,11 +67,14 @@ export function SwimLaneChart() {
     const { x, y } = place(w);
     const sel = hasSel && w.tmdb_id === selectedId;
     const rating = w.rating ?? 70;
+    // A story with a month focus spotlights that month; everything else recedes.
+    const offFocus = monthFocus != null && w.d.getUTCMonth() !== monthFocus;
     if (sel) {
       points.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op: 1, r: 5, sel: true });
     } else {
       const base = 0.35 + 0.6 * (rating / 100);
-      points.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op: hasSel ? base * 0.3 : base, r: 3.5, sel: false });
+      const op = (hasSel ? base * 0.3 : base) * (offFocus ? 0.12 : 1);
+      points.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op, r: 3.5, sel: false });
     }
   }
 
@@ -109,6 +114,18 @@ export function SwimLaneChart() {
             fill={i % 2 === 0 ? "#f7f6f3" : "white"}
           />
         ))}
+
+        {/* Month-focus spotlight band (set by a story). */}
+        {monthFocus != null && (
+          <rect
+            x={MARGIN_LEFT + (monthFocus / 12) * CHART_WIDTH}
+            y={MARGIN_TOP}
+            width={CHART_WIDTH / 12}
+            height={nYears * LANE_H}
+            fill={ACCENT}
+            fillOpacity={0.08}
+          />
+        )}
 
         {/* Rating guides: faint lines at 75 and 25 inside each lane, so the
             vertical position of a dot reads as a rating, not jitter. Thinner
