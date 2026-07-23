@@ -163,8 +163,7 @@ function Explorer() {
             <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Streaks and slumps</h2>
             <p className="mb-2 max-w-2xl text-xs text-[#67655f]">
               Seven years of watching as a barcode: one stripe per rated watch, in order —
-              crimson when I scored it above my average, blue below, pale at par. Runs of
-              colour are binges that paid off, or didn&rsquo;t.
+              crimson when I scored it above my median, blue below, pale at par.
             </p>
             <StreakStripes />
           </section>

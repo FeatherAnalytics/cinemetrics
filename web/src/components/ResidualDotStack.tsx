@@ -11,7 +11,7 @@ const ML = 16;
 const MR = 16;
 const MT = 12;
 const MB = 36;
-const BIN = 5; // residual points per column
+const BIN = 2.5; // residual points per column
 
 type Dot = FilmResidual & {
   genre: GenreKey;
@@ -25,9 +25,10 @@ export function ResidualDotStack() {
   const { filtered, byId, selectedId, setSelected, setSelection } = useExplorer();
   const [hover, setHover] = useState<Dot | null>(null);
 
-  const { dots, r2, rMax, H, baseline } = useMemo(() => {
+  const { dots, r2, rMax, H, baseline, dotR } = useMemo(() => {
     const { films, r2 } = computeResiduals(filtered, byId);
-    if (films.length === 0) return { dots: [] as Dot[], r2: 0, rMax: 25, H: 240, baseline: 200 };
+    if (films.length === 0)
+      return { dots: [] as Dot[], r2: 0, rMax: 25, H: 240, baseline: 200, dotR: 3 };
 
     let rMax = 10;
     for (const f of films) rMax = Math.max(rMax, Math.abs(f.residual));
@@ -49,31 +50,29 @@ export function ResidualDotStack() {
           a.residual - c.residual,
       );
 
-    const r = 3;
-    const cell = 2 * r + 0.8;
-    const cols = Math.max(1, Math.floor((binW - 2) / cell));
-    const maxRows = bins.reduce((m, b) => Math.max(m, Math.ceil(b.length / cols)), 1);
-    const H = MT + maxRows * cell + MB;
+    // One dot per slot, single column per bin: a stack's height IS its count.
+    const maxStack = bins.reduce((m, b) => Math.max(m, b.length), 1);
+    const r = Math.max(2.2, Math.min(3.4, binW / 2 - 0.5, 480 / (2 * maxStack)));
+    const cell = 2 * r;
+    const H = MT + maxStack * cell + MB;
     const baseline = H - MB;
 
     const dots: Dot[] = [];
     bins.forEach((b, i) => {
-      const x0 = ML + i * binW + (binW - cols * cell) / 2;
+      const cx = ML + (i + 0.5) * binW;
       b.forEach((f, k) => {
-        const col = k % cols;
-        const row = Math.floor(k / cols);
         const film = byId.get(f.tmdb_id);
         dots.push({
           ...f,
           genre: primaryGenre(film),
           title: film?.title ?? String(f.tmdb_id),
           year: film?.year ?? null,
-          cx: x0 + (col + 0.5) * cell,
-          cy: baseline - (row + 0.5) * cell,
+          cx,
+          cy: baseline - (k + 0.5) * cell,
         });
       });
     });
-    return { dots, r2, rMax, H, baseline };
+    return { dots, r2, rMax, H, baseline, dotR: r };
   }, [filtered, byId]);
 
   const { rect, handlers } = useDragRect(
@@ -143,7 +142,7 @@ export function ResidualDotStack() {
               key={d.tmdb_id}
               cx={d.cx}
               cy={d.cy}
-              r={sel ? 4.2 : 3}
+              r={sel ? dotR + 1.2 : dotR}
               fill={GENRE_COLORS[d.genre]}
               fillOpacity={sel ? 1 : hasSel ? 0.25 : 0.85}
               stroke={sel ? ACCENT : INK.surface}
