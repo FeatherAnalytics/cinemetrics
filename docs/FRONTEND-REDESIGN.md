@@ -5,6 +5,27 @@ live page, desktop + mobile). Scope is the dashboard frontend only — no pipeli
 infrastructure changes. Items are grouped into phases by dependency and impact;
 within a phase, order is flexible.
 
+## Status (2026-07-22)
+
+All four phases implemented on branch `feat/frontend-redesign` (pushed). Highlights
+and where reality diverged from the plan below:
+
+- **Phase 1 ✓** — world map archived; `CountryBars` replaces it (tooltip later removed
+  entirely per user — everything it showed is already on the chart).
+- **Phase 2 ✓** — swim-lane guides, keyword caption, rolling reference band, rewatch
+  bands. Scatter **replaced** rather than de-noised: jitter was rejected, so after a
+  three-way prototype the scatter became `ResidualDotStack` (true unit histogram) and a
+  new `StreakStripes` section was added (median baseline + month ticks).
+- **Phase 3 ✓** — `ChartTakeaway` (3 findings), finding-oriented titles, story chips
+  with short labels (Spooktober / Hidden gems / Laugh to live), narrative lede,
+  Spooktober `monthFocus`. Rating Drift story cut.
+- **Phase 4 ✓** — recommend drawer + cards restyled to the site palette; loading /
+  unavailable / no-matches states; footer colophon with pipeline + GitHub + data date.
+
+Not yet done / possible follow-ups: film-age "archive reach" stripes (deferred);
+dumbbell "biggest arguments" as a story chip (idea); OG image; verify all stories'
+selections are visible without scrolling on smaller viewports.
+
 ## Decisions log
 
 Settled during review — do not relitigate without new evidence:
