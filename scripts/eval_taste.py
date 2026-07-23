@@ -55,7 +55,10 @@ def _load() -> tuple[list[int], np.ndarray, np.ndarray, np.ndarray]:
 
 
 def _r2(y: np.ndarray, preds: np.ndarray) -> float:
-    return 1.0 - np.sum((y - preds) ** 2) / np.sum((y - y.mean()) ** 2)
+    ss_tot = float(np.sum((y - y.mean()) ** 2))
+    if ss_tot == 0:
+        return 0.0
+    return 1.0 - float(np.sum((y - preds) ** 2)) / ss_tot
 
 
 def main() -> None:

@@ -130,12 +130,32 @@ export function RecommendDrawer() {
 
   const ratedIds = useMemo(() => new Set(all.map((w) => w.tmdb_id)), [all]);
 
+  // Recommendations depend on every dashboard filter EXCEPT the brush selection,
+  // which fetchRecs never reads. Memoize on the rec-relevant fields so brushing
+  // (selection only) does not re-run the fetch or flash the skeleton.
+  const { genres, country, rewatch, title, director, actor, yearRange, releaseYearRange } =
+    dashFilters;
+  const recFilters = useMemo<Filters>(
+    () => ({
+      genres,
+      yearRange,
+      releaseYearRange,
+      rewatch,
+      title,
+      director,
+      actor,
+      country,
+      selection: null,
+    }),
+    [genres, country, rewatch, title, director, actor, yearRange, releaseYearRange],
+  );
+
   useEffect(() => {
     // No backing store configured → handled as "unavailable" at render time.
     if (!state.open || !R2_URL) return;
     let cancelled = false;
     const watches = all.map((w) => ({ tmdb_id: w.tmdb_id, rating: w.rating }));
-    fetchRecs(state, ratedIds, byId as never, watches, dashFilters)
+    fetchRecs(state, ratedIds, byId as never, watches, recFilters)
       .then((result) => {
         if (cancelled) return;
         setRecs(result.recs);
@@ -152,25 +172,22 @@ export function RecommendDrawer() {
     return () => {
       cancelled = true;
     };
-  }, [state, shuffleCount, ratedIds, all, byId, dashFilters]);
+  }, [state, shuffleCount, ratedIds, all, byId, recFilters]);
 
   // Reset to the loading state whenever a new request is kicked off, so the
   // skeleton shows instead of stale results. Done outside the effect to satisfy
-  // the react-hooks set-state-in-effect rule.
+  // the react-hooks set-state-in-effect rule. Selection is excluded here too, so
+  // a brush never flashes the skeleton.
   const [reqKey, setReqKey] = useState("");
-  // Any dashboard filter change re-runs the fetch (effect deps include
-  // dashFilters), so the loading key must track those filters too — otherwise
-  // the skeleton is skipped and stale recs linger. Brush selection is excluded:
-  // it changes rapidly and should not flash a skeleton.
   const dashSig = [
-    [...dashFilters.genres].sort().join(","),
-    dashFilters.country,
-    dashFilters.rewatch,
-    dashFilters.title,
-    dashFilters.director,
-    dashFilters.actor,
-    dashFilters.yearRange?.join("-") ?? "",
-    dashFilters.releaseYearRange?.join("-") ?? "",
+    [...genres].sort().join(","),
+    country,
+    rewatch,
+    title,
+    director,
+    actor,
+    yearRange?.join("-") ?? "",
+    releaseYearRange?.join("-") ?? "",
   ].join("|");
   const currentKey = `${state.mode}:${state.sourceTmdbId}:${state.genre}:${state.filters.language}:${shuffleCount}:${dashSig}`;
   if (state.open && R2_URL && currentKey !== reqKey) {
