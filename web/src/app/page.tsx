@@ -151,7 +151,7 @@ function Explorer() {
             <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">The keywords that give me away</h2>
             <p className="mb-3 max-w-2xl text-xs text-[#67655f]">
               After controlling for critic scores, keywords where I systematically rate
-              higher or lower than predicted. Click a bar to see those films.
+              higher or lower than critics predict. Click a bar to see those films.
             </p>
             <KeywordBars />
           </section>

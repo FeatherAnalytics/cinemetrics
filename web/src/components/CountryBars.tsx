@@ -80,7 +80,7 @@ export function CountryBars() {
           textAnchor="end"
           fontFamily="var(--font-mono)"
         >
-          ME − PREDICTED
+          ME − CRITIC EST.
         </text>
 
         {agg.rows.map((row, i) => {
@@ -175,7 +175,7 @@ export function CountryBars() {
       {strongest && (
         <ChartTakeaway>
           {agg.totalCountries} countries · I rate {countryName(strongest.iso)}{" "}
-          {fmtResidual(strongest.residual!)} vs predicted
+          {fmtResidual(strongest.residual!)} vs critic est.
         </ChartTakeaway>
       )}
     </figure>

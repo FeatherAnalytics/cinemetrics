@@ -130,7 +130,7 @@ export function ResidualDotStack() {
           strokeDasharray="4 4"
         />
         <text x={ML} y={baseline + 30} fill={INK.muted} fontSize={11} textAnchor="start">
-          ← I liked it less than predicted
+          ← I liked it less than critics
         </text>
         <text x={W - MR} y={baseline + 30} fill={INK.muted} fontSize={11} textAnchor="end">
           I liked it more →
@@ -190,7 +190,7 @@ export function ResidualDotStack() {
             {hover.year != null ? ` (${hover.year})` : ""}
           </div>
           <div style={{ color: "#c3c2b7" }}>
-            Me {Math.round(hover.me)} · Predicted {Math.round(hover.predicted)} (
+            Me {Math.round(hover.me)} · Critic est. {Math.round(hover.predicted)} (
             {hover.residual > 0 ? "+" : ""}
             {Math.round(hover.residual)})
           </div>
