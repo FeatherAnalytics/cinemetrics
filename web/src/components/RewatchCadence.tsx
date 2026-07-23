@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
-import { rectContains, useDragRect, watchKey } from "@/lib/brush";
+import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
+import { trunc } from "@/lib/format";
 import type { EnrichedWatch, Film } from "@/lib/types";
 
 const W = 900;
@@ -25,10 +26,6 @@ type Row = {
 };
 
 type Band = { label: string; rows: Row[]; headerY: number; startY: number };
-
-function trunc(s: string, n = 26): string {
-  return s.length > n ? s.slice(0, n - 1) + "…" : s;
-}
 
 export function RewatchCadence() {
   const { all, filters, selectedId, setSelected, setSelection } = useExplorer();
@@ -247,20 +244,7 @@ export function RewatchCadence() {
           </g>
         ))}
 
-        {rect && (
-          <rect
-            x={rect.x0}
-            y={rect.y0}
-            width={rect.x1 - rect.x0}
-            height={rect.y1 - rect.y0}
-            fill={ACCENT}
-            fillOpacity={0.08}
-            stroke={ACCENT}
-            strokeOpacity={0.5}
-            strokeWidth={1}
-            pointerEvents="none"
-          />
-        )}
+        <BrushRectOverlay rect={rect} />
       </svg>
 
       <figcaption className="mt-1 flex items-center gap-3 font-mono text-xs text-[#67655f]">

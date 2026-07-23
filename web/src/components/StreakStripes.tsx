@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { interpolateRgb } from "d3";
 import { useExplorer } from "@/lib/store";
-import { INK } from "@/lib/palette";
+import { DIVERGE_COOL, DIVERGE_MID, DIVERGE_WARM, INK } from "@/lib/palette";
 import { computeMedianRating } from "@/lib/stats";
 import type { EnrichedWatch } from "@/lib/types";
 
@@ -12,20 +13,12 @@ const ML = 16;
 const MR = 16;
 const MB = 22;
 
-// Diverging: crimson = above my average, blue = below, pale = at par.
-// Poles reuse the palette's validated crimson/blue; the midpoint is a neutral
-// tint of the paper surface so "we agree" recedes.
-const WARM = "#c01023";
-const COOL = "#2a78d6";
-const MID = "#eceae3";
+const WARM = DIVERGE_WARM;
+const COOL = DIVERGE_COOL;
+const MID = DIVERGE_MID;
 
-function hexLerp(a: string, b: string, t: number): string {
-  const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
-  const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
-  return `#${pa
-    .map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, "0"))
-    .join("")}`;
-}
+const lerpToWarm = interpolateRgb(MID, WARM);
+const lerpToCool = interpolateRgb(MID, COOL);
 
 export function StreakStripes() {
   const { filtered, selectedId, setSelected } = useExplorer();
@@ -70,7 +63,7 @@ export function StreakStripes() {
 
   const colorOf = (rating: number) => {
     const t = Math.max(-1, Math.min(1, (rating - med) / devMax));
-    return t < 0 ? hexLerp(MID, COOL, -t) : hexLerp(MID, WARM, t);
+    return t < 0 ? lerpToCool(-t) : lerpToWarm(t);
   };
 
   const hasSel = selectedId != null;

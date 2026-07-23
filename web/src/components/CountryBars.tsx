@@ -5,14 +5,13 @@ import { useExplorer, filterWatches } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK } from "@/lib/palette";
 import { countryName } from "@/lib/countries";
 import { aggregateCountries, type CountryRow } from "@/lib/countryStats";
+import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { ChartTakeaway } from "./ChartTakeaway";
 
 const LABEL_W = 200;
 const BAR_W = 360;
 const VALUE_W = 90;
 const WIDTH = LABEL_W + BAR_W + VALUE_W;
-const BAR_H = 24;
-const GAP = 4;
 const TOP_N = 15;
 
 export function CountryBars() {
@@ -131,7 +130,7 @@ export function CountryBars() {
               <text
                 x={countInside ? LABEL_W + barLen - 6 : LABEL_W + barLen + 6}
                 y={y + BAR_H / 2}
-                fill={countInside ? INK.surface : INK.primary}
+                fill={valueLabelFill(countInside)}
                 fontSize={11}
                 fontWeight={700}
                 textAnchor={countInside ? "end" : "start"}

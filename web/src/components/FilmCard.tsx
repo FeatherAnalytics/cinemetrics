@@ -2,7 +2,7 @@
 
 import type { CandidateMetadata } from "@/lib/recommend";
 import type { Reason } from "@/lib/explainClient";
-import { ACCENT, GENRE_COLORS, INK, type GenreKey } from "@/lib/palette";
+import { ACCENT, GENRE_COLORS, GENRE_ORDER, INK, type GenreKey } from "@/lib/palette";
 
 type Props = {
   metadata: CandidateMetadata;
@@ -38,7 +38,9 @@ function letterboxdUrl(m: CandidateMetadata): string {
   return `https://letterboxd.com/film/${letterboxdSlug(m.title)}/`;
 }
 
-const GENRE_KEY_SET = new Set<string>(["Horror", "Thriller", "Drama", "Comedy", "Adventure"]);
+// GENRE_ORDER is the five tracked, colour-carrying genres (no "Other"), so a
+// genre string in this set maps directly to a GENRE_COLORS swatch.
+const GENRE_KEY_SET = new Set<string>(GENRE_ORDER);
 
 export function FilmCard({ metadata, score, reasons }: Props) {
   const m = metadata;

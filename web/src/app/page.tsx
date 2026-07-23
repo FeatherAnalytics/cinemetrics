@@ -18,6 +18,112 @@ import { StoryAnnotation } from "@/components/StoryAnnotation";
 import { StoryChips } from "@/components/StoryChips";
 import { Footer } from "@/components/Footer";
 import type { ChartId } from "@/lib/stories";
+import type { ReactNode } from "react";
+
+type ChartSection = {
+  id: ChartId;
+  title: string;
+  blurbClass: string;
+  blurb: ReactNode;
+  Chart: () => React.JSX.Element;
+};
+
+// Section order and copy are load-bearing — the story chips dim charts by id and
+// the narrative reads top to bottom. Keep this array in sync with StoryAnnotation
+// targets and the ChartId union.
+const CHART_SECTIONS: ChartSection[] = [
+  {
+    id: "spiral",
+    title: "When I watch",
+    blurbClass: "mb-2 text-xs text-[#67655f]",
+    blurb: (
+      <>
+        One row per year, January to December. Height within a row is my rating.
+        Dots above the upper guide line scored 75+, dots below the lower one under 25.
+      </>
+    ),
+    Chart: SwimLaneChart,
+  },
+  {
+    id: "contrarian",
+    title: "Me versus the critics",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Each dot is a film, stacked by how far my rating sits from a prediction from a
+        regression fit on Metacritic, Rotten Tomatoes, and IMDB scores. Dots right of
+        zero are films I liked more than the critics suggest; left, less. Click a dot to
+        trace that film; drag to select a range.
+      </>
+    ),
+    Chart: ResidualDotStack,
+  },
+  {
+    id: "keywords",
+    title: "The keywords that give me away",
+    blurbClass: "mb-3 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        After controlling for critic scores, keywords where I systematically rate
+        higher or lower than critics predict. Click a bar to see those films.
+      </>
+    ),
+    Chart: KeywordBars,
+  },
+  {
+    id: "countries",
+    title: "What travels well",
+    blurbClass: "mb-2 text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Countries ranked by how many of my films they helped produce, coloured by the genre
+        I watch most from each. The right column shows how I rate that country&rsquo;s films
+        against prediction. Click a row to filter the other charts.
+      </>
+    ),
+    Chart: CountryBars,
+  },
+  {
+    id: "stripes",
+    title: "Streaks and slumps",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Seven years of watching as a barcode: one stripe per rated watch, in order.
+        Crimson when I scored it above my median, blue below, pale at par.
+      </>
+    ),
+    Chart: StreakStripes,
+  },
+  {
+    id: "rolling",
+    title: "Warming up or wearing out",
+    blurbClass: "mb-3 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        One panel per group: the coloured line is my rolling {10}-watch average rating as
+        I work through that group; the dashed grey line is my overall average, so stretches
+        above it are runs where that group was beating my baseline. Switch how the films are
+        grouped — genre, language, country, runtime, release decade, or content rating.
+      </>
+    ),
+    Chart: RollingRating,
+  },
+  {
+    id: "rewatch",
+    title: "Second thoughts",
+    blurbClass: "mb-4 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Films I&rsquo;ve returned to, grouped by whether coming back changed my mind.
+        Biggest rating swings first. Every dot is a watch, placed left-to-right by date and
+        up-or-down by my rating; the numbers at the right of a row are my first and latest
+        scores.
+      </>
+    ),
+    Chart: RewatchCadence,
+  },
+];
 
 function Explorer() {
   const { loading, storyFocus } = useExplorer();
@@ -41,11 +147,10 @@ function Explorer() {
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  const chartStyle = (id: ChartId): React.CSSProperties => {
-    if (!storyFocus) return {};
-    if (storyFocus.dim.includes(id)) return { opacity: 0.4, pointerEvents: "none", transition: "opacity 0.3s" };
-    return {};
-  };
+  const chartStyle = (id: ChartId): React.CSSProperties =>
+    storyFocus?.dim.includes(id)
+      ? { opacity: 0.4, pointerEvents: "none", transition: "opacity 0.3s" }
+      : {};
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-10">
@@ -124,82 +229,14 @@ function Explorer() {
             <div className="grid gap-8">
           <SelectionPanel />
 
-          <section style={chartStyle("spiral")}>
-            <StoryAnnotation target="spiral" />
-            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">When I watch</h2>
-            <p className="mb-2 text-xs text-[#67655f]">
-              One row per year, January to December. Height within a row is my rating.
-              Dots above the upper guide line scored 75+, dots below the lower one under 25.
-            </p>
-            <SwimLaneChart />
-          </section>
-
-          <section style={chartStyle("contrarian")}>
-            <StoryAnnotation target="contrarian" />
-            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Me versus the critics</h2>
-            <p className="mb-2 max-w-2xl text-xs text-[#67655f]">
-              Each dot is a film, stacked by how far my rating sits from a prediction from a
-              regression fit on Metacritic, Rotten Tomatoes, and IMDB scores. Dots right of
-              zero are films I liked more than the critics suggest; left, less. Click a dot to
-              trace that film; drag to select a range.
-            </p>
-            <ResidualDotStack />
-          </section>
-
-          <section style={chartStyle("keywords")}>
-            <StoryAnnotation target="keywords" />
-            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">The keywords that give me away</h2>
-            <p className="mb-3 max-w-2xl text-xs text-[#67655f]">
-              After controlling for critic scores, keywords where I systematically rate
-              higher or lower than critics predict. Click a bar to see those films.
-            </p>
-            <KeywordBars />
-          </section>
-
-          <section style={chartStyle("countries")}>
-            <StoryAnnotation target="countries" />
-            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">What travels well</h2>
-            <p className="mb-2 text-xs text-[#67655f]">
-              Countries ranked by how many of my films they helped produce, coloured by the genre
-              I watch most from each. The right column shows how I rate that country&rsquo;s films
-              against prediction. Click a row to filter the other charts.
-            </p>
-            <CountryBars />
-          </section>
-
-          <section style={chartStyle("stripes")}>
-            <StoryAnnotation target="stripes" />
-            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Streaks and slumps</h2>
-            <p className="mb-2 max-w-2xl text-xs text-[#67655f]">
-              Seven years of watching as a barcode: one stripe per rated watch, in order.
-              Crimson when I scored it above my median, blue below, pale at par.
-            </p>
-            <StreakStripes />
-          </section>
-
-          <section style={chartStyle("rolling")}>
-            <StoryAnnotation target="rolling" />
-            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Warming up or wearing out</h2>
-            <p className="mb-3 max-w-2xl text-xs text-[#67655f]">
-              One panel per group: the coloured line is my rolling {`10`}-watch average rating as
-              I work through that group; the dashed grey line is my overall average, so stretches
-              above it are runs where that group was beating my baseline. Switch how the films are
-              grouped — genre, language, country, runtime, release decade, or content rating.
-            </p>
-            <RollingRating />
-          </section>
-
-          <section style={chartStyle("rewatch")}>
-            <StoryAnnotation target="rewatch" />
-            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Second thoughts</h2>
-            <p className="mb-4 max-w-2xl text-xs text-[#67655f]">
-              Films I&rsquo;ve returned to, grouped by whether coming back changed my mind.
-              Biggest rating swings first. Every dot is a watch, placed left-to-right by date and
-              up-or-down by my rating; the numbers at the right of a row are my first and latest
-              scores.
-            </p>
-            <RewatchCadence />
-          </section>
+          {CHART_SECTIONS.map(({ id, title, blurbClass, blurb, Chart }) => (
+            <section key={id} style={chartStyle(id)}>
+              <StoryAnnotation target={id} />
+              <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">{title}</h2>
+              <p className={blurbClass}>{blurb}</p>
+              <Chart />
+            </section>
+          ))}
             </div>
           )}
         </div>

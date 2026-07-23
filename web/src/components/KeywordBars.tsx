@@ -5,13 +5,13 @@ import { useExplorer } from "@/lib/store";
 import { GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
 import { watchKey } from "@/lib/brush";
 import { computeResiduals } from "@/lib/stats";
+import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
+import { ChartTakeaway } from "./ChartTakeaway";
 
 const LABEL_W = 200;
 const BAR_W = 400;
 const VALUE_W = 50;
 const WIDTH = LABEL_W + BAR_W + VALUE_W;
-const BAR_H = 24;
-const GAP = 4;
 const MIN_FILMS = 10;
 const TOP_N = 8;
 
@@ -172,7 +172,7 @@ export function KeywordBars() {
                   <text
                     x={lx}
                     y={y + BAR_H / 2}
-                    fill={inside ? INK.surface : INK.primary}
+                    fill={valueLabelFill(inside)}
                     fontSize={11}
                     fontWeight={700}
                     textAnchor={bar.avgResidual > 0 ? "start" : "end"}
@@ -212,9 +212,7 @@ export function KeywordBars() {
           );
         })}
       </svg>
-      <figcaption className="mt-1 text-right font-mono text-[10px] uppercase tracking-[0.1em] text-[#8b8981]">
-        keywords appearing in {MIN_FILMS}+ rated films
-      </figcaption>
+      <ChartTakeaway>keywords appearing in {MIN_FILMS}+ rated films</ChartTakeaway>
     </figure>
   );
 }

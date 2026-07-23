@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { ACCENT, INK } from "@/lib/palette";
 import { useDragRect, watchKey } from "@/lib/brush";
+import { trunc } from "@/lib/format";
 import { buildSeries, DIMENSIONS, type Dimension, type Series } from "@/lib/series";
 import { computeAvgRating } from "@/lib/stats";
 
@@ -19,10 +20,7 @@ const MB = 20; // bottom margin (x labels)
 const WINDOW = 10;
 
 const OVERALL_COLOR = "#a7a59c"; // muted neutral — a reference, not a category
-
-function trunc(s: string, n = 18): string {
-  return s.length > n ? s.slice(0, n - 1) + "…" : s;
-}
+const LABEL_MAX = 18; // panel labels truncate shorter than the film-title default
 
 type SeriesPointLite = { x: number; y: number };
 
@@ -114,7 +112,7 @@ function PanelChart({
     <figure className="m-0">
       <figcaption className="mb-0.5 flex items-baseline gap-1.5 text-xs" style={{ color: INK.secondary }}>
         <span className="inline-block rounded-sm" style={{ width: 12, height: 2.5, background: s.color }} />
-        <span className="font-medium">{trunc(s.label)}</span>
+        <span className="font-medium">{trunc(s.label, LABEL_MAX)}</span>
         <span style={{ color: INK.muted }}>· {s.total}</span>
       </figcaption>
       <div ref={ref}>

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
-import { rectContains, useDragRect, watchKey } from "@/lib/brush";
+import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import type { EnrichedWatch } from "@/lib/types";
 import { ChartTakeaway } from "./ChartTakeaway";
 
@@ -220,20 +220,7 @@ export function SwimLaneChart() {
         ))}
 
         {/* Brush rect */}
-        {rect && (
-          <rect
-            x={rect.x0}
-            y={rect.y0}
-            width={rect.x1 - rect.x0}
-            height={rect.y1 - rect.y0}
-            fill={ACCENT}
-            fillOpacity={0.08}
-            stroke={ACCENT}
-            strokeOpacity={0.5}
-            strokeWidth={1}
-            pointerEvents="none"
-          />
-        )}
+        <BrushRectOverlay rect={rect} />
       </svg>
 
       {/* Hover tooltip */}
