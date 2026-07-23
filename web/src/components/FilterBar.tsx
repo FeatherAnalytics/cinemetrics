@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useExplorer } from "@/lib/store";
 import { useRecommend } from "@/lib/recommendStore";
-import { ACCENT, GENRE_COLORS, GENRE_KEYS, type GenreKey } from "@/lib/palette";
+import { ACCENT, GENRE_COLORS, GENRE_KEYS } from "@/lib/palette";
 import { RangeSlider } from "./RangeSlider";
 import type { TextField } from "@/lib/store";
 
@@ -125,7 +125,7 @@ export function FilterBar() {
             return (
               <button
                 key={g}
-                onClick={() => toggleGenre(g as GenreKey)}
+                onClick={() => toggleGenre(g)}
                 className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[#3d3c38] transition"
                 style={{ borderColor: "rgba(11,11,11,0.18)", opacity: active ? 1 : 0.4 }}
               >
