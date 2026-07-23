@@ -16,7 +16,7 @@ import { SelectionPanel } from "@/components/SelectionPanel";
 import { StatBar } from "@/components/StatBar";
 import { StoryAnnotation } from "@/components/StoryAnnotation";
 import { StoryChartNote } from "@/components/StoryChartNote";
-import { StoryPanel } from "@/components/StoryPanel";
+import { StoryNoteCard } from "@/components/StoryNoteCard";
 import { StoryChips } from "@/components/StoryChips";
 import { Footer } from "@/components/Footer";
 import type { ChartId } from "@/lib/stories";
@@ -128,10 +128,21 @@ const CHART_SECTIONS: ChartSection[] = [
 ];
 
 function Explorer() {
-  const { loading, storyFocus } = useExplorer();
+  const { loading, storyFocus, activeStory, storyResult } = useExplorer();
   const { state: recState } = useRecommend();
   const [drawerOpenRaw, setDrawerOpen] = useState(false);
   const drawerOpen = drawerOpenRaw && !recState.open;
+
+  // Desktop filter sidebar collapses to a thin rail to make room for the story
+  // notes beside each chart. Auto-collapses when a story activates, restores when
+  // cleared; the user can still toggle manually until the next story change.
+  // Adjusted during render (not in an effect) so it tracks activeStory changes.
+  const [collapsed, setCollapsed] = useState(false);
+  const [prevStory, setPrevStory] = useState(activeStory);
+  if (activeStory !== prevStory) {
+    setPrevStory(activeStory);
+    setCollapsed(!!activeStory);
+  }
 
   useEffect(() => {
     if (drawerOpen) {
@@ -196,11 +207,26 @@ function Explorer() {
       )}
 
       <div className="lg:flex lg:gap-8">
+        {/* Collapsed desktop rail: a thin strip that reopens the sidebar. */}
+        {collapsed && (
+          <div className="hidden lg:block lg:shrink-0">
+            <button
+              onClick={() => setCollapsed(false)}
+              className="lg:sticky lg:top-6 flex h-10 w-10 items-center justify-center rounded-lg border text-[#3d3c38] hover:text-[#0b0b0b]"
+              style={{ borderColor: "rgba(11,11,11,0.14)", background: "#f7f6f3" }}
+              aria-label="Expand filters"
+              aria-expanded={false}
+            >
+              <span aria-hidden>☰</span>
+            </button>
+          </div>
+        )}
+
         {/* One panel, two lives: a sticky sidebar at lg, a slide-in drawer below it. */}
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-[86%] max-w-sm transform overflow-y-auto p-4 shadow-xl transition-transform duration-300 lg:static lg:z-auto lg:mb-0 lg:w-72 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:p-0 lg:shadow-none ${
+          className={`fixed inset-y-0 left-0 z-50 w-[86%] max-w-sm transform overflow-y-auto p-4 shadow-xl transition-transform duration-300 lg:static lg:z-auto lg:mb-0 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:p-0 lg:shadow-none ${
             drawerOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
+          } ${collapsed ? "lg:hidden" : "lg:w-72"}`}
           style={{ background: "#f7f6f3" }}
           aria-label="Filters"
         >
@@ -218,6 +244,15 @@ function Explorer() {
             className="rounded-lg border p-3 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto"
             style={{ borderColor: "rgba(11,11,11,0.14)" }}
           >
+            <div className="mb-2 hidden justify-end lg:flex">
+              <button
+                onClick={() => setCollapsed(true)}
+                className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#67655f] hover:text-[#0b0b0b]"
+                aria-label="Collapse filters"
+              >
+                « hide
+              </button>
+            </div>
             <StatBar />
             <div className="my-3 border-t" style={{ borderColor: "rgba(11,11,11,0.1)" }} />
             <FilterBar />
@@ -231,21 +266,38 @@ function Explorer() {
             <div className="grid gap-8">
           <SelectionPanel />
 
-          {CHART_SECTIONS.map(({ id, title, blurbClass, blurb, Chart }) => (
-            <section key={id} style={chartStyle(id)}>
-              <StoryAnnotation target={id} />
-              <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">{title}</h2>
-              <p className={blurbClass}>{blurb}</p>
-              <StoryChartNote target={id} />
-              <Chart />
-            </section>
-          ))}
+          {CHART_SECTIONS.map(({ id, title, blurbClass, blurb, Chart }) => {
+            const hasNote = Boolean(storyResult?.notes?.[id]);
+            return (
+              <section
+                key={id}
+                style={chartStyle(id)}
+                className={
+                  hasNote
+                    ? "lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start lg:gap-8"
+                    : undefined
+                }
+              >
+                <div className="min-w-0">
+                  <StoryAnnotation target={id} />
+                  <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">{title}</h2>
+                  <p className={blurbClass}>{blurb}</p>
+                  <StoryChartNote target={id} />
+                  <Chart />
+                </div>
+                {hasNote && (
+                  <div className="hidden lg:block lg:sticky lg:top-6">
+                    <StoryNoteCard target={id} />
+                  </div>
+                )}
+              </section>
+            );
+          })}
             </div>
           )}
         </div>
       </div>
       {!loading && <Footer />}
-      <StoryPanel />
       <RecommendDrawer />
     </main>
   );
