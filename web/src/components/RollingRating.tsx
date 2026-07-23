@@ -202,7 +202,7 @@ export function RollingRating() {
     [all, filtered, dim],
   );
 
-  const panels = series.filter((s) => !s.isOverall);
+  const panels = useMemo(() => series.filter((s) => !s.isOverall), [series]);
 
   // Shared scales across every panel so the small multiples stay comparable.
   const dom: Domain = useMemo(() => {

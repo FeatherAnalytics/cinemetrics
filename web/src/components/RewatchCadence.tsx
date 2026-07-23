@@ -69,7 +69,11 @@ export function RewatchCadence() {
     const soured = rows.filter((r) => (r.delta ?? 0) < 0).sort(byDelta);
     const unchanged = rows.filter((r) => (r.delta ?? 0) === 0).sort(byCount);
     const times = all.map((w) => w.d.getTime());
-    return { grew, soured, unchanged, x0: Math.min(...times), x1: Math.max(...times) };
+    // Guard the empty case: Math.min/max of no args give ±Infinity, which
+    // poisons the time axis. Fall back to a unit span.
+    const x0 = times.length ? Math.min(...times) : 0;
+    const x1 = times.length ? Math.max(...times) : 1;
+    return { grew, soured, unchanged, x0, x1 };
   }, [all, filters]);
 
   const visibleRows = useMemo(

@@ -158,7 +158,21 @@ export function RecommendDrawer() {
   // skeleton shows instead of stale results. Done outside the effect to satisfy
   // the react-hooks set-state-in-effect rule.
   const [reqKey, setReqKey] = useState("");
-  const currentKey = `${state.mode}:${state.sourceTmdbId}:${state.genre}:${state.filters.language}:${shuffleCount}`;
+  // Any dashboard filter change re-runs the fetch (effect deps include
+  // dashFilters), so the loading key must track those filters too — otherwise
+  // the skeleton is skipped and stale recs linger. Brush selection is excluded:
+  // it changes rapidly and should not flash a skeleton.
+  const dashSig = [
+    [...dashFilters.genres].sort().join(","),
+    dashFilters.country,
+    dashFilters.rewatch,
+    dashFilters.title,
+    dashFilters.director,
+    dashFilters.actor,
+    dashFilters.yearRange?.join("-") ?? "",
+    dashFilters.releaseYearRange?.join("-") ?? "",
+  ].join("|");
+  const currentKey = `${state.mode}:${state.sourceTmdbId}:${state.genre}:${state.filters.language}:${shuffleCount}:${dashSig}`;
   if (state.open && R2_URL && currentKey !== reqKey) {
     setReqKey(currentKey);
     setStatus("loading");

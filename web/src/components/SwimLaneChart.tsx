@@ -15,7 +15,16 @@ const LANE_H = 70;
 const BASE_WIDTH = 720;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-type Pt = { w: EnrichedWatch; x: number; y: number; color: string; op: number; r: number; sel: boolean };
+type Pt = {
+  w: EnrichedWatch;
+  x: number;
+  y: number;
+  color: string;
+  op: number;
+  r: number;
+  sel: boolean;
+  unrated: boolean; // no rating: drawn as a hollow ring at the lane midline
+};
 
 export function SwimLaneChart() {
   const { all, filtered, yearBounds, selectedId, setSelected, setSelection, storyResult } =
@@ -59,7 +68,7 @@ export function SwimLaneChart() {
   // Ghosts first
   for (const w of ghosts) {
     const { x, y } = place(w);
-    points.push({ w, x, y, color: INK.muted, op: 0.08, r: 3.5, sel: false });
+    points.push({ w, x, y, color: INK.muted, op: 0.08, r: 3.5, sel: false, unrated: w.rating == null });
   }
 
   // Active dots
@@ -67,14 +76,15 @@ export function SwimLaneChart() {
     const { x, y } = place(w);
     const sel = hasSel && w.tmdb_id === selectedId;
     const rating = w.rating ?? 70;
+    const unrated = w.rating == null;
     // A story with a month focus spotlights that month; everything else recedes.
     const offFocus = monthFocus != null && w.d.getUTCMonth() !== monthFocus;
     if (sel) {
-      points.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op: 1, r: 5, sel: true });
+      points.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op: 1, r: 5, sel: true, unrated });
     } else {
       const base = 0.35 + 0.6 * (rating / 100);
       const op = (hasSel ? base * 0.3 : base) * (offFocus ? 0.12 : 1);
-      points.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op, r: 3.5, sel: false });
+      points.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op, r: 3.5, sel: false, unrated });
     }
   }
 
@@ -201,23 +211,28 @@ export function SwimLaneChart() {
           );
         })}
 
-        {/* Points */}
-        {points.map((p, i) => (
-          <circle
-            key={i}
-            cx={p.x}
-            cy={p.y}
-            r={p.r}
-            fill={p.color}
-            fillOpacity={p.op}
-            stroke={p.sel ? ACCENT : "none"}
-            strokeWidth={p.sel ? 2 : 0}
-            style={{ cursor: "pointer" }}
-            onMouseEnter={() => setHover({ x: p.x, y: p.y, w: p.w })}
-            onMouseLeave={() => setHover(null)}
-            onClick={() => setSelected(p.w.tmdb_id)}
-          />
-        ))}
+        {/* Points. Unrated watches (no score) draw as a hollow ring at the lane
+            midline, so they can't be mistaken for a genuine mid-70s rating. */}
+        {points.map((p, i) => {
+          const ring = p.unrated && !p.sel;
+          return (
+            <circle
+              key={i}
+              cx={p.x}
+              cy={p.y}
+              r={p.r}
+              fill={ring ? "none" : p.color}
+              fillOpacity={ring ? 0 : p.op}
+              stroke={p.sel ? ACCENT : ring ? p.color : "none"}
+              strokeWidth={p.sel ? 2 : ring ? 1 : 0}
+              strokeOpacity={ring ? p.op : 1}
+              style={{ cursor: "pointer" }}
+              onMouseEnter={() => setHover({ x: p.x, y: p.y, w: p.w })}
+              onMouseLeave={() => setHover(null)}
+              onClick={() => setSelected(p.w.tmdb_id)}
+            />
+          );
+        })}
 
         {/* Brush rect */}
         <BrushRectOverlay rect={rect} />
