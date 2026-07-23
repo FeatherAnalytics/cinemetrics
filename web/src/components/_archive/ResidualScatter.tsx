@@ -1,3 +1,6 @@
+// ARCHIVED 2026-07: replaced by ResidualDotStack (see thoughts/FRONTEND-REDESIGN.md).
+// The me-vs-predicted scatter suffered unavoidable overplot from tens-quantized
+// ratings; the dot-stack shows the same residuals as a countable distribution.
 "use client";
 
 import { useMemo, useState } from "react";

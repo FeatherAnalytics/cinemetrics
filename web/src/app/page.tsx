@@ -6,7 +6,8 @@ import { RecommendProvider, useRecommend } from "@/lib/recommendStore";
 import { RecommendDrawer } from "@/components/RecommendDrawer";
 import { FilterBar } from "@/components/FilterBar";
 import { SwimLaneChart } from "@/components/SwimLaneChart";
-import { ResidualScatter } from "@/components/ResidualScatter";
+import { ResidualDotStack } from "@/components/ResidualDotStack";
+import { StreakStripes } from "@/components/StreakStripes";
 import { KeywordBars } from "@/components/KeywordBars";
 import { CountryBars } from "@/components/CountryBars";
 import { RewatchCadence } from "@/components/RewatchCadence";
@@ -128,12 +129,12 @@ function Explorer() {
             <StoryAnnotation target="contrarian" />
             <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Where I align and deviate</h2>
             <p className="mb-2 max-w-2xl text-xs text-[#67655f]">
-              Each dot is a film. The predicted rating is a regression fit of my ratings on
-              Metacritic, Rotten Tomatoes, and IMDB scores — the diagonal is where the
-              prediction and my actual rating agree. Above = I liked it more than the critics
-              suggest; below = less. My ratings land on steps of ten, so films line up in rows.
+              Each dot is a film, stacked by how far my rating sits from a prediction — a
+              regression fit on Metacritic, Rotten Tomatoes, and IMDB scores. Dots right of
+              zero are films I liked more than the critics suggest; left, less. Click a dot to
+              trace that film; drag to select a range.
             </p>
-            <ResidualScatter />
+            <ResidualDotStack />
           </section>
 
           <section style={chartStyle("keywords")}>
@@ -155,6 +156,17 @@ function Explorer() {
               against prediction. Click a row to filter the other charts.
             </p>
             <CountryBars />
+          </section>
+
+          <section style={chartStyle("stripes")}>
+            <StoryAnnotation target="stripes" />
+            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Streaks and slumps</h2>
+            <p className="mb-2 max-w-2xl text-xs text-[#67655f]">
+              Seven years of watching as a barcode: one stripe per rated watch, in order —
+              crimson when I scored it above my average, blue below, pale at par. Runs of
+              colour are binges that paid off, or didn&rsquo;t.
+            </p>
+            <StreakStripes />
           </section>
 
           <section style={chartStyle("rolling")}>

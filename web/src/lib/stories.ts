@@ -4,7 +4,14 @@ import type { Film, EnrichedWatch } from "./types";
 import { primaryGenre, type GenreKey } from "./palette";
 import { watchKey } from "./brush";
 
-export type ChartId = "spiral" | "contrarian" | "countries" | "rolling" | "rewatch" | "keywords";
+export type ChartId =
+  | "spiral"
+  | "contrarian"
+  | "countries"
+  | "stripes"
+  | "rolling"
+  | "rewatch"
+  | "keywords";
 
 export type StoryFocus = {
   primary: ChartId;
