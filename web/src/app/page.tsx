@@ -127,7 +127,7 @@ function Explorer() {
 
           <section style={chartStyle("contrarian")}>
             <StoryAnnotation target="contrarian" />
-            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Where I align and deviate</h2>
+            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Me versus the critics</h2>
             <p className="mb-2 max-w-2xl text-xs text-[#67655f]">
               Each dot is a film, stacked by how far my rating sits from a prediction — a
               regression fit on Metacritic, Rotten Tomatoes, and IMDB scores. Dots right of
@@ -139,7 +139,7 @@ function Explorer() {
 
           <section style={chartStyle("keywords")}>
             <StoryAnnotation target="keywords" />
-            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Where my taste deviates</h2>
+            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">The keywords that give me away</h2>
             <p className="mb-3 max-w-2xl text-xs text-[#67655f]">
               After controlling for critic scores — keywords where I systematically rate
               higher or lower than predicted. Click a bar to see those films.
@@ -170,7 +170,7 @@ function Explorer() {
 
           <section style={chartStyle("rolling")}>
             <StoryAnnotation target="rolling" />
-            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">How my taste settles</h2>
+            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Warming up or wearing out</h2>
             <p className="mb-3 max-w-2xl text-xs text-[#67655f]">
               One panel per group: the coloured line is my rolling {`10`}-watch average rating as
               I work through that group; the dashed grey line is my overall average, so stretches
@@ -182,7 +182,7 @@ function Explorer() {
 
           <section style={chartStyle("rewatch")}>
             <StoryAnnotation target="rewatch" />
-            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Rewatches</h2>
+            <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Second thoughts</h2>
             <p className="mb-4 max-w-2xl text-xs text-[#67655f]">
               Films I&rsquo;ve returned to, grouped by whether coming back changed my mind —
               biggest rating swings first. Every dot is a watch, placed left-to-right by date and

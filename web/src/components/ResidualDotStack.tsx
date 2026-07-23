@@ -5,6 +5,7 @@ import { useExplorer } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
 import { rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { computeResiduals, type FilmResidual } from "@/lib/stats";
+import { ChartTakeaway } from "./ChartTakeaway";
 
 const W = 900;
 const ML = 16;
@@ -171,9 +172,7 @@ export function ResidualDotStack() {
         )}
       </svg>
 
-      <p className="mt-1 text-right font-mono text-[10px] uppercase tracking-[0.1em] text-[#8b8981]">
-        Critics explain {pct}% of my ratings
-      </p>
+      <ChartTakeaway>Critics explain {pct}% of my ratings</ChartTakeaway>
 
       {hover && (
         <div

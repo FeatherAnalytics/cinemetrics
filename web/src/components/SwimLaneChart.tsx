@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
 import { rectContains, useDragRect, watchKey } from "@/lib/brush";
 import type { EnrichedWatch } from "@/lib/types";
+import { ChartTakeaway } from "./ChartTakeaway";
 
 const MARGIN_LEFT = 55;
 const MARGIN_TOP = 8;
@@ -37,6 +38,19 @@ export function SwimLaneChart() {
   const filteredSet = new Set(filtered.map(watchKey));
   const ghosts = all.filter((w) => !filteredSet.has(watchKey(w)));
   const hasSel = selectedId != null;
+
+  // Seasonal finding: how horror-heavy October runs vs the rest of the year.
+  const octoberHorror = useMemo(() => {
+    let octTotal = 0;
+    let octHorror = 0;
+    for (const w of filtered) {
+      if (w.d.getUTCMonth() !== 9) continue;
+      octTotal += 1;
+      if (primaryGenre(w.film) === "Horror") octHorror += 1;
+    }
+    if (octTotal < 15) return null;
+    return Math.round((octHorror / octTotal) * 100);
+  }, [filtered]);
 
   const points: Pt[] = [];
 
@@ -227,6 +241,10 @@ export function SwimLaneChart() {
             {hover.w.rewatch ? " · rewatch" : ""}
           </div>
         </div>
+      )}
+
+      {octoberHorror != null && (
+        <ChartTakeaway>October is {octoberHorror}% horror</ChartTakeaway>
       )}
     </figure>
   );

@@ -5,6 +5,7 @@ import { useExplorer, filterWatches } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK } from "@/lib/palette";
 import { countryName } from "@/lib/countries";
 import { aggregateCountries, type CountryRow } from "@/lib/countryStats";
+import { ChartTakeaway } from "./ChartTakeaway";
 
 const LABEL_W = 200;
 const BAR_W = 360;
@@ -28,6 +29,15 @@ export function CountryBars() {
 
   const maxCount = agg.rows.reduce((m, r) => Math.max(m, r.count), 1);
   const tailRow = agg.tailCountries > 0;
+
+  // Strongest finding among the ranked countries: the biggest deviation from
+  // prediction (only rows with enough films to have a residual).
+  const strongest = agg.rows
+    .filter((r) => r.residual != null)
+    .reduce<CountryRow | null>(
+      (best, r) => (best == null || Math.abs(r.residual!) > Math.abs(best.residual!) ? r : best),
+      null,
+    );
   const HEIGHT = (agg.rows.length + (tailRow ? 1 : 0)) * (BAR_H + GAP) + 40;
 
   if (agg.rows.length === 0) {
@@ -162,6 +172,12 @@ export function CountryBars() {
           </text>
         )}
       </svg>
+      {strongest && (
+        <ChartTakeaway>
+          {agg.totalCountries} countries · I rate {countryName(strongest.iso)}{" "}
+          {fmtResidual(strongest.residual!)} vs predicted
+        </ChartTakeaway>
+      )}
     </figure>
   );
 }
