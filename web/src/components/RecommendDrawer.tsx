@@ -17,6 +17,7 @@ import {
   type Reason,
 } from "@/lib/explainClient";
 import { FilmCard } from "./FilmCard";
+import { ACCENT, INK } from "@/lib/palette";
 
 const R2_URL = process.env.NEXT_PUBLIC_R2_URL || "";
 
@@ -116,6 +117,8 @@ async function fetchRecs(
   return { recs: finalRecs, reasons, boostCount };
 }
 
+type Status = "loading" | "ready" | "error";
+
 export function RecommendDrawer() {
   const { state, dispatch } = useRecommend();
   const { byId, all, filters: dashFilters } = useExplorer();
@@ -123,25 +126,78 @@ export function RecommendDrawer() {
   const [reasonsMap, setReasonsMap] = useState<Record<number, Reason[]>>({});
   const [boostCount, setBoostCount] = useState(0);
   const [shuffleCount, setShuffleCount] = useState(0);
+  const [status, setStatus] = useState<Status>("loading");
 
   const ratedIds = useMemo(() => new Set(all.map((w) => w.tmdb_id)), [all]);
 
+  // Recommendations depend on every dashboard filter EXCEPT the brush selection,
+  // which fetchRecs never reads. Memoize on the rec-relevant fields so brushing
+  // (selection only) does not re-run the fetch or flash the skeleton.
+  const { genres, country, rewatch, title, director, actor, yearRange, releaseYearRange } =
+    dashFilters;
+  const recFilters = useMemo<Filters>(
+    () => ({
+      genres,
+      yearRange,
+      releaseYearRange,
+      rewatch,
+      title,
+      director,
+      actor,
+      country,
+      selection: null,
+    }),
+    [genres, country, rewatch, title, director, actor, yearRange, releaseYearRange],
+  );
+
   useEffect(() => {
-    if (!state.open) return;
+    // No backing store configured → handled as "unavailable" at render time.
+    if (!state.open || !R2_URL) return;
     let cancelled = false;
     const watches = all.map((w) => ({ tmdb_id: w.tmdb_id, rating: w.rating }));
-    fetchRecs(state, ratedIds, byId as never, watches, dashFilters).then((result) => {
-      if (cancelled) return;
-      setRecs(result.recs);
-      setReasonsMap(result.reasons);
-      setBoostCount(result.boostCount);
-    }).catch(() => {
-      if (!cancelled) setRecs([]);
-    });
-    return () => { cancelled = true; };
-  }, [state, shuffleCount, ratedIds, all, byId, dashFilters]);
+    fetchRecs(state, ratedIds, byId as never, watches, recFilters)
+      .then((result) => {
+        if (cancelled) return;
+        setRecs(result.recs);
+        setReasonsMap(result.reasons);
+        setBoostCount(result.boostCount);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRecs([]);
+          setStatus("error");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [state, shuffleCount, ratedIds, all, byId, recFilters]);
+
+  // Reset to the loading state whenever a new request is kicked off, so the
+  // skeleton shows instead of stale results. Done outside the effect to satisfy
+  // the react-hooks set-state-in-effect rule. Selection is excluded here too, so
+  // a brush never flashes the skeleton.
+  const [reqKey, setReqKey] = useState("");
+  const dashSig = [
+    [...genres].sort().join(","),
+    country,
+    rewatch,
+    title,
+    director,
+    actor,
+    yearRange?.join("-") ?? "",
+    releaseYearRange?.join("-") ?? "",
+  ].join("|");
+  const currentKey = `${state.mode}:${state.sourceTmdbId}:${state.genre}:${state.filters.language}:${shuffleCount}:${dashSig}`;
+  if (state.open && R2_URL && currentKey !== reqKey) {
+    setReqKey(currentKey);
+    setStatus("loading");
+  }
 
   if (!state.open) return null;
+
+  const effectiveStatus: Status = R2_URL ? status : "error";
 
   const sourceFilm = state.sourceTmdbId ? byId.get(state.sourceTmdbId) : null;
 
@@ -149,8 +205,15 @@ export function RecommendDrawer() {
     state.mode === "similar" && sourceFilm
       ? `More like ${sourceFilm.title}`
       : state.mode === "genre-recommend" && state.genre
-        ? `Recommended: ${state.genre}`
+        ? `Recommended · ${state.genre}`
         : "Recommended for you";
+
+  const langActive = state.filters.language != null;
+  const pill = (active: boolean) => ({
+    background: active ? ACCENT : "transparent",
+    color: active ? INK.surface : INK.secondary,
+    borderColor: active ? ACCENT : "rgba(11,11,11,0.2)",
+  });
 
   return (
     <>
@@ -161,31 +224,39 @@ export function RecommendDrawer() {
       />
 
       <aside
-        className="fixed z-50 overflow-y-auto transition-transform duration-300
-          bottom-0 left-0 right-0 rounded-t-2xl max-h-[60vh]
-          md:bottom-auto md:top-0 md:left-auto md:right-0 md:w-[350px] md:h-full md:rounded-none md:max-h-none
-          md:border-l"
-        style={{ background: "#1e293b", borderColor: "#7b2cbf" }}
+        className="fixed bottom-0 left-0 right-0 z-50 max-h-[60vh] overflow-y-auto rounded-t-2xl
+          border-t transition-transform duration-300
+          md:bottom-auto md:left-auto md:right-0 md:top-0 md:h-full md:max-h-none md:w-[360px]
+          md:rounded-none md:border-l md:border-t-0"
+        style={{ background: INK.surface, borderColor: ACCENT }}
       >
         <div className="flex justify-center pt-2 md:hidden">
-          <div className="w-8 h-1 rounded-full" style={{ background: "#444" }} />
+          <div className="h-1 w-8 rounded-full" style={{ background: "rgba(11,11,11,0.2)" }} />
         </div>
 
         <div className="p-4">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm font-semibold" style={{ color: "#c084fc" }}>
+          <div className="mb-3 flex items-center justify-between">
+            <span
+              className="font-mono text-[11px] font-semibold uppercase tracking-[0.15em]"
+              style={{ color: ACCENT }}
+            >
               {headerText}
             </span>
             <button
               onClick={() => dispatch({ type: "CLOSE" })}
-              className="text-gray-400 hover:text-white text-lg leading-none"
+              className="text-lg leading-none"
+              style={{ color: INK.muted }}
               aria-label="Close recommendations"
             >
               ✕
             </button>
           </div>
 
-          <div className="flex gap-2 mb-3 flex-wrap">
+          <p className="mb-3 text-[11px]" style={{ color: INK.muted }}>
+            Based on my ratings and taste.
+          </p>
+
+          <div className="mb-3 flex flex-wrap gap-2">
             <button
               onClick={() =>
                 dispatch({
@@ -193,12 +264,8 @@ export function RecommendDrawer() {
                   language: state.filters.language === "en" ? undefined : "en",
                 })
               }
-              className="px-2 py-0.5 rounded-full text-[9px] border"
-              style={{
-                background: state.filters.language === "en" ? "#2a3a2a" : "transparent",
-                color: state.filters.language === "en" ? "#86efac" : "#888",
-                borderColor: state.filters.language === "en" ? "#2d6b45" : "#444",
-              }}
+              className="rounded-full border px-2.5 py-0.5 text-[11px]"
+              style={pill(state.filters.language === "en")}
             >
               EN
             </button>
@@ -209,49 +276,84 @@ export function RecommendDrawer() {
                   language: state.filters.language === "non-en" ? undefined : "non-en",
                 })
               }
-              className="px-2 py-0.5 rounded-full text-[9px] border"
-              style={{
-                background: state.filters.language === "non-en" ? "#2a2a3a" : "transparent",
-                color: state.filters.language === "non-en" ? "#fbbf24" : "#888",
-                borderColor: state.filters.language === "non-en" ? "#92400e" : "#444",
-              }}
+              className="rounded-full border px-2.5 py-0.5 text-[11px]"
+              style={pill(state.filters.language === "non-en")}
             >
               Non-EN
             </button>
             <button
               onClick={() => setShuffleCount((c) => c + 1)}
-              className="px-2 py-0.5 rounded-full text-[9px] border"
-              style={{ color: "#888", borderColor: "#444" }}
+              className="rounded-full border px-2.5 py-0.5 text-[11px]"
+              style={pill(false)}
             >
               Shuffle
             </button>
           </div>
 
-          <div className="flex gap-2 overflow-x-auto md:flex-col md:overflow-visible">
-            {recs.map((r, i) => (
-              <div key={r.tmdb_id} className="contents">
-                {i === boostCount && boostCount > 0 && boostCount < recs.length && (
-                  <div className="flex items-center gap-2 min-w-[200px] md:min-w-0 md:py-1">
-                    <div className="flex-1 border-t" style={{ borderColor: "#3a3a5a" }} />
-                    <span className="text-[8px] uppercase tracking-widest whitespace-nowrap" style={{ color: "#666" }}>
-                      you might also like
-                    </span>
-                    <div className="flex-1 border-t" style={{ borderColor: "#3a3a5a" }} />
+          {effectiveStatus === "loading" && (
+            <div className="flex flex-col gap-2">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="h-20 animate-pulse rounded-lg"
+                  style={{ background: "rgba(11,11,11,0.05)" }}
+                />
+              ))}
+              <p className="mt-1 text-xs" style={{ color: INK.muted }}>
+                Finding films like these…
+              </p>
+            </div>
+          )}
+
+          {effectiveStatus === "error" && (
+            <p className="text-sm" style={{ color: INK.secondary }}>
+              Recommendations are unavailable right now. The model that powers them
+              couldn&rsquo;t load — try again in a moment.
+            </p>
+          )}
+
+          {effectiveStatus === "ready" && recs.length === 0 && (
+            <div className="text-sm" style={{ color: INK.secondary }}>
+              <p>No films match these filters.</p>
+              {langActive && (
+                <button
+                  onClick={() => dispatch({ type: "SET_LANGUAGE", language: undefined })}
+                  className="mt-1 underline underline-offset-2"
+                  style={{ color: ACCENT }}
+                >
+                  clear the language filter
+                </button>
+              )}
+            </div>
+          )}
+
+          {effectiveStatus === "ready" && recs.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto md:flex-col md:overflow-visible">
+              {recs.map((r, i) => (
+                <div key={r.tmdb_id} className="contents">
+                  {i === boostCount && boostCount > 0 && boostCount < recs.length && (
+                    <div className="flex min-w-[200px] items-center gap-2 md:min-w-0 md:py-1">
+                      <div className="flex-1 border-t" style={{ borderColor: "rgba(11,11,11,0.12)" }} />
+                      <span
+                        className="whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.15em]"
+                        style={{ color: INK.muted }}
+                      >
+                        you might also like
+                      </span>
+                      <div className="flex-1 border-t" style={{ borderColor: "rgba(11,11,11,0.12)" }} />
+                    </div>
+                  )}
+                  <div className="min-w-[200px] md:min-w-0">
+                    <FilmCard
+                      metadata={r.metadata}
+                      score={r.score}
+                      reasons={reasonsMap[r.tmdb_id] ?? []}
+                    />
                   </div>
-                )}
-                <div className="min-w-[200px] md:min-w-0">
-                  <FilmCard
-                    metadata={r.metadata}
-                    score={r.score}
-                    reasons={reasonsMap[r.tmdb_id] ?? []}
-                  />
                 </div>
-              </div>
-            ))}
-            {recs.length === 0 && (
-              <p className="text-sm text-gray-500">No recommendations match current filters.</p>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </aside>
     </>

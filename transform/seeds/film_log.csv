@@ -178,7 +178,7 @@ watched_date,tmdb_id,imdb_id,title,release_year,my_rating,star_rating,is_rewatch
 2020-05-27,29427,tt0455407,The Crazies,2010,50.0,2.5,false
 2020-05-28,473033,tt5727208,Uncut Gems,2019,80.0,4.0,false
 2020-05-29,473465,tt4619908,Last Ones Out,2016,40.0,2.0,false
-2020-06-02,373226,tt3662308,Belzebuth,2019,,,false
+2020-06-02,373226,tt3662308,Belzebuth,2019,80.0,4.0,false
 2020-06-06,8329,tt1038988,[REC],2007,80.0,4.0,true
 2020-06-08,528213,tt6453158,Scotch: A Golden Dream,2018,70.0,3.5,false
 2020-06-09,112198,tt2179121,What's in a Name,2012,80.0,4.0,false

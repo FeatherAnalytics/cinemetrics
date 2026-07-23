@@ -5,6 +5,7 @@ import { useExplorer } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
 import { countryName } from "@/lib/countries";
 import { watchKey } from "@/lib/brush";
+import { fmt1 } from "@/lib/format";
 
 type Row = {
   key: string;
@@ -90,16 +91,16 @@ export function SelectionPanel() {
           </span>
           {avgMe != null && (
             <span className="text-xs" style={{ color: INK.secondary }}>
-              avg me <b>{avgMe % 1 === 0 ? Math.round(avgMe) : avgMe.toFixed(1)}</b>
+              avg me <b>{fmt1(avgMe)}</b>
               {avgCritic != null && (
                 <>
                   {" "}
-                  · avg critic <b>{avgCritic % 1 === 0 ? Math.round(avgCritic) : avgCritic.toFixed(1)}</b>
+                  · avg critic <b>{fmt1(avgCritic)}</b>
                   {delta != null && (
                     <>
                       {" "}
                       · I rate {delta >= 0 ? "+" : ""}
-                      {delta % 1 === 0 ? Math.round(delta) : delta.toFixed(1)}
+                      {fmt1(delta)}
                     </>
                   )}
                 </>
@@ -142,8 +143,8 @@ export function SelectionPanel() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
-              <tr key={`${r.key}#${i}`} className="border-t" style={{ borderColor: "rgba(11,11,11,0.06)" }}>
+            {rows.map((r) => (
+              <tr key={r.key} className="border-t" style={{ borderColor: "rgba(11,11,11,0.06)" }}>
                 <td className="px-3 py-1.5 font-mono text-xs tabular-nums" style={{ color: INK.secondary }}>
                   {r.date}
                 </td>

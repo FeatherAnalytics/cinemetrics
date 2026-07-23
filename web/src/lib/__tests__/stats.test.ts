@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeScreenTime, computeAvgRating, computeResiduals } from "../stats";
+import { computeScreenTime, computeAvgRating, computeMedianRating, computeResiduals } from "../stats";
 import type { EnrichedWatch, Film } from "../types";
 
 function makeFilm(overrides: Partial<Film> = {}): Film {
@@ -62,6 +62,34 @@ describe("computeAvgRating", () => {
     const result = computeAvgRating(watches);
     expect(result.mean).toBeNull();
     expect(result.ci).toBeNull();
+  });
+});
+
+describe("computeMedianRating", () => {
+  const f = makeFilm();
+
+  it("returns the middle value for an odd count", () => {
+    const watches = [30, 90, 60].map((rating) => makeWatch(f, { rating }));
+    expect(computeMedianRating(watches)).toBe(60);
+  });
+
+  it("averages the two middle values for an even count", () => {
+    const watches = [40, 60, 80, 100].map((rating) => makeWatch(f, { rating }));
+    expect(computeMedianRating(watches)).toBe(70);
+  });
+
+  it("ignores unrated watches", () => {
+    const watches = [
+      makeWatch(f, { rating: 50 }),
+      makeWatch(f, { rating: null }),
+      makeWatch(f, { rating: 90 }),
+      makeWatch(f, { rating: 70 }),
+    ];
+    expect(computeMedianRating(watches)).toBe(70);
+  });
+
+  it("returns null with no rated watches", () => {
+    expect(computeMedianRating([makeWatch(f, { rating: null })])).toBeNull();
   });
 });
 

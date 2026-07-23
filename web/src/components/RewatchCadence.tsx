@@ -3,29 +3,38 @@
 import { useMemo, useState } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
-import { rectContains, useDragRect, watchKey } from "@/lib/brush";
+import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
+import { trunc } from "@/lib/format";
 import type { EnrichedWatch, Film } from "@/lib/types";
 
 const W = 900;
 const LABEL = 150;
-const RIGHT = 14;
+const RIGHT = 64; // room for the "first → last" labels
 const TOP = 24;
 const ROWH = 20;
+const HEADER_H = 26;
 const PAD = 3; // vertical padding inside each row band
 
-type Row = { tmdb_id: number; film: Film | undefined; watches: EnrichedWatch[]; count: number };
+type Row = {
+  tmdb_id: number;
+  film: Film | undefined;
+  watches: EnrichedWatch[];
+  count: number;
+  first: number | null; // first rated watch's rating
+  last: number | null; // last rated watch's rating
+  delta: number | null; // last - first; null with fewer than 2 rated watches
+};
 
-function trunc(s: string, n = 26): string {
-  return s.length > n ? s.slice(0, n - 1) + "…" : s;
-}
+type Band = { label: string; rows: Row[]; headerY: number; startY: number };
 
 export function RewatchCadence() {
   const { all, filters, selectedId, setSelected, setSelection } = useExplorer();
+  const [showUnchanged, setShowUnchanged] = useState(false);
   const [hover, setHover] = useState<{ x: number; y: number; row: Row; w: EnrichedWatch } | null>(
     null,
   );
 
-  const { rows, x0, x1 } = useMemo(() => {
+  const { grew, soured, unchanged, x0, x1 } = useMemo(() => {
     const watches = filterWatches(all, { ...filters, rewatch: "all" });
     const byFilm = new Map<number, EnrichedWatch[]>();
     for (const w of watches) {
@@ -37,18 +46,46 @@ export function RewatchCadence() {
     for (const [tid, ws] of byFilm) {
       if (ws.length < 2) continue;
       const sorted = [...ws].sort((a, b) => a.d.getTime() - b.d.getTime());
-      rows.push({ tmdb_id: tid, film: ws[0].film, watches: sorted, count: ws.length });
+      const rated = sorted.filter((w) => w.rating != null);
+      const first = rated.length >= 2 ? (rated[0].rating as number) : null;
+      const last = rated.length >= 2 ? (rated[rated.length - 1].rating as number) : null;
+      rows.push({
+        tmdb_id: tid,
+        film: ws[0].film,
+        watches: sorted,
+        count: ws.length,
+        first,
+        last,
+        delta: first != null && last != null ? last - first : null,
+      });
     }
-    rows.sort((a, b) => b.count - a.count || a.watches[0].d.getTime() - b.watches[0].d.getTime());
+    // The films whose rating moved lead, biggest move first; unchanged rows keep
+    // the old most-rewatched-first order.
+    const byDelta = (a: Row, b: Row) =>
+      Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0) || b.count - a.count;
+    const byCount = (a: Row, b: Row) =>
+      b.count - a.count || a.watches[0].d.getTime() - b.watches[0].d.getTime();
+    const grew = rows.filter((r) => (r.delta ?? 0) > 0).sort(byDelta);
+    const soured = rows.filter((r) => (r.delta ?? 0) < 0).sort(byDelta);
+    const unchanged = rows.filter((r) => (r.delta ?? 0) === 0).sort(byCount);
     const times = all.map((w) => w.d.getTime());
-    return { rows, x0: Math.min(...times), x1: Math.max(...times) };
+    // Guard the empty case: Math.min/max of no args give ±Infinity, which
+    // poisons the time axis. Fall back to a unit span.
+    const x0 = times.length ? Math.min(...times) : 0;
+    const x1 = times.length ? Math.max(...times) : 1;
+    return { grew, soured, unchanged, x0, x1 };
   }, [all, filters]);
+
+  const visibleRows = useMemo(
+    () => [...grew, ...soured, ...(showUnchanged ? unchanged : [])],
+    [grew, soured, unchanged, showUnchanged],
+  );
 
   // Shared rating scale across every row, fit to the ratings present and rounded
   // out to tens, so a dot's height means the same thing in every film's band.
   const [lo, hi] = useMemo(() => {
     let mn = 100, mx = 0, seen = false;
-    for (const r of rows)
+    for (const r of visibleRows)
       for (const w of r.watches)
         if (w.rating != null) {
           seen = true;
@@ -57,26 +94,30 @@ export function RewatchCadence() {
         }
     if (!seen) return [0, 100];
     return [Math.max(0, Math.floor((mn - 5) / 10) * 10), Math.min(100, Math.ceil((mx + 5) / 10) * 10)];
-  }, [rows]);
+  }, [visibleRows]);
 
-  const summary = useMemo(() => {
-    let up = 0, down = 0, same = 0;
-    for (const r of rows) {
-      const rated = r.watches.filter((w) => w.rating != null);
-      if (rated.length < 2) continue;
-      const d = (rated[rated.length - 1].rating as number) - (rated[0].rating as number);
-      if (d > 0) up++;
-      else if (d < 0) down++;
-      else same++;
-    }
-    return { up, down, same };
-  }, [rows]);
+  // Bands stacked with a header row each; empty bands disappear entirely.
+  const { bands, H } = useMemo(() => {
+    const defs = [
+      { label: `grew · ${grew.length}`, rows: grew },
+      { label: `soured · ${soured.length}`, rows: soured },
+      ...(showUnchanged ? [{ label: `unchanged · ${unchanged.length}`, rows: unchanged }] : []),
+    ].filter((b) => b.rows.length > 0);
+    let yCur = TOP;
+    const bands: Band[] = defs.map((b) => {
+      const headerY = yCur;
+      yCur += HEADER_H;
+      const startY = yCur;
+      yCur += b.rows.length * ROWH;
+      return { ...b, headerY, startY };
+    });
+    return { bands, H: yCur + 10 };
+  }, [grew, soured, unchanged, showUnchanged]);
 
-  const H = TOP + rows.length * ROWH + 10;
   const x = (t: number) => LABEL + ((t - x0) / (x1 - x0 || 1)) * (W - LABEL - RIGHT);
-  const yRating = (rating: number | null, i: number) => {
-    const top = TOP + i * ROWH + PAD;
-    const bot = TOP + i * ROWH + ROWH - PAD;
+  const yRating = (rating: number | null, rowTop: number) => {
+    const top = rowTop + PAD;
+    const bot = rowTop + ROWH - PAD;
     if (rating == null) return (top + bot) / 2;
     return bot - ((rating - lo) / (hi - lo || 1)) * (bot - top);
   };
@@ -90,11 +131,13 @@ export function RewatchCadence() {
     () => ({ w: W, h: H }),
     (r) => {
       const keys = new Set<string>();
-      rows.forEach((row, i) =>
-        row.watches.forEach((w) => {
-          if (rectContains(r, x(w.d.getTime()), yRating(w.rating, i))) keys.add(watchKey(w));
-        }),
-      );
+      for (const band of bands)
+        band.rows.forEach((row, i) =>
+          row.watches.forEach((w) => {
+            const rowTop = band.startY + i * ROWH;
+            if (rectContains(r, x(w.d.getTime()), yRating(w.rating, rowTop))) keys.add(watchKey(w));
+          }),
+        );
       setSelection(keys);
     },
   );
@@ -106,7 +149,7 @@ export function RewatchCadence() {
         className="w-full"
         style={{ touchAction: "none" }}
         role="img"
-        aria-label="Each row a rewatched film; dots are watches over time, height is my rating. Drag to brush a selection."
+        aria-label="Rewatched films grouped by whether my rating grew, soured, or held; dots are watches over time, height is my rating. Drag to brush a selection."
         {...handlers}
       >
         {years.map((Y) => {
@@ -119,69 +162,105 @@ export function RewatchCadence() {
           );
         })}
 
-        {rows.map((r, i) => {
-          const sel = r.tmdb_id === selectedId;
-          const color = sel ? ACCENT : GENRE_COLORS[primaryGenre(r.film)];
-          const dim = selectedId != null && !sel;
-          const pts = r.watches.map((w) => ({ x: x(w.d.getTime()), y: yRating(w.rating, i), w }));
-          const poly = pts.map((p) => `${p.x},${p.y}`).join(" ");
-          const labelY = TOP + i * ROWH + ROWH / 2;
-          return (
-            <g key={r.tmdb_id} style={{ cursor: "pointer" }} onClick={() => setSelected(r.tmdb_id)}>
-              {sel && <rect x={0} y={TOP + i * ROWH} width={W} height={ROWH} fill={ACCENT} fillOpacity={0.06} />}
-              <text
-                x={LABEL - 8}
-                y={labelY}
-                fill={sel ? INK.primary : INK.muted}
-                fontSize={9}
-                textAnchor="end"
-                dominantBaseline="middle"
-              >
-                {trunc(r.film?.title ?? String(r.tmdb_id))}
-              </text>
-              <polyline
-                points={poly}
-                fill="none"
-                stroke={color}
-                strokeWidth={sel ? 1.75 : 1.1}
-                strokeOpacity={dim ? 0.3 : 0.85}
-              />
-              {pts.map((p, j) => (
-                <circle
-                  key={j}
-                  cx={p.x}
-                  cy={p.y}
-                  r={sel ? 3.4 : 2.6}
-                  fill={p.w.rating == null ? INK.surface : color}
-                  fillOpacity={dim ? 0.3 : 0.9}
-                  stroke={p.w.rating == null ? INK.muted : INK.surface}
-                  strokeWidth={p.w.rating == null ? 1 : 0.5}
-                  onMouseEnter={() => setHover({ x: p.x, y: p.y, row: r, w: p.w })}
-                  onMouseLeave={() => setHover(null)}
-                />
-              ))}
-            </g>
-          );
-        })}
+        {bands.map((band) => (
+          <g key={band.label}>
+            <text
+              x={0}
+              y={band.headerY + HEADER_H / 2 + 4}
+              fill={INK.secondary}
+              fontSize={10}
+              fontFamily="var(--font-mono)"
+              letterSpacing="0.1em"
+            >
+              {band.label.toUpperCase()}
+            </text>
+            <line
+              x1={LABEL}
+              y1={band.headerY + HEADER_H / 2}
+              x2={W - 4}
+              y2={band.headerY + HEADER_H / 2}
+              stroke={INK.grid}
+              strokeWidth={0.5}
+            />
 
-        {rect && (
-          <rect
-            x={rect.x0}
-            y={rect.y0}
-            width={rect.x1 - rect.x0}
-            height={rect.y1 - rect.y0}
-            fill={ACCENT}
-            fillOpacity={0.08}
-            stroke={ACCENT}
-            strokeOpacity={0.5}
-            strokeWidth={1}
-            pointerEvents="none"
-          />
-        )}
+            {band.rows.map((r, i) => {
+              const rowTop = band.startY + i * ROWH;
+              const sel = r.tmdb_id === selectedId;
+              const color = sel ? ACCENT : GENRE_COLORS[primaryGenre(r.film)];
+              const dim = selectedId != null && !sel;
+              const pts = r.watches.map((w) => ({
+                x: x(w.d.getTime()),
+                y: yRating(w.rating, rowTop),
+                w,
+              }));
+              const poly = pts.map((p) => `${p.x},${p.y}`).join(" ");
+              const labelY = rowTop + ROWH / 2;
+              return (
+                <g key={r.tmdb_id} style={{ cursor: "pointer" }} onClick={() => setSelected(r.tmdb_id)}>
+                  {sel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={ACCENT} fillOpacity={0.06} />}
+                  <text
+                    x={LABEL - 8}
+                    y={labelY}
+                    fill={sel ? INK.primary : INK.muted}
+                    fontSize={9}
+                    textAnchor="end"
+                    dominantBaseline="middle"
+                  >
+                    {trunc(r.film?.title ?? String(r.tmdb_id))}
+                  </text>
+                  <polyline
+                    points={poly}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={sel ? 1.75 : 1.1}
+                    strokeOpacity={dim ? 0.3 : 0.85}
+                  />
+                  {pts.map((p, j) => (
+                    <circle
+                      key={j}
+                      cx={p.x}
+                      cy={p.y}
+                      r={sel ? 3.4 : 2.6}
+                      fill={p.w.rating == null ? INK.surface : color}
+                      fillOpacity={dim ? 0.3 : 0.9}
+                      stroke={p.w.rating == null ? INK.muted : INK.surface}
+                      strokeWidth={p.w.rating == null ? 1 : 0.5}
+                      onMouseEnter={() => setHover({ x: p.x, y: p.y, row: r, w: p.w })}
+                      onMouseLeave={() => setHover(null)}
+                    />
+                  ))}
+                  {r.delta != null && r.delta !== 0 && (
+                    <text
+                      x={W - 4}
+                      y={labelY}
+                      fill={i === 0 ? INK.primary : INK.muted}
+                      fontSize={9}
+                      fontWeight={i === 0 ? 700 : 400}
+                      textAnchor="end"
+                      dominantBaseline="middle"
+                    >
+                      {r.first} → {r.last}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </g>
+        ))}
+
+        <BrushRectOverlay rect={rect} />
       </svg>
 
-      <figcaption className="mt-1 font-mono text-xs text-[#67655f]">
-        higher dot = higher rating · {summary.up} grew · {summary.down} soured · {summary.same} unchanged
+      <figcaption className="mt-1 flex items-center gap-3 font-mono text-xs text-[#67655f]">
+        <span>higher dot = higher rating</span>
+        {unchanged.length > 0 && (
+          <button
+            onClick={() => setShowUnchanged((v) => !v)}
+            className="underline decoration-dotted underline-offset-2 hover:text-[#0b0b0b]"
+          >
+            {showUnchanged ? "hide" : "show"} {unchanged.length} unchanged
+          </button>
+        )}
       </figcaption>
 
       {hover && (

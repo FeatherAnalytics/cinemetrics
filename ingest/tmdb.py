@@ -9,13 +9,12 @@ Needs TMDB_API_KEY in the environment (see .env.example).
 
 import json
 import os
-import time
 
 import pandas as pd
-import requests
 from dotenv import load_dotenv
 
 from ingest import DATA_RAW, connect
+from ingest.http import tmdb_get
 
 load_dotenv()
 
@@ -24,18 +23,7 @@ CACHE = DATA_RAW / "tmdb"
 
 
 def _get(path: str, **params) -> dict:
-    params["api_key"] = KEY
-    for attempt in range(4):
-        try:
-            resp = requests.get(
-                f"https://api.themoviedb.org/3/{path}", params=params, timeout=30
-            )
-            if resp.status_code == 200:
-                return resp.json()
-        except requests.RequestException:
-            pass
-        time.sleep(1 + attempt)
-    return {}
+    return tmdb_get(path, api_key=KEY, **params)
 
 
 def _fetch(tmdb_id: int, imdb_id: str = "") -> dict:
@@ -49,9 +37,11 @@ def _fetch(tmdb_id: int, imdb_id: str = "") -> dict:
         return json.loads(cache_tmdb.read_text(encoding="utf-8"))
 
     movie = _get(f"movie/{tmdb_id}", append_to_response="keywords")
-    # Cache by imdb_id if available for backward compat, otherwise by tmdb_id
-    dest = cache_imdb if imdb_id else cache_tmdb
-    dest.write_text(json.dumps(movie), encoding="utf-8")
+    # Cache by imdb_id if available for backward compat, otherwise by tmdb_id.
+    # Only cache a genuine hit; an empty/failed response must not poison cache.
+    if movie.get("id"):
+        dest = cache_imdb if imdb_id else cache_tmdb
+        dest.write_text(json.dumps(movie), encoding="utf-8")
     return movie
 
 

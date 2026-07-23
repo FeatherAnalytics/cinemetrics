@@ -35,9 +35,7 @@ type Action =
   | { type: "OPEN_GENRE_RECOMMEND"; genre: string }
   | { type: "CLOSE" }
   | { type: "SET_LANGUAGE"; language: "en" | "non-en" | undefined }
-  | { type: "SET_RUNTIME_RANGE"; range: [number, number] | undefined }
-  | { type: "TOGGLE_HIDE_RATED" }
-  | { type: "SHUFFLE" };
+  | { type: "TOGGLE_HIDE_RATED" };
 
 export function recommendReducer(state: RecommendState, action: Action): RecommendState {
   switch (action.type) {
@@ -69,12 +67,8 @@ export function recommendReducer(state: RecommendState, action: Action): Recomme
       return { ...initialRecommendState };
     case "SET_LANGUAGE":
       return { ...state, filters: { ...state.filters, language: action.language } };
-    case "SET_RUNTIME_RANGE":
-      return { ...state, filters: { ...state.filters, runtimeRange: action.range } };
     case "TOGGLE_HIDE_RATED":
       return { ...state, hideRated: !state.hideRated };
-    case "SHUFFLE":
-      return { ...state };
     default:
       return state;
   }

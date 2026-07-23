@@ -15,8 +15,9 @@ Stack: Python, DuckDB, dbt, scikit-learn, TMDB + OMDb APIs, Next.js, Cloudflare 
 - Viewing habits over time — pace, seasonality, genre drift.
 - Taste alignment with critics (Metascore, Rotten Tomatoes, IMDb).
 - Rewatch patterns and rating changes.
-- ML recommendation engine: "Recommend a film" (weighted random from predicted taste),
-  with EN/Non-EN toggle, dashboard filter integration, and explainable results ("Why this film").
+- Recommendation engine: "Recommend a film" (weighted random from films similar to my
+  favourites), with EN/Non-EN toggle, dashboard filter integration, and explainable results
+  ("Why this film").
 
 ## How it fits together
 
@@ -25,7 +26,7 @@ Letterboxd (ratings log)   ─┐
 TMDB   (genres, keywords)  ─┼─► seeds ─► dbt (staging → marts) ─► export ─► dashboard
 OMDb   (critic scores)     ─┘
                                   │
-                            candidate pool ─► scikit-learn (embeddings + Ridge predictor)
+                            candidate pool ─► scikit-learn (feature embeddings)
                                   │
                             Cloudflare R2 ─► browser (cosine similarity, client-side)
 ```
@@ -34,8 +35,9 @@ OMDb   (critic scores)     ─┘
   `candidate_enrichment.csv` (recommendation pool from TMDB similar + popular).
 - **Staging**: cleaned, typed views over the seeds.
 - **Marts**: `dim_film`, `fct_watches`, `dim_candidate`.
-- **ML pipeline**: TF-IDF + multi-hot feature encoding → Ridge regression rating predictor →
-  cosine similarity. Pre-computed at build time, served from R2, similarity math runs client-side.
+- **ML pipeline**: TF-IDF + multi-hot feature encoding → cosine similarity. Pre-computed at
+  build time, served from R2, similarity math runs client-side. (A k-NN taste predictor was
+  evaluated but did not beat critic scores, so it stays an offline tool — `scripts/eval_taste.py`.)
 - **Auto-updates**: daily GitHub Action fetches Letterboxd RSS, enriches new films, retrains
   if data changed, uploads to R2, deploys.
 
@@ -46,7 +48,7 @@ recommend/  Python: ML pipeline (feature encoding, model, explainability)
 ingest/     Python: TMDB + OMDb enrichment
 transform/  dbt project (seeds → staging → marts)
 scripts/    export, candidate fetch, training, R2 upload
-tests/      pytest: encoding, model, explainability
+tests/      pytest: encoding, model, ingest, taste eval
 web/        Next.js dashboard + recommendation drawer
 data/       movies.duckdb, ml/ (gitignored)
 ```
@@ -68,7 +70,7 @@ make dev                  # start Next.js dev server at localhost:3000
 | `make dev` | Start Next.js dev server |
 | `make test` | Run all tests: ruff + eslint + dbt + vitest |
 | `make candidates` | Fetch candidate films from TMDB (similar + popular) |
-| `make train` | Train embeddings + rating predictor (skips if data unchanged) |
+| `make train` | Train embeddings (skips if data unchanged) |
 | `make retrain` | Force retrain regardless of data changes |
 | `make upload` | Upload embeddings to Cloudflare R2 |
 | `make update` | Auto-update from Letterboxd RSS |

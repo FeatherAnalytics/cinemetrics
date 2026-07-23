@@ -9,18 +9,20 @@ Enriches new candidates via TMDB + OMDb and appends to candidate_enrichment.csv.
 """
 
 import csv
-import json
 import os
-import re
-import time
+import sys
 from pathlib import Path
 
-import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from ingest.enrich import build_enrichment_row  # noqa: E402
+from ingest.http import cached_json, omdb_get, tmdb_get  # noqa: E402
+
 SEEDS = ROOT / "transform" / "seeds"
 FILM_ENRICHMENT = SEEDS / "film_enrichment.csv"
 CANDIDATE_ENRICHMENT = SEEDS / "candidate_enrichment.csv"
@@ -31,43 +33,16 @@ OMDB_KEY = os.environ.get("OMDB_API_KEY")
 
 
 def _tmdb_get(path: str, **params) -> dict:
-    params["api_key"] = TMDB_KEY
-    for attempt in range(4):
-        try:
-            resp = requests.get(
-                f"https://api.themoviedb.org/3/{path}", params=params, timeout=30
-            )
-            if resp.status_code == 200:
-                return resp.json()
-            if resp.status_code == 429:
-                time.sleep(2 + attempt)
-                continue
-        except requests.RequestException:
-            pass
-        time.sleep(1 + attempt)
-    return {}
+    return tmdb_get(path, api_key=TMDB_KEY, **params)
 
 
 def _omdb_get(imdb_id: str) -> dict:
     cache_file = ROOT / "data" / "raw" / "omdb" / f"{imdb_id}.json"
-    if cache_file.exists():
-        return json.loads(cache_file.read_text(encoding="utf-8"))
-    for attempt in range(4):
-        try:
-            resp = requests.get(
-                "https://www.omdbapi.com/",
-                params={"i": imdb_id, "apikey": OMDB_KEY},
-                timeout=30,
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                cache_file.parent.mkdir(parents=True, exist_ok=True)
-                cache_file.write_text(json.dumps(data), encoding="utf-8")
-                return data
-        except requests.RequestException:
-            pass
-        time.sleep(1 + attempt)
-    return {}
+    return cached_json(
+        cache_file,
+        lambda: omdb_get(imdb_id, api_key=OMDB_KEY),
+        is_valid=lambda d: bool(d),
+    )
 
 
 def _existing_tmdb_ids() -> set[int]:
@@ -87,13 +62,14 @@ def _existing_tmdb_ids() -> set[int]:
 
 def _fetch_similar(tmdb_id: int) -> list[int]:
     cache_file = CACHE / f"similar_{tmdb_id}.json"
-    if cache_file.exists():
-        return json.loads(cache_file.read_text(encoding="utf-8"))
-    data = _tmdb_get(f"movie/{tmdb_id}/similar", page=1)
-    ids = [m["id"] for m in data.get("results", [])]
-    cache_file.parent.mkdir(parents=True, exist_ok=True)
-    cache_file.write_text(json.dumps(ids), encoding="utf-8")
-    return ids
+
+    def produce() -> list[int]:
+        data = _tmdb_get(f"movie/{tmdb_id}/similar", page=1)
+        return [m["id"] for m in data.get("results", [])]
+
+    # Only cache a genuine non-empty result; an empty/failed response would
+    # otherwise poison the cache permanently.
+    return cached_json(cache_file, produce, is_valid=lambda ids: len(ids) > 0)
 
 
 def _fetch_list(endpoint: str, pages: int = 50) -> list[int]:
@@ -106,69 +82,29 @@ def _fetch_list(endpoint: str, pages: int = 50) -> list[int]:
     return ids
 
 
-def _na(v: str | None) -> str:
-    return "" if not v or v == "N/A" else v
-
-
-def _int_or_empty(v: str | None) -> str:
-    v2 = _na(v)
-    if not v2:
-        return ""
-    digits = re.sub(r"[^0-9]", "", v2)
-    return digits if digits else ""
-
-
-def _float_or_empty(v: str | None) -> str:
-    v2 = _na(v)
-    try:
-        return str(float(v2)) if v2 else ""
-    except ValueError:
-        return ""
-
-
 def _enrich_tmdb(tmdb_id: int) -> dict | None:
     cache_file = CACHE / f"detail_{tmdb_id}.json"
-    if cache_file.exists():
-        data = json.loads(cache_file.read_text(encoding="utf-8"))
-    else:
-        data = _tmdb_get(f"movie/{tmdb_id}", append_to_response="keywords")
-        if not data.get("id"):
-            return None
-        cache_file.parent.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text(json.dumps(data), encoding="utf-8")
+    # Only cache a real hit (data with an id); a failed lookup must not be cached.
+    data = cached_json(
+        cache_file,
+        lambda: _tmdb_get(f"movie/{tmdb_id}", append_to_response="keywords"),
+        is_valid=lambda d: bool(d.get("id")),
+    )
+    if not data.get("id"):
+        return None
 
     imdb_id = data.get("imdb_id", "")
     omdb = _omdb_get(imdb_id) if imdb_id else {}
 
-    rt = ""
-    for r in omdb.get("Ratings", []):
-        if r.get("Source") == "Rotten Tomatoes":
-            rt = _int_or_empty(r.get("Value"))
-
-    countries = ", ".join(c["iso_3166_1"] for c in data.get("production_countries", []))
-
-    return {
-        "tmdb_id": str(tmdb_id),
-        "imdb_id": imdb_id,
-        "genres": ", ".join(g["name"] for g in data.get("genres", [])),
-        "keywords": ", ".join(
-            k["name"] for k in data.get("keywords", {}).get("keywords", [])
-        ),
-        "runtime": str(data.get("runtime") or ""),
-        "budget": str(data.get("budget") or ""),
-        "revenue": str(data.get("revenue") or ""),
-        "metascore": _int_or_empty(omdb.get("Metascore")),
-        "rt_rating": rt,
-        "imdb_rating": _float_or_empty(omdb.get("imdbRating")),
-        "imdb_votes": _int_or_empty(omdb.get("imdbVotes")),
-        "box_office": _int_or_empty(omdb.get("BoxOffice")),
-        "director": _na(omdb.get("Director")),
-        "actors": _na(omdb.get("Actors")),
-        "rated": _na(omdb.get("Rated")),
-        "production_countries": countries,
-        "original_language": data.get("original_language", ""),
-        "collection": (data.get("belongs_to_collection") or {}).get("name", ""),
-    }
+    return build_enrichment_row(
+        data,
+        omdb,
+        tmdb_id=str(tmdb_id),
+        imdb_id=imdb_id,
+        prefer_omdb=False,
+        omdb_countries=False,
+        include_lang_collection=True,
+    )
 
 
 FIELDNAMES = [

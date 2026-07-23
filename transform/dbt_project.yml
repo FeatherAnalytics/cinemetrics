@@ -20,12 +20,14 @@ seeds:
     film_log:
       +column_types:
         tmdb_id: bigint
+        imdb_id: varchar
         release_year: integer
         my_rating: double
         star_rating: double
     film_enrichment:
       +column_types:
         tmdb_id: bigint
+        imdb_id: varchar
         runtime: integer
         budget: bigint
         revenue: bigint
@@ -37,6 +39,7 @@ seeds:
     candidate_enrichment:
       +column_types:
         tmdb_id: bigint
+        imdb_id: varchar
         runtime: integer
         budget: bigint
         revenue: bigint

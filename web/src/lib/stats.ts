@@ -23,6 +23,16 @@ export function computeAvgRating(watches: EnrichedWatch[]): AvgRatingResult {
   return { mean, ci, n };
 }
 
+export function computeMedianRating(watches: EnrichedWatch[]): number | null {
+  const rated = watches
+    .filter((w) => w.rating != null)
+    .map((w) => w.rating as number)
+    .sort((a, b) => a - b);
+  if (rated.length === 0) return null;
+  const mid = Math.floor(rated.length / 2);
+  return rated.length % 2 ? rated[mid] : (rated[mid - 1] + rated[mid]) / 2;
+}
+
 export function formatScreenTime(minutes: number): { value: string; unit: string } {
   const days = minutes / 60 / 24;
   if (days >= 1) return { value: Math.round(days).toString(), unit: days === 1 ? "day" : "days" };

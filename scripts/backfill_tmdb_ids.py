@@ -8,15 +8,17 @@ import csv
 import json
 import os
 import sys
-import time
 from pathlib import Path
 
-import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from ingest.http import tmdb_get  # noqa: E402
+
 SEEDS = ROOT / "transform" / "seeds"
 TMDB_CACHE = ROOT / "data" / "raw" / "tmdb"
 TMDB_KEY = os.environ.get("TMDB_API_KEY", "")
@@ -58,22 +60,9 @@ def _tmdb_find(imdb_id: str) -> int | None:
     """Look up tmdb_id for an imdb_id via TMDB /find endpoint."""
     if not TMDB_KEY:
         return None
-    for attempt in range(4):
-        try:
-            resp = requests.get(
-                f"https://api.themoviedb.org/3/find/{imdb_id}",
-                params={"api_key": TMDB_KEY, "external_source": "imdb_id"},
-                timeout=30,
-            )
-            if resp.status_code == 200:
-                results = resp.json().get("movie_results", [])
-                if results:
-                    return results[0]["id"]
-                return None
-        except requests.RequestException:
-            pass
-        time.sleep(1 + attempt)
-    return None
+    data = tmdb_get(f"find/{imdb_id}", api_key=TMDB_KEY, external_source="imdb_id")
+    results = data.get("movie_results", [])
+    return results[0]["id"] if results else None
 
 
 def _read_cache(imdb_id: str) -> int | None:

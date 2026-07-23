@@ -41,7 +41,7 @@ jobs:
           OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
       - name: Build dbt
         if: steps.diff.outputs.changed == 'true'
-        run: cd transform && uv run dbt build --profiles-dir .
+        run: cd transform && uv run dbt deps --profiles-dir . && uv run dbt build --profiles-dir .
       - name: Train embeddings
         if: steps.diff.outputs.changed == 'true'
         run: uv run python scripts/train_embeddings.py

@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import { useExplorer } from "@/lib/store";
 import { computeScreenTime, computeAvgRating, formatScreenTime } from "@/lib/stats";
+import { fmt1 } from "@/lib/format";
+import { ACCENT } from "@/lib/palette";
 
 export function StatBar() {
   const { all, filtered } = useExplorer();
@@ -18,10 +20,9 @@ export function StatBar() {
     return { screen, watchCount: filtered.length, rating, isFiltered, screenPct, watchPct };
   }, [all, filtered]);
 
-  const fmtNum = (v: number) => v % 1 === 0 ? `${v}` : v.toFixed(1);
   const ratingDisplay = stats.rating.mean != null
     ? stats.rating.ci != null && stats.rating.ci <= 5
-      ? `${Math.round(stats.rating.mean)} ±${fmtNum(Math.round(stats.rating.ci * 10) / 10)}`
+      ? `${Math.round(stats.rating.mean)} ±${fmt1(Math.round(stats.rating.ci * 10) / 10)}`
       : `${Math.round(stats.rating.mean)}`
     : "—";
 
@@ -30,7 +31,7 @@ export function StatBar() {
       className="flex justify-between gap-2 pt-2"
     >
       <div className="min-w-0">
-        <div className="text-lg font-bold leading-tight lg:text-xl" style={{ color: "#c01023" }}>
+        <div className="text-lg font-bold leading-tight lg:text-xl" style={{ color: ACCENT }}>
           {stats.screen.value}<span className="text-sm font-normal lg:text-base"> {stats.screen.unit}</span>
         </div>
         <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">

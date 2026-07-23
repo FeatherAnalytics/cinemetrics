@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
-import { rectContains, useDragRect, watchKey } from "@/lib/brush";
+import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import type { EnrichedWatch } from "@/lib/types";
+import { ChartTakeaway } from "./ChartTakeaway";
 
 const MARGIN_LEFT = 55;
 const MARGIN_TOP = 8;
@@ -14,11 +15,22 @@ const LANE_H = 70;
 const BASE_WIDTH = 720;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-type Pt = { w: EnrichedWatch; x: number; y: number; color: string; op: number; r: number; sel: boolean };
+type Pt = {
+  w: EnrichedWatch;
+  x: number;
+  y: number;
+  color: string;
+  op: number;
+  r: number;
+  sel: boolean;
+  unrated: boolean; // no rating: drawn as a hollow ring at the lane midline
+};
 
 export function SwimLaneChart() {
-  const { all, filtered, yearBounds, selectedId, setSelected, setSelection } = useExplorer();
+  const { all, filtered, yearBounds, selectedId, setSelected, setSelection, storyResult } =
+    useExplorer();
   const [hover, setHover] = useState<{ x: number; y: number; w: EnrichedWatch } | null>(null);
+  const monthFocus = storyResult?.monthFocus ?? null;
 
   const [startYear, endYear] = yearBounds;
   const nYears = Math.max(1, endYear - startYear + 1);
@@ -38,12 +50,25 @@ export function SwimLaneChart() {
   const ghosts = all.filter((w) => !filteredSet.has(watchKey(w)));
   const hasSel = selectedId != null;
 
+  // Seasonal finding: how horror-heavy October runs vs the rest of the year.
+  const octoberHorror = useMemo(() => {
+    let octTotal = 0;
+    let octHorror = 0;
+    for (const w of filtered) {
+      if (w.d.getUTCMonth() !== 9) continue;
+      octTotal += 1;
+      if (primaryGenre(w.film) === "Horror") octHorror += 1;
+    }
+    if (octTotal < 15) return null;
+    return Math.round((octHorror / octTotal) * 100);
+  }, [filtered]);
+
   const points: Pt[] = [];
 
   // Ghosts first
   for (const w of ghosts) {
     const { x, y } = place(w);
-    points.push({ w, x, y, color: INK.muted, op: 0.08, r: 3.5, sel: false });
+    points.push({ w, x, y, color: INK.muted, op: 0.08, r: 3.5, sel: false, unrated: w.rating == null });
   }
 
   // Active dots
@@ -51,11 +76,15 @@ export function SwimLaneChart() {
     const { x, y } = place(w);
     const sel = hasSel && w.tmdb_id === selectedId;
     const rating = w.rating ?? 70;
+    const unrated = w.rating == null;
+    // A story with a month focus spotlights that month; everything else recedes.
+    const offFocus = monthFocus != null && w.d.getUTCMonth() !== monthFocus;
     if (sel) {
-      points.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op: 1, r: 5, sel: true });
+      points.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op: 1, r: 5, sel: true, unrated });
     } else {
       const base = 0.35 + 0.6 * (rating / 100);
-      points.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op: hasSel ? base * 0.3 : base, r: 3.5, sel: false });
+      const op = (hasSel ? base * 0.3 : base) * (offFocus ? 0.12 : 1);
+      points.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op, r: 3.5, sel: false, unrated });
     }
   }
 
@@ -95,6 +124,38 @@ export function SwimLaneChart() {
             fill={i % 2 === 0 ? "#f7f6f3" : "white"}
           />
         ))}
+
+        {/* Month-focus spotlight band (set by a story). */}
+        {monthFocus != null && (
+          <rect
+            x={MARGIN_LEFT + (monthFocus / 12) * CHART_WIDTH}
+            y={MARGIN_TOP}
+            width={CHART_WIDTH / 12}
+            height={nYears * LANE_H}
+            fill={ACCENT}
+            fillOpacity={0.08}
+          />
+        )}
+
+        {/* Rating guides: faint lines at 75 and 25 inside each lane, so the
+            vertical position of a dot reads as a rating, not jitter. Thinner
+            than the month dividers — they must recede. */}
+        {Array.from({ length: nYears }, (_, i) => {
+          const laneTop = MARGIN_TOP + i * LANE_H;
+          return [75, 25].map((rating) => (
+            <line
+              key={`guide-${i}-${rating}`}
+              x1={MARGIN_LEFT}
+              y1={laneTop + (1 - rating / 100) * LANE_H}
+              x2={MARGIN_LEFT + CHART_WIDTH}
+              y2={laneTop + (1 - rating / 100) * LANE_H}
+              stroke={INK.grid}
+              strokeWidth={0.5}
+              strokeOpacity={0.55}
+              strokeDasharray="2 3"
+            />
+          ));
+        })}
 
         {/* Month dividers */}
         {Array.from({ length: 12 }, (_, i) => {
@@ -150,39 +211,31 @@ export function SwimLaneChart() {
           );
         })}
 
-        {/* Points */}
-        {points.map((p, i) => (
-          <circle
-            key={i}
-            cx={p.x}
-            cy={p.y}
-            r={p.r}
-            fill={p.color}
-            fillOpacity={p.op}
-            stroke={p.sel ? ACCENT : "none"}
-            strokeWidth={p.sel ? 2 : 0}
-            style={{ cursor: "pointer" }}
-            onMouseEnter={() => setHover({ x: p.x, y: p.y, w: p.w })}
-            onMouseLeave={() => setHover(null)}
-            onClick={() => setSelected(p.w.tmdb_id)}
-          />
-        ))}
+        {/* Points. Unrated watches (no score) draw as a hollow ring at the lane
+            midline, so they can't be mistaken for a genuine mid-70s rating. */}
+        {points.map((p, i) => {
+          const ring = p.unrated && !p.sel;
+          return (
+            <circle
+              key={i}
+              cx={p.x}
+              cy={p.y}
+              r={p.r}
+              fill={ring ? "none" : p.color}
+              fillOpacity={ring ? 0 : p.op}
+              stroke={p.sel ? ACCENT : ring ? p.color : "none"}
+              strokeWidth={p.sel ? 2 : ring ? 1 : 0}
+              strokeOpacity={ring ? p.op : 1}
+              style={{ cursor: "pointer" }}
+              onMouseEnter={() => setHover({ x: p.x, y: p.y, w: p.w })}
+              onMouseLeave={() => setHover(null)}
+              onClick={() => setSelected(p.w.tmdb_id)}
+            />
+          );
+        })}
 
         {/* Brush rect */}
-        {rect && (
-          <rect
-            x={rect.x0}
-            y={rect.y0}
-            width={rect.x1 - rect.x0}
-            height={rect.y1 - rect.y0}
-            fill={ACCENT}
-            fillOpacity={0.08}
-            stroke={ACCENT}
-            strokeOpacity={0.5}
-            strokeWidth={1}
-            pointerEvents="none"
-          />
-        )}
+        <BrushRectOverlay rect={rect} />
       </svg>
 
       {/* Hover tooltip */}
@@ -207,6 +260,10 @@ export function SwimLaneChart() {
             {hover.w.rewatch ? " · rewatch" : ""}
           </div>
         </div>
+      )}
+
+      {octoberHorror != null && (
+        <ChartTakeaway>October is {octoberHorror}% horror</ChartTakeaway>
       )}
     </figure>
   );

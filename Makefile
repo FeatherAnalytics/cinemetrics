@@ -2,6 +2,7 @@
 
 setup:
 	uv sync
+	cd transform && uv run dbt deps --profiles-dir .
 	cd web && npm ci
 
 dev:

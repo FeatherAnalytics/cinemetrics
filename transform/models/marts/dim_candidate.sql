@@ -21,5 +21,7 @@ select
     rated,
     original_language,
     collection
-from {{ ref('stg_candidate_enrichment') }}
-where tmdb_id not in (select tmdb_id from {{ ref('dim_film') }})
+from {{ ref('stg_candidate_enrichment') }} c
+where not exists (
+    select 1 from {{ ref('dim_film') }} f where f.tmdb_id = c.tmdb_id
+)

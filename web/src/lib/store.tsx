@@ -12,7 +12,7 @@ import type { Dataset, EnrichedWatch, Film } from "./types";
 import { primaryGenre, type GenreKey } from "./palette";
 import { countryName } from "./countries";
 import { watchKey } from "./brush";
-import { STORIES, type StoryResult, type ChartId } from "./stories";
+import { STORIES, computeStoryHeadlines, type StoryResult, type ChartId } from "./stories";
 
 function yearFrac(d: Date): number {
   const y = d.getUTCFullYear();
@@ -109,6 +109,7 @@ type ExplorerValue = {
   activeStory: string | null;
   storyResult: StoryResult | null;
   storyFocus: { primary: ChartId; emphasize: ChartId[]; dim: ChartId[] } | null;
+  storyHeadlines: { id: string; label: string; headline: string; chip: string }[];
   setStory: (id: string | null) => void;
   rollingDimension: string | null;
   toggleGenre: (g: GenreKey) => void;
@@ -182,6 +183,13 @@ export function ExplorerProvider({ children }: { children: ReactNode }) {
   const { all } = derived;
 
   const filtered = useMemo(() => filterWatches(all, filters), [all, filters]);
+
+  // Story headlines are computed once from the full dataset — they are stable
+  // invitations, not filtered views.
+  const storyHeadlines = useMemo(
+    () => (data ? computeStoryHeadlines(derived.films, derived.all) : []),
+    [data, derived.films, derived.all],
+  );
 
   const setStory = (id: string | null) => {
     if (id == null) {
@@ -261,6 +269,7 @@ export function ExplorerProvider({ children }: { children: ReactNode }) {
     activeStory,
     storyResult,
     storyFocus: activeStory ? (getStoryById(activeStory)?.focus ?? null) : null,
+    storyHeadlines,
     setStory,
     rollingDimension: storyResult?.rollingDimension ?? null,
   };

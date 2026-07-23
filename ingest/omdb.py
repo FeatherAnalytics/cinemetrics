@@ -7,38 +7,24 @@ Responses are cached to data/raw/omdb/.
 Needs OMDB_API_KEY in the environment (see .env.example).
 """
 
-import json
 import os
-import re
-import time
 
 import pandas as pd
-import requests
 from dotenv import load_dotenv
 
 from ingest import DATA_RAW, connect
+from ingest.http import cached_json, omdb_get
+from ingest.parse import float_or_none, int_or_none, na_none
 
 load_dotenv()
 
 KEY = os.environ.get("OMDB_API_KEY")
 CACHE = DATA_RAW / "omdb"
 
-
-def _na(v: str | None) -> str | None:
-    return None if not v or v == "N/A" else v
-
-
-def _int(v: str | None) -> int | None:
-    v = _na(v)
-    return int(re.sub(r"[^0-9]", "", v)) if v and re.search(r"\d", v) else None
-
-
-def _float(v: str | None) -> float | None:
-    v = _na(v)
-    try:
-        return float(v) if v else None
-    except ValueError:
-        return None
+# Backwards-compatible aliases for the previously module-private helpers.
+_na = na_none
+_int = int_or_none
+_float = float_or_none
 
 
 def _fix(s: str | None) -> str | None:
@@ -53,21 +39,15 @@ def _fix(s: str | None) -> str | None:
 
 def _fetch(imdb_id: str) -> dict:
     cache_file = CACHE / f"{imdb_id}.json"
-    if cache_file.exists():
-        return json.loads(cache_file.read_text(encoding="utf-8"))
-    for attempt in range(5):
-        try:
-            resp = requests.get(
-                "https://www.omdbapi.com/", params={"i": imdb_id, "apikey": KEY}, timeout=30
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                cache_file.write_text(json.dumps(data), encoding="utf-8")
-                return data
-        except requests.RequestException:
-            pass
-        time.sleep(1 + attempt)
-    return {"Response": "False", "Error": "fetch failed"}
+    # Cache any real response (including OMDb's own {"Response":"False"}); a
+    # total fetch failure returns {} and is not cached (falls through to the
+    # sentinel so load() counts it as a miss).
+    data = cached_json(
+        cache_file,
+        lambda: omdb_get(imdb_id, api_key=KEY),
+        is_valid=lambda d: bool(d),
+    )
+    return data or {"Response": "False", "Error": "fetch failed"}
 
 
 def load() -> None:

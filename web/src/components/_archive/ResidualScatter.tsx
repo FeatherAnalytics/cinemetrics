@@ -1,3 +1,6 @@
+// ARCHIVED 2026-07: replaced by ResidualDotStack (see thoughts/FRONTEND-REDESIGN.md).
+// The me-vs-predicted scatter suffered unavoidable overplot from tens-quantized
+// ratings; the dot-stack shows the same residuals as a countable distribution.
 "use client";
 
 import { useMemo, useState } from "react";
@@ -180,7 +183,7 @@ export function ResidualScatter() {
               cy={y}
               r={sel ? 6 : 4}
               fill={GENRE_COLORS[d.film]}
-              fillOpacity={sel ? 1 : hasSel ? 0.25 : 0.72}
+              fillOpacity={sel ? 1 : hasSel ? 0.25 : 0.55}
               stroke={sel ? ACCENT : INK.surface}
               strokeWidth={sel ? 2 : 0.75}
               style={{ cursor: "pointer" }}

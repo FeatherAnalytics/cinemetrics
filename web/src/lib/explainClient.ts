@@ -62,7 +62,7 @@ export function explainRecommendation(
   if (bestGenre && bestBoost > 0) {
     reasons.push({
       type: "genre",
-      text: `You rate ${bestGenre} +${Math.round(bestBoost)} above avg`,
+      text: `I rate ${bestGenre} +${Math.round(bestBoost)} above avg`,
     });
   }
 

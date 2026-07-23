@@ -1,3 +1,7 @@
+// ARCHIVED 2026-07: removed from the page in favour of CountryBars (see
+// docs/FRONTEND-REDESIGN.md, Phase 1). Kept for a possible future 3D-globe
+// treatment of the same data. Depends on public/data/countries.geojson, which
+// is also kept. Not imported anywhere; safe to delete if the globe idea dies.
 "use client";
 
 import { useEffect, useMemo, useState } from "react";

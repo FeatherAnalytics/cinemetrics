@@ -10,6 +10,18 @@ models:
       - name: imdb_id
       - name: watched_date
         tests: [not_null]
+      - name: rating_100
+        description: My rating on a 0-100 scale (Letterboxd stars × 20).
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+      - name: star_rating
+        description: Original Letterboxd star rating (0-5); null for pre-Letterboxd history.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 5
 
   - name: stg_film_enrichment
     description: One row per film — TMDB + OMDb attributes keyed by tmdb_id.
@@ -19,3 +31,12 @@ models:
         tests: [unique, not_null]
       - name: imdb_id
         tests: [not_null]
+
+  - name: stg_candidate_enrichment
+    description: One row per candidate film (recommendation pool) keyed by tmdb_id.
+    columns:
+      - name: tmdb_id
+        description: TMDB film identifier — the primary candidate key.
+        tests: [unique, not_null]
+      - name: imdb_id
+        description: IMDb id — may be empty for candidates TMDB lacks a link for.
