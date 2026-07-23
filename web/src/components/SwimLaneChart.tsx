@@ -96,6 +96,26 @@ export function SwimLaneChart() {
           />
         ))}
 
+        {/* Rating guides: faint lines at 75 and 25 inside each lane, so the
+            vertical position of a dot reads as a rating, not jitter. Thinner
+            than the month dividers — they must recede. */}
+        {Array.from({ length: nYears }, (_, i) => {
+          const laneTop = MARGIN_TOP + i * LANE_H;
+          return [75, 25].map((rating) => (
+            <line
+              key={`guide-${i}-${rating}`}
+              x1={MARGIN_LEFT}
+              y1={laneTop + (1 - rating / 100) * LANE_H}
+              x2={MARGIN_LEFT + CHART_WIDTH}
+              y2={laneTop + (1 - rating / 100) * LANE_H}
+              stroke={INK.grid}
+              strokeWidth={0.5}
+              strokeOpacity={0.55}
+              strokeDasharray="2 3"
+            />
+          ));
+        })}
+
         {/* Month dividers */}
         {Array.from({ length: 12 }, (_, i) => {
           const x = MARGIN_LEFT + (i / 12) * CHART_WIDTH;

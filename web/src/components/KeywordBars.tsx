@@ -145,7 +145,7 @@ export function KeywordBars() {
                 textAnchor="end"
                 dominantBaseline="middle"
               >
-                {bar.keyword} <tspan fill={INK.muted}>(n={bar.count})</tspan>
+                {bar.keyword}
               </text>
 
               {/* Bar */}
@@ -212,6 +212,9 @@ export function KeywordBars() {
           );
         })}
       </svg>
+      <figcaption className="mt-1 text-right font-mono text-[10px] uppercase tracking-[0.1em] text-[#8b8981]">
+        keywords appearing in {MIN_FILMS}+ rated films
+      </figcaption>
     </figure>
   );
 }

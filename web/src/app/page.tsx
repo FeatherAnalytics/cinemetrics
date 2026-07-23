@@ -118,7 +118,8 @@ function Explorer() {
             <StoryAnnotation target="spiral" />
             <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">When I watch</h2>
             <p className="mb-2 text-xs text-[#67655f]">
-              One row per year, January to December. Higher dots = higher ratings.
+              One row per year, January to December. Height within a row is my rating —
+              dots above the upper guide line scored 75+, dots below the lower one under 25.
             </p>
             <SwimLaneChart />
           </section>
@@ -126,9 +127,12 @@ function Explorer() {
           <section style={chartStyle("contrarian")}>
             <StoryAnnotation target="contrarian" />
             <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Where I align and deviate</h2>
-            <p className="mb-2 text-xs text-[#67655f]">
-              Each dot is a film. The diagonal is perfect agreement between me and critics.
-              Above = I rated higher than expected; below = lower.
+            <p className="mb-2 max-w-2xl text-xs text-[#67655f]">
+              Each dot is a film. The predicted rating is a regression fit of my ratings on
+              Metacritic, Rotten Tomatoes, and IMDB scores — the diagonal is where the
+              prediction and my actual rating agree. Above = I liked it more than the critics
+              suggest; below = less. Dots are jittered a few points vertically for visibility;
+              my real ratings land on steps of ten.
             </p>
             <ResidualScatter />
           </section>
@@ -159,9 +163,9 @@ function Explorer() {
             <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">How my taste settles</h2>
             <p className="mb-3 max-w-2xl text-xs text-[#67655f]">
               One panel per group: the coloured line is my rolling {`10`}-watch average rating as
-              I work through that group, with my overall average behind it in grey for comparison.
-              Switch how the films are grouped — genre, language, country, runtime, release decade,
-              or content rating.
+              I work through that group; the dashed grey line is my overall average, so stretches
+              above it are runs where that group was beating my baseline. Switch how the films are
+              grouped — genre, language, country, runtime, release decade, or content rating.
             </p>
             <RollingRating />
           </section>
@@ -170,8 +174,10 @@ function Explorer() {
             <StoryAnnotation target="rewatch" />
             <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">Rewatches</h2>
             <p className="mb-4 max-w-2xl text-xs text-[#67655f]">
-              Each row is a film I&rsquo;ve returned to; every dot is a watch, placed left-to-right
-              by date and up-or-down by my rating.
+              Films I&rsquo;ve returned to, grouped by whether coming back changed my mind —
+              biggest rating swings first. Every dot is a watch, placed left-to-right by date and
+              up-or-down by my rating; the numbers at the right of a row are my first and latest
+              scores.
             </p>
             <RewatchCadence />
           </section>

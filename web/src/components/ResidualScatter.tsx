@@ -10,6 +10,15 @@ const SIZE = 600;
 const M = 48;
 const W = SIZE - 2 * M;
 
+// My ratings are quantized to tens, which stacks dots into solid stripes.
+// Spread each film ±3 rating points vertically, deterministically from its id,
+// so dots stay put across renders. Disclosed in the section caption.
+const JITTER = 3;
+function jitterOf(tmdbId: number): number {
+  const h = (tmdbId * 2654435761) % 4294967296;
+  return (h / 4294967296) * 2 * JITTER - JITTER;
+}
+
 type Dot = FilmResidual & { film: GenreKey };
 
 export function ResidualScatter() {
@@ -66,7 +75,7 @@ export function ResidualScatter() {
       const ids = new Set<number>();
       for (const d of dots) {
         const x = xScale(d.predicted);
-        const y = yScale(d.me);
+        const y = yScale(d.me + jitterOf(d.tmdb_id));
         if (rectContains(r, x, y)) ids.add(d.tmdb_id);
       }
       const keys = new Set<string>();
@@ -171,7 +180,7 @@ export function ResidualScatter() {
         {/* Dots */}
         {ordered.map((d) => {
           const x = xScale(d.predicted);
-          const y = yScale(d.me);
+          const y = yScale(d.me + jitterOf(d.tmdb_id));
           const sel = d.tmdb_id === selectedId;
           return (
             <circle
@@ -180,7 +189,7 @@ export function ResidualScatter() {
               cy={y}
               r={sel ? 6 : 4}
               fill={GENRE_COLORS[d.film]}
-              fillOpacity={sel ? 1 : hasSel ? 0.25 : 0.72}
+              fillOpacity={sel ? 1 : hasSel ? 0.25 : 0.55}
               stroke={sel ? ACCENT : INK.surface}
               strokeWidth={sel ? 2 : 0.75}
               style={{ cursor: "pointer" }}

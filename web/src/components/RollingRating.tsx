@@ -5,6 +5,7 @@ import { useExplorer } from "@/lib/store";
 import { ACCENT, INK } from "@/lib/palette";
 import { useDragRect, watchKey } from "@/lib/brush";
 import { buildSeries, DIMENSIONS, type Dimension, type Series } from "@/lib/series";
+import { computeAvgRating } from "@/lib/stats";
 
 // Chart geometry. Each panel is measured and drawn 1:1 in CSS pixels: width
 // tracks the grid column (fluid), height is FIXED so every panel is the same
@@ -31,7 +32,10 @@ type Domain = {
   lo: number;
   hi: number;
   yTicks: number[];
-  overallPts: SeriesPointLite[];
+  // Flat reference: mean rating over the current filter set. The old grey
+  // rolling line plotted "nth watch overall" against "nth watch in group" —
+  // different moments in time at the same x — so it compared nothing real.
+  overallAvg: number | null;
 };
 
 /** Track an element's rendered width via ResizeObserver (for the 1:1 viewBox). */
@@ -67,7 +71,7 @@ function PanelChart({
   setSelection: (keys: Set<string> | null) => void;
 }) {
   const [ref, w] = useWidth();
-  const { xMin, xMax, lo, hi, yTicks, overallPts } = dom;
+  const { xMin, xMax, lo, hi, yTicks, overallAvg } = dom;
 
   const x = (n: number) => ML + ((n - xMin) / Math.max(1, xMax - xMin)) * (w - ML - MR);
   const y = (v: number) => MT + (1 - (v - lo) / (hi - lo || 1)) * (H - MT - MB);
@@ -77,7 +81,6 @@ function PanelChart({
   const at = (pts: SeriesPointLite[], n: number) => pts.find((p) => p.x === n);
 
   const hov = hoverX != null ? at(s.points, hoverX) : undefined;
-  const hovOverall = hoverX != null ? at(overallPts, hoverX) : undefined;
 
   // x-range brush: the selection is every watch that fed the brushed data points,
   // i.e. positions [a-(window-1), b] of this series (each point is a trailing
@@ -121,7 +124,7 @@ function PanelChart({
           viewBox={`0 0 ${w} ${H}`}
           style={{ touchAction: "none" }}
           role="img"
-          aria-label={`${s.label}: rolling ${WINDOW}-watch average rating vs overall. Drag across to brush the films behind a stretch.`}
+          aria-label={`${s.label}: rolling ${WINDOW}-watch average rating against my overall average. Drag across to brush the films behind a stretch.`}
           onMouseMove={onMove}
           onMouseLeave={() => setHoverX(null)}
           {...handlers}
@@ -156,11 +159,20 @@ function PanelChart({
             <line x1={x(hoverX)} y1={MT} x2={x(hoverX)} y2={H - MB} stroke={INK.axis} strokeWidth={0.75} strokeDasharray="2 2" />
           )}
 
-          <path d={line(overallPts)} fill="none" stroke={OVERALL_COLOR} strokeWidth={1.5} strokeLinejoin="round" />
+          {overallAvg != null && (
+            <line
+              x1={ML}
+              y1={y(overallAvg)}
+              x2={w - MR}
+              y2={y(overallAvg)}
+              stroke={OVERALL_COLOR}
+              strokeWidth={1.5}
+              strokeDasharray="5 4"
+            />
+          )}
           <path d={line(s.points)} fill="none" stroke={s.color} strokeWidth={2.25} strokeLinejoin="round" strokeLinecap="round" />
 
           {hov && <circle cx={x(hov.x)} cy={y(hov.y)} r={3.2} fill={s.color} stroke={INK.surface} strokeWidth={1} />}
-          {hovOverall && <circle cx={x(hovOverall.x)} cy={y(hovOverall.y)} r={2.6} fill={OVERALL_COLOR} stroke={INK.surface} strokeWidth={1} />}
 
           {hov && (
             <text
@@ -192,11 +204,11 @@ export function RollingRating() {
     [all, filtered, dim],
   );
 
-  const overall = series.find((s) => s.isOverall);
   const panels = series.filter((s) => !s.isOverall);
 
   // Shared scales across every panel so the small multiples stay comparable.
   const dom: Domain = useMemo(() => {
+    const overallAvg = computeAvgRating(filtered).mean;
     let xMin = Infinity;
     let xMax = 1;
     let mn = 100;
@@ -205,20 +217,19 @@ export function RollingRating() {
       for (const p of s.points) {
         xMin = Math.min(xMin, p.x);
         xMax = Math.max(xMax, p.x);
-      }
-    if (!Number.isFinite(xMin)) xMin = WINDOW;
-    const overallPts = overall?.points.filter((p) => p.x >= xMin && p.x <= xMax) ?? [];
-    for (const s of [...panels, ...(overall ? [overall] : [])])
-      for (const p of s.points) {
-        if (p.x < xMin || p.x > xMax) continue;
         mn = Math.min(mn, p.y);
         mx = Math.max(mx, p.y);
       }
-    if (mx < mn) return { xMin: WINDOW, xMax: WINDOW + 1, lo: 0, hi: 100, yTicks: [0, 50, 100], overallPts: [] };
+    if (!Number.isFinite(xMin)) xMin = WINDOW;
+    if (overallAvg != null) {
+      mn = Math.min(mn, overallAvg);
+      mx = Math.max(mx, overallAvg);
+    }
+    if (mx < mn) return { xMin: WINDOW, xMax: WINDOW + 1, lo: 0, hi: 100, yTicks: [0, 50, 100], overallAvg };
     const lo = Math.max(0, Math.floor((mn - 2) / 5) * 5);
     const hi = Math.min(100, Math.ceil((mx + 2) / 5) * 5);
-    return { xMin, xMax, lo, hi, yTicks: [lo, Math.round((lo + hi) / 2), hi], overallPts };
-  }, [panels, overall]);
+    return { xMin, xMax, lo, hi, yTicks: [lo, Math.round((lo + hi) / 2), hi], overallAvg };
+  }, [panels, filtered]);
 
   if (panels.length === 0) {
     return <p className="text-sm" style={{ color: INK.muted }}>Not enough rated watches to plot.</p>;
@@ -250,8 +261,11 @@ export function RollingRating() {
           ))}
         </div>
         <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: INK.muted }}>
-          <span className="inline-block rounded-sm" style={{ width: 12, height: 2, background: OVERALL_COLOR }} />
-          overall (all films)
+          <span
+            className="inline-block"
+            style={{ width: 14, borderTop: `2px dashed ${OVERALL_COLOR}` }}
+          />
+          my average across current filters
         </span>
       </div>
 
