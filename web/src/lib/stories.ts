@@ -38,30 +38,14 @@ export type StoryConfig = {
 };
 
 function computeSpooktober(films: Film[], watches: EnrichedWatch[]): StoryResult {
-  const octoberHorror = watches.filter((w) => {
-    return w.d.getUTCMonth() === 9 && primaryGenre(w.film) === "Horror";
-  });
-
-  const byYear = new Map<number, number>();
-  for (const w of octoberHorror) {
-    const year = w.d.getUTCFullYear();
-    byYear.set(year, (byYear.get(year) || 0) + 1);
-  }
-
-  let peakYear = 0;
-  let peakCount = 0;
-  for (const [year, count] of byYear) {
-    if (count > peakCount) {
-      peakYear = year;
-      peakCount = count;
-    }
-  }
-
-  if (peakCount === 0) {
+  const octoberHorror = watches.some(
+    (w) => w.d.getUTCMonth() === 9 && primaryGenre(w.film) === "Horror",
+  );
+  if (!octoberHorror) {
     return { headline: "No horror films watched in October yet" };
   }
   return {
-    headline: `October is my horror season — ${peakCount} in ${peakYear} alone`,
+    headline: "October is spooky season",
     chip: "Spooktober",
     filters: { genres: new Set(["Horror"]) },
     rollingDimension: "genre",

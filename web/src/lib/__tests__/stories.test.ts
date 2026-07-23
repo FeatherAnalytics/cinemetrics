@@ -27,20 +27,25 @@ const hiddenGems = STORIES.find((s) => s.id === "hidden-gems")!;
 const genreContrarian = STORIES.find((s) => s.id === "genre-contrarian")!;
 
 describe("spooktober", () => {
-  it("counts Horror watches in October and finds peak year", () => {
+  it("focuses horror in October when any October horror exists", () => {
     const horror = makeFilm({ tmdb_id: 1, genres: ["Horror"] });
     const drama = makeFilm({ tmdb_id: 2, genres: ["Drama"] });
     const watches = [
       makeWatch(horror, { tmdb_id: 1, date: "2023-10-01" }),
-      makeWatch(horror, { tmdb_id: 1, date: "2023-10-15" }),
-      makeWatch(horror, { tmdb_id: 1, date: "2024-10-05" }),
       makeWatch(drama, { tmdb_id: 2, date: "2023-10-20" }),
       makeWatch(horror, { tmdb_id: 1, date: "2023-06-01" }),
     ];
     const result = spooktober.compute([horror, drama], watches);
-    expect(result.headline).toContain("2023");
-    expect(result.headline).toContain("2");
+    expect(result.headline).toBe("October is spooky season");
     expect(result.filters?.genres).toBeDefined();
+    expect(result.monthFocus).toBe(9);
+  });
+
+  it("degrades when there is no October horror", () => {
+    const drama = makeFilm({ tmdb_id: 2, genres: ["Drama"] });
+    const result = spooktober.compute([drama], [makeWatch(drama, { date: "2023-10-20" })]);
+    expect(result.headline).toContain("No horror");
+    expect(result.monthFocus).toBeUndefined();
   });
 });
 

@@ -28,7 +28,8 @@ export function Footer() {
       <p className="max-w-2xl">
         Built from my Letterboxd history: an RSS feed feeds a dbt / DuckDB pipeline that
         enriches each film with TMDB, OMDb, and critic scores, then exports the static JSON
-        this page reads. A daily GitHub Action re-runs the whole thing and redeploys.
+        this page reads. A GitHub Action checks the feed each morning and, only when there&rsquo;s
+        a new watch, re-runs the pipeline and redeploys.
       </p>
       <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
         <a
