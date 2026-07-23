@@ -22,8 +22,14 @@ and where reality diverged from the plan below:
 - **Phase 4 ✓** — recommend drawer + cards restyled to the site palette; loading /
   unavailable / no-matches states; footer colophon with pipeline + GitHub + data date.
 
+- **OG image ✓** — social-share card added. A static `web/public/opengraph-image.png`
+  (1200×630, site palette) wired via `openGraph`/`twitter` metadata + `metadataBase`.
+  Static PNG (not the generated route) so GitHub Pages serves it as `image/png` under
+  the `/cinemetrics` base path. Regenerate from the ImageResponse snippet in git history
+  if the branding changes.
+
 Not yet done / possible follow-ups: film-age "archive reach" stripes (deferred);
-dumbbell "biggest arguments" as a story chip (idea); OG image; verify all stories'
+dumbbell "biggest arguments" as a story chip (idea); verify all stories'
 selections are visible without scrolling on smaller viewports.
 
 ## Decisions log
