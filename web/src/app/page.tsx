@@ -16,6 +16,7 @@ import { SelectionPanel } from "@/components/SelectionPanel";
 import { StatBar } from "@/components/StatBar";
 import { StoryAnnotation } from "@/components/StoryAnnotation";
 import { StoryChips } from "@/components/StoryChips";
+import { Footer } from "@/components/Footer";
 import type { ChartId } from "@/lib/stories";
 
 function Explorer() {
@@ -203,6 +204,7 @@ function Explorer() {
           )}
         </div>
       </div>
+      {!loading && <Footer />}
       <RecommendDrawer />
     </main>
   );

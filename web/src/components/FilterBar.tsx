@@ -86,11 +86,11 @@ export function FilterBar() {
       <FieldGroup label="discover">
         <button
           onClick={() => recDispatch({ type: "OPEN_RECOMMEND" })}
-          className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[#f7f6f3] transition"
-          style={{ background: "#7b2cbf" }}
+          className="flex w-fit items-center gap-1.5 rounded-full border px-3 py-1 transition hover:bg-[rgba(11,11,11,0.04)]"
+          style={{ borderColor: "rgba(11,11,11,0.2)", color: "#3d3c38" }}
         >
           <span aria-hidden>🎲</span>
-          <span>Recommend</span>
+          <span>Recommend films</span>
         </button>
       </FieldGroup>
 
