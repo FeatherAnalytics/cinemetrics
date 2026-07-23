@@ -143,7 +143,7 @@ function computeGenreContrarian(films: Film[], watches: EnrichedWatch[]): StoryR
 
   return {
     headline: `I rate ${top.genre} ${absDelta} points ${direction} the critics`,
-    chip: top.genre,
+    chip: top.genre === "Comedy" ? "Laugh to live" : top.genre,
     filters: { genres: new Set([top.genre]) },
     rollingDimension: "genre",
   };
