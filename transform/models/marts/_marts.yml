@@ -13,6 +13,11 @@ models:
         tests: [unique, not_null]
       - name: imdb_id
         description: IMDb id (tt#######) — kept for external linking.
+        # Letterboxd links depend on imdb_id; warn (not error) on coverage gaps.
+        tests:
+          - not_null:
+              config:
+                severity: warn
       - name: title
         tests: [not_null]
 
@@ -35,3 +40,12 @@ models:
         description: IMDb id — kept for external linking.
       - name: watched_date
         tests: [not_null]
+
+  - name: dim_candidate
+    description: >
+      One row per candidate film (recommendation pool, not yet watched). Keyed by
+      tmdb_id and mutually exclusive with dim_film.
+    columns:
+      - name: tmdb_id
+        description: TMDB film identifier — the primary candidate key.
+        tests: [unique, not_null]

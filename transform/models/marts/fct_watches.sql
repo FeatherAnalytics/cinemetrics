@@ -1,7 +1,9 @@
 -- One row per watch event, from the consolidated ratings log.
 -- tmdb_id is the foreign key to dim_film; imdb_id kept for external linking.
 select
-    row_number() over (order by watched_date, title) as watch_id,
+    -- Tiebreakers keep watch_id deterministic across rebuilds when several
+    -- watches share a date.
+    row_number() over (order by watched_date, title, tmdb_id, is_rewatch) as watch_id,
     tmdb_id,
     imdb_id,
     watched_date,
