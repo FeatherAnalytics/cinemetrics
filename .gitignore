@@ -19,6 +19,11 @@ __pycache__/
 .ipynb_checkpoints/
 .ruff_cache/
 .pytest_cache/
+*.egg-info/
+logs/
+
+# --- Node ---
+node_modules/
 
 # --- dbt ---
 transform/target/

@@ -17,8 +17,21 @@ def build_embeddings_export(
     ids: list[int],
     films: list[dict],
 ) -> dict:
-    """Build the JSON-serializable export for R2."""
-    vectors = {tid: matrix[i].tolist() for i, tid in enumerate(ids)}
+    """Build the JSON-serializable export for R2.
+
+    Vectors are sparse (mean ~16 non-zero of ~450 dims): each is a
+    [indices, values] pair, values rounded to 4 decimals. Rows are already
+    L2-normalized by the encoder, so client-side cosine reduces to a dot
+    product over the non-zero entries.
+    """
+    vectors: dict[int, list[list]] = {}
+    for i, tid in enumerate(ids):
+        row = matrix[i]
+        nz = np.nonzero(row)[0]
+        vectors[tid] = [
+            [int(j) for j in nz],
+            [round(float(row[j]), 4) for j in nz],
+        ]
     metadata = {}
     for f in films:
         metadata[f["tmdb_id"]] = {
@@ -37,4 +50,4 @@ def build_embeddings_export(
             "imdb_rating": _clean(f.get("imdb_rating")),
             "imdb_id": _clean(f.get("imdb_id")) or "",
         }
-    return {"vectors": vectors, "metadata": metadata}
+    return {"dims": int(matrix.shape[1]), "vectors": vectors, "metadata": metadata}
