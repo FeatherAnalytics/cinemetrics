@@ -108,7 +108,7 @@ export function SelectionPanel() {
 
   return (
     <section
-      className="rounded-lg border p-4"
+      className="min-w-0 rounded-lg border p-4"
       style={{ borderColor: ACCENT, background: "rgba(192,16,35,0.03)" }}
       aria-label="Current selection"
     >
@@ -160,7 +160,7 @@ export function SelectionPanel() {
         </div>
       )}
 
-      <div className="mt-3 max-h-72 overflow-y-auto rounded border" style={{ borderColor: "rgba(11,11,11,0.1)" }}>
+      <div className="mt-3 max-h-72 overflow-x-auto overflow-y-auto rounded border" style={{ borderColor: "rgba(11,11,11,0.1)" }}>
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0" style={{ background: "#f2f1ec" }}>
             <tr style={{ color: INK.muted }}>
