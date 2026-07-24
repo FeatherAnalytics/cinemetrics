@@ -11,7 +11,7 @@ load_dotenv()
 ROOT = Path(__file__).resolve().parents[1]
 ML_DIR = ROOT / "data" / "ml"
 
-FILES = ["embeddings.json"]
+FILES = ["embeddings-v2.json"]
 
 
 def main() -> None:
@@ -36,11 +36,17 @@ def main() -> None:
         if not path.exists():
             print(f"skipping {name} (not found)")
             continue
+        # One day of caching matches the daily update cadence; the client also
+        # appends a version query param derived from the dataset, so a new
+        # deploy busts the cache immediately.
         s3.upload_file(
             str(path),
             bucket,
             name,
-            ExtraArgs={"ContentType": "application/json"},
+            ExtraArgs={
+                "ContentType": "application/json",
+                "CacheControl": "public, max-age=86400",
+            },
         )
         kb = path.stat().st_size / 1024
         print(f"uploaded {name} ({kb:.0f} KB)")

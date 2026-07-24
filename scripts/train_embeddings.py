@@ -117,7 +117,9 @@ def main(force: bool = False) -> None:
     export = build_embeddings_export(matrix, ids, all_films)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    emb_path = OUT_DIR / "embeddings.json"
+    # v2 = sparse format. The old dense embeddings.json stays in the R2 bucket
+    # so previously deployed builds keep working.
+    emb_path = OUT_DIR / "embeddings-v2.json"
 
     emb_path.write_text(json.dumps(export), encoding="utf-8")
 

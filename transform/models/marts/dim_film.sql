@@ -8,6 +8,34 @@ with films as (
         any_value(release_year) as release_year
     from {{ ref('stg_film_log') }}
     group by tmdb_id
+),
+
+-- franchise_mapping() rolls TMDB's per-sub-series collections up into umbrella
+-- franchises (e.g. eight Marvel collections -> MCU). Rules keyed by
+-- collection_name remap every film in that collection; rules keyed by tmdb_id
+-- catch films TMDB left out of any collection (e.g. Black Widow); rules keyed
+-- by director group an auteur's films (e.g. Miyazaki) and auto-catch future
+-- watches. Precedence: film > collection > director.
+franchise_rules as (
+    select * from {{ franchise_mapping() }}
+),
+
+franchise_by_film as (
+    select tmdb_id, franchise
+    from franchise_rules
+    where tmdb_id is not null
+),
+
+franchise_by_collection as (
+    select collection_name, franchise
+    from franchise_rules
+    where collection_name is not null
+),
+
+franchise_by_director as (
+    select director, franchise
+    from franchise_rules
+    where director is not null
 )
 
 select
@@ -30,6 +58,12 @@ select
     e.production_countries,
     e.rated,
     e.original_language,
-    e.collection
+    -- The umbrella franchise when mapped, the raw TMDB collection otherwise.
+    -- Kept under the `collection` name because it is the grouping the site
+    -- exposes as "franchise runs".
+    coalesce(ff.franchise, fc.franchise, fd.franchise, e.collection) as collection
 from films f
 left join {{ ref('stg_film_enrichment') }} e using (tmdb_id)
+left join franchise_by_film ff using (tmdb_id)
+left join franchise_by_collection fc on e.collection = fc.collection_name
+left join franchise_by_director fd on contains(coalesce(e.director, ''), fd.director)

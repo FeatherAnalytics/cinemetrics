@@ -21,10 +21,11 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-/* Dual-handle range slider: two native inputs overlaid on one track. */
+/* Dual-handle range slider: two native inputs overlaid on one track.
+   24px tall so each thumb clears the WCAG minimum touch-target size. */
 .range-dual {
   position: relative;
-  height: 20px;
+  height: 24px;
 }
 .range-dual .range-track,
 .range-dual .range-fill {
@@ -59,8 +60,8 @@ body {
   -webkit-appearance: none;
   appearance: none;
   pointer-events: auto;
-  height: 15px;
-  width: 15px;
+  height: 17px;
+  width: 17px;
   border-radius: 50%;
   background: #fcfcfb;
   border: 2px solid #4a4843;
@@ -68,8 +69,8 @@ body {
 }
 .range-dual input[type="range"]::-moz-range-thumb {
   pointer-events: auto;
-  height: 15px;
-  width: 15px;
+  height: 17px;
+  width: 17px;
   border-radius: 50%;
   background: #fcfcfb;
   border: 2px solid #4a4843;

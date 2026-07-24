@@ -17,7 +17,8 @@ Personal film analytics pipeline: Letterboxd watch history → dbt/DuckDB → Ne
 - **Primary key**: `tmdb_id` (integer). `imdb_id` kept as secondary identifier.
 - **Rating scale**: 0–100 (Letterboxd stars × 20).
 - **Seeds are append-only**: The auto-updater appends new rows; never modifies existing data.
-- **Pipeline order**: RSS parse → enrich new films → dbt build → export JSON.
+- **Pipeline order**: RSS parse → enrich new films → dbt build → export JSON → train embeddings → upload to R2.
+- **Franchise rollups**: curated in the `franchise_mapping()` macro (`transform/macros/`), keyed by collection, tmdb_id, or director.
 
 ## Commands
 

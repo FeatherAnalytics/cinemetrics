@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
+import { isSolstice, SunMarker } from "@/lib/solstice";
 import { trunc } from "@/lib/format";
 import type { EnrichedWatch, Film } from "@/lib/types";
 
@@ -215,20 +216,31 @@ export function RewatchCadence() {
                     strokeWidth={sel ? 1.75 : 1.1}
                     strokeOpacity={dim ? 0.3 : 0.85}
                   />
-                  {pts.map((p, j) => (
-                    <circle
-                      key={j}
-                      cx={p.x}
-                      cy={p.y}
-                      r={sel ? 3.4 : 2.6}
-                      fill={p.w.rating == null ? INK.surface : color}
-                      fillOpacity={dim ? 0.3 : 0.9}
-                      stroke={p.w.rating == null ? INK.muted : INK.surface}
-                      strokeWidth={p.w.rating == null ? 1 : 0.5}
-                      onMouseEnter={() => setHover({ x: p.x, y: p.y, row: r, w: p.w })}
-                      onMouseLeave={() => setHover(null)}
-                    />
-                  ))}
+                  {pts.map((p, j) =>
+                    isSolstice(p.w) ? (
+                      <g
+                        key={j}
+                        opacity={dim ? 0.3 : 1}
+                        onMouseEnter={() => setHover({ x: p.x, y: p.y, row: r, w: p.w })}
+                        onMouseLeave={() => setHover(null)}
+                      >
+                        <SunMarker x={p.x} y={p.y} r={2.6} />
+                      </g>
+                    ) : (
+                      <circle
+                        key={j}
+                        cx={p.x}
+                        cy={p.y}
+                        r={sel ? 3.4 : 2.6}
+                        fill={p.w.rating == null ? INK.surface : color}
+                        fillOpacity={dim ? 0.3 : 0.9}
+                        stroke={p.w.rating == null ? INK.muted : INK.surface}
+                        strokeWidth={p.w.rating == null ? 1 : 0.5}
+                        onMouseEnter={() => setHover({ x: p.x, y: p.y, row: r, w: p.w })}
+                        onMouseLeave={() => setHover(null)}
+                      />
+                    ),
+                  )}
                   {r.delta != null && r.delta !== 0 && (
                     <text
                       x={W - 4}

@@ -21,18 +21,21 @@ const lerpToWarm = interpolateRgb(MID, WARM);
 const lerpToCool = interpolateRgb(MID, COOL);
 
 export function StreakStripes() {
-  const { filtered, selectedId, setSelected } = useExplorer();
+  const { all, filtered, selectedId, setSelected } = useExplorer();
   const [hover, setHover] = useState<{ i: number; w: EnrichedWatch } | null>(null);
 
   const { rated, med, devMax } = useMemo(() => {
     const rated = filtered
       .filter((w) => w.rating != null)
       .sort((a, b) => a.d.getTime() - b.d.getTime());
-    const med = computeMedianRating(filtered);
+    // The median is always taken from the FULL log, not the filtered set, so a
+    // stripe keeps its colour no matter which filters are active — a filtered
+    // view never quietly moves the bar.
+    const med = computeMedianRating(all);
     let devMax = 10;
     if (med != null) for (const w of rated) devMax = Math.max(devMax, Math.abs((w.rating as number) - med));
     return { rated, med, devMax };
-  }, [filtered]);
+  }, [all, filtered]);
 
   if (rated.length === 0 || med == null) {
     return (

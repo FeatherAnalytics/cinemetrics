@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useExplorer } from "@/lib/store";
 import { useRecommend } from "@/lib/recommendStore";
 import { ACCENT, GENRE_COLORS, GENRE_KEYS } from "@/lib/palette";
@@ -39,12 +39,51 @@ function SearchInput({
   );
 }
 
+// Shared styling for the single-pick dropdown filters.
+function SelectFilter({
+  value,
+  onChange,
+  label,
+  placeholder,
+  options,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+  label: string;
+  placeholder: string;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <select
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value || null)}
+      aria-label={label}
+      className="w-full rounded-md border px-2.5 py-1 text-sm outline-none focus:border-[#c01023]"
+      style={{
+        borderColor: "rgba(11,11,11,0.2)",
+        background: "transparent",
+        color: value ? "#0b0b0b" : "#67655f",
+      }}
+    >
+      <option value="">{placeholder}</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value} style={{ color: "#0b0b0b" }}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function FilterBar() {
   const {
     filters,
     toggleGenre,
     setRewatch,
     setCountry,
+    setLanguage,
+    setRated,
+    setFranchise,
     reset,
     filtered,
     all,
@@ -52,16 +91,24 @@ export function FilterBar() {
     setYearRange,
     releaseYearBounds,
     setReleaseYearRange,
+    runtimeBounds,
+    setRuntimeRange,
+    setRatingRange,
     titleOptions,
     directorOptions,
     actorOptions,
     countryOptions,
+    languageOptions,
+    ratedOptions,
+    franchiseOptions,
     activeStory,
     setStory,
   } = useExplorer();
   const { dispatch: recDispatch } = useRecommend();
   const [wLo, wHi] = filters.yearRange ?? yearBounds;
   const [rLo, rHi] = filters.releaseYearRange ?? releaseYearBounds;
+  const [mLo, mHi] = filters.runtimeRange ?? runtimeBounds;
+  const [sLo, sHi] = filters.ratingRange ?? [0, 100];
 
   return (
     <div className="flex flex-col gap-4 text-sm">
@@ -94,29 +141,52 @@ export function FilterBar() {
         </button>
       </FieldGroup>
 
-      {/* Search */}
+      <FieldGroup
+        label="film details"
+        collapsible
+        defaultOpen={false}
+        active={Boolean(
+          filters.title || filters.director || filters.actor || filters.country ||
+          filters.language || filters.rated || filters.franchise,
+        )}
+      >
       <div className="flex flex-col gap-2">
         <SearchInput field="title" placeholder="movie title…" options={titleOptions} />
         <SearchInput field="director" placeholder="director…" options={directorOptions} />
         <SearchInput field="actor" placeholder="actor…" options={actorOptions} />
-        <select
-          value={filters.country ?? ""}
-          onChange={(e) => setCountry(e.target.value || null)}
-          className="w-full rounded-md border px-2.5 py-1 text-sm outline-none focus:border-[#c01023]"
-          style={{
-            borderColor: "rgba(11,11,11,0.2)",
-            background: "transparent",
-            color: filters.country ? "#0b0b0b" : "rgba(11,11,11,0.5)",
-          }}
-        >
-          <option value="">country…</option>
-          {countryOptions.map((c) => (
-            <option key={c.iso} value={c.iso} style={{ color: "#0b0b0b" }}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <SelectFilter
+          value={filters.country}
+          onChange={setCountry}
+          label="Production country"
+          placeholder="country…"
+          options={countryOptions.map((c) => ({ value: c.iso, label: c.name }))}
+        />
+        <SelectFilter
+          value={filters.language}
+          onChange={setLanguage}
+          label="Original language"
+          placeholder="language…"
+          options={languageOptions.map((l) => ({ value: l.code, label: l.name }))}
+        />
+        <SelectFilter
+          value={filters.rated}
+          onChange={setRated}
+          label="Content rating"
+          placeholder="content rating…"
+          options={ratedOptions.map((r) => ({ value: r, label: r }))}
+        />
+        <SelectFilter
+          value={filters.franchise}
+          onChange={setFranchise}
+          label="Franchise"
+          placeholder="franchise…"
+          options={franchiseOptions.map((f) => ({
+            value: f,
+            label: f.replace(/ Collection$/, ""),
+          }))}
+        />
       </div>
+      </FieldGroup>
 
       <FieldGroup label="genre">
         <div className="flex flex-wrap gap-1.5">
@@ -161,26 +231,49 @@ export function FilterBar() {
         </div>
       </FieldGroup>
 
-      <FieldGroup label="watched">
-        <div className="flex items-center gap-3">
-          <RangeSlider min={yearBounds[0]} max={yearBounds[1]} value={[wLo, wHi]} onChange={setYearRange} />
-          <span className="font-mono text-xs text-[#3d3c38]">
-            {wLo}–{wHi}
-          </span>
-        </div>
-      </FieldGroup>
-
-      <FieldGroup label="released">
-        <div className="flex items-center gap-3">
-          <RangeSlider
-            min={releaseYearBounds[0]}
-            max={releaseYearBounds[1]}
-            value={[rLo, rHi]}
-            onChange={setReleaseYearRange}
-          />
-          <span className="font-mono text-xs text-[#3d3c38]">
-            {rLo}–{rHi}
-          </span>
+      <FieldGroup
+        label="ranges"
+        collapsible
+        defaultOpen={false}
+        active={
+          filters.yearRange !== null ||
+          filters.releaseYearRange !== null ||
+          filters.runtimeRange !== null ||
+          filters.ratingRange !== null
+        }
+      >
+        <div className="flex flex-col gap-2.5">
+          <SliderRow label="watched" display={`${wLo}–${wHi}`}>
+            <RangeSlider min={yearBounds[0]} max={yearBounds[1]} value={[wLo, wHi]} onChange={setYearRange} />
+          </SliderRow>
+          <SliderRow label="released" display={`${rLo}–${rHi}`}>
+            <RangeSlider
+              min={releaseYearBounds[0]}
+              max={releaseYearBounds[1]}
+              value={[rLo, rHi]}
+              onChange={setReleaseYearRange}
+            />
+          </SliderRow>
+          <SliderRow label="runtime" display={`${mLo}–${mHi}m`}>
+            <RangeSlider
+              min={runtimeBounds[0]}
+              max={runtimeBounds[1]}
+              step={5}
+              unit="minutes"
+              value={[mLo, mHi]}
+              onChange={setRuntimeRange}
+            />
+          </SliderRow>
+          <SliderRow label="my rating" display={`${sLo}–${sHi}`}>
+            <RangeSlider
+              min={0}
+              max={100}
+              step={5}
+              unit="rating"
+              value={[sLo, sHi]}
+              onChange={setRatingRange}
+            />
+          </SliderRow>
         </div>
       </FieldGroup>
 
@@ -199,11 +292,74 @@ export function FilterBar() {
   );
 }
 
-function FieldGroup({ label, children }: { label: string; children: ReactNode }) {
+// One labelled slider inside the "ranges" group.
+function SliderRow({
+  label,
+  display,
+  children,
+}: {
+  label: string;
+  display: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#67655f]">
+        {label}
+      </span>
+      <div className="flex items-center gap-3">
+        {children}
+        <span className="font-mono text-xs text-[#3d3c38]">{display}</span>
+      </div>
+    </div>
+  );
+}
+
+function FieldGroup({
+  label,
+  children,
+  collapsible = false,
+  defaultOpen = true,
+  active = false,
+}: {
+  label: string;
+  children: ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  active?: boolean; // shows a dot on a collapsed header when its filter is set
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const header = (
+    <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#67655f]">{label}</span>
+  );
+  if (!collapsible) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        {header}
+        {children}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#8b8981]">{label}</span>
-      {children}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex items-center gap-1.5 text-left"
+      >
+        <span aria-hidden className="text-[9px]" style={{ color: ACCENT }}>
+          {open ? "▾" : "▸"}
+        </span>
+        {header}
+        {!open && active && (
+          <span
+            className="inline-block h-1.5 w-1.5 rounded-full"
+            style={{ background: ACCENT }}
+            aria-label="filter active"
+          />
+        )}
+      </button>
+      {open && children}
     </div>
   );
 }

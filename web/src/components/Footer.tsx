@@ -41,7 +41,7 @@ export function Footer() {
           Source on GitHub
         </a>
         {updated && (
-          <span className="font-mono text-[#8b8981]">· data through {updated}</span>
+          <span className="font-mono text-[#67655f]">· data through {updated}</span>
         )}
       </p>
     </footer>

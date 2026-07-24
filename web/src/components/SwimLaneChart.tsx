@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
+import { isSolstice, SunMarker } from "@/lib/solstice";
 import type { EnrichedWatch } from "@/lib/types";
 import { ChartTakeaway } from "./ChartTakeaway";
 
@@ -31,23 +32,25 @@ export function SwimLaneChart() {
     useExplorer();
   const [hover, setHover] = useState<{ x: number; y: number; w: EnrichedWatch } | null>(null);
   const monthFocus = storyResult?.monthFocus ?? null;
+  const showYearMeans = storyResult?.yearMeans ?? false;
 
   const [startYear, endYear] = yearBounds;
   const nYears = Math.max(1, endYear - startYear + 1);
   const CHART_WIDTH = BASE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
   const viewBoxHeight = MARGIN_TOP + nYears * LANE_H + MARGIN_BOTTOM;
 
-  const place = (w: EnrichedWatch): { x: number; y: number } => {
-    const yearIndex = w.d.getUTCFullYear() - startYear;
-    const laneTop = MARGIN_TOP + yearIndex * LANE_H;
-    const x = MARGIN_LEFT + w.yearFrac * CHART_WIDTH;
-    const rating = w.rating ?? 70;
-    const y = laneTop + (1 - rating / 100) * LANE_H;
-    return { x, y };
-  };
+  const place = useCallback(
+    (w: EnrichedWatch): { x: number; y: number } => {
+      const yearIndex = w.d.getUTCFullYear() - startYear;
+      const laneTop = MARGIN_TOP + yearIndex * LANE_H;
+      const x = MARGIN_LEFT + w.yearFrac * CHART_WIDTH;
+      const rating = w.rating ?? 70;
+      const y = laneTop + (1 - rating / 100) * LANE_H;
+      return { x, y };
+    },
+    [startYear, CHART_WIDTH],
+  );
 
-  const filteredSet = new Set(filtered.map(watchKey));
-  const ghosts = all.filter((w) => !filteredSet.has(watchKey(w)));
   const hasSel = selectedId != null;
 
   // Seasonal finding: how horror-heavy October runs vs the rest of the year.
@@ -63,33 +66,140 @@ export function SwimLaneChart() {
     return Math.round((octHorror / octTotal) * 100);
   }, [filtered]);
 
-  const points: Pt[] = [];
+  // Geometry is memoized so hover state changes only re-render the tooltip,
+  // not the full field of circles.
+  const points = useMemo<Pt[]>(() => {
+    const filteredSet = new Set(filtered.map(watchKey));
+    const ghosts = all.filter((w) => !filteredSet.has(watchKey(w)));
+    const pts: Pt[] = [];
 
-  // Ghosts first
-  for (const w of ghosts) {
-    const { x, y } = place(w);
-    points.push({ w, x, y, color: INK.muted, op: 0.08, r: 3.5, sel: false, unrated: w.rating == null });
-  }
-
-  // Active dots
-  for (const w of filtered) {
-    const { x, y } = place(w);
-    const sel = hasSel && w.tmdb_id === selectedId;
-    const rating = w.rating ?? 70;
-    const unrated = w.rating == null;
-    // A story with a month focus spotlights that month; everything else recedes.
-    const offFocus = monthFocus != null && w.d.getUTCMonth() !== monthFocus;
-    if (sel) {
-      points.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op: 1, r: 5, sel: true, unrated });
-    } else {
-      const base = 0.35 + 0.6 * (rating / 100);
-      const op = (hasSel ? base * 0.3 : base) * (offFocus ? 0.12 : 1);
-      points.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op, r: 3.5, sel: false, unrated });
+    // Ghosts first
+    for (const w of ghosts) {
+      const { x, y } = place(w);
+      pts.push({ w, x, y, color: INK.muted, op: 0.08, r: 3.5, sel: false, unrated: w.rating == null });
     }
-  }
 
-  // Selected on top
-  points.sort((a, b) => Number(a.sel) - Number(b.sel) || a.op - b.op);
+    // Active dots
+    for (const w of filtered) {
+      const { x, y } = place(w);
+      const sel = hasSel && w.tmdb_id === selectedId;
+      const rating = w.rating ?? 70;
+      const unrated = w.rating == null;
+      // A story with a month focus spotlights that month; everything else recedes.
+      const offFocus = monthFocus != null && w.d.getUTCMonth() !== monthFocus;
+      if (sel) {
+        pts.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op: 1, r: 5, sel: true, unrated });
+      } else {
+        const base = 0.35 + 0.6 * (rating / 100);
+        const op = (hasSel ? base * 0.3 : base) * (offFocus ? 0.12 : 1);
+        pts.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op, r: 3.5, sel: false, unrated });
+      }
+    }
+
+    // Same-day watches with the same rating land on the same pixel and read as
+    // one film. Dodge them apart horizontally so a double feature shows two dots.
+    const collisions = new Map<string, Pt[]>();
+    for (const p of pts) {
+      const key = `${p.w.date}|${p.w.rating ?? "u"}`;
+      const group = collisions.get(key) ?? [];
+      group.push(p);
+      collisions.set(key, group);
+    }
+    for (const group of collisions.values()) {
+      if (group.length < 2) continue;
+      group.forEach((p, k) => {
+        p.x += (k - (group.length - 1) / 2) * 5;
+      });
+    }
+
+    // Selected on top
+    pts.sort((a, b) => Number(a.sel) - Number(b.sel) || a.op - b.op);
+    return pts;
+  }, [all, filtered, hasSel, selectedId, monthFocus, place]);
+
+  // The circle elements are memoized as JSX so a tooltip show/hide (hover
+  // state) doesn't rebuild ~1,500 SVG nodes.
+  const circleLayer = useMemo(
+    () =>
+      points.map((p, i) => {
+        const handlers = {
+          onMouseEnter: () => setHover({ x: p.x, y: p.y, w: p.w }),
+          onMouseLeave: () => setHover(null),
+          onClick: () => setSelected(p.w.tmdb_id),
+        };
+        if (isSolstice(p.w)) {
+          // The sun stays recognisable when highlighted but fades with the
+          // ghosts when filters exclude it.
+          const op = p.op < 0.3 ? 0.35 : Math.max(p.op, 0.9);
+          return (
+            <g key={i} opacity={op} style={{ cursor: "pointer" }} {...handlers}>
+              <SunMarker x={p.x} y={p.y} />
+            </g>
+          );
+        }
+        const ring = p.unrated && !p.sel;
+        return (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r={p.r}
+            fill={ring ? "none" : p.color}
+            fillOpacity={ring ? 0 : p.op}
+            stroke={p.sel ? ACCENT : ring ? p.color : "none"}
+            strokeWidth={p.sel ? 2 : ring ? 1 : 0}
+            strokeOpacity={ring ? p.op : 1}
+            style={{ cursor: "pointer" }}
+            {...handlers}
+          />
+        );
+      }),
+    [points, setSelected],
+  );
+
+  // Per-year average markers, shown only when a story asks for them (the
+  // "getting pickier" trend is invisible dot-by-dot; one line per lane isn't).
+  const yearMeanLayer = useMemo(() => {
+    if (!showYearMeans) return null;
+    const by = new Map<number, { sum: number; n: number }>();
+    for (const w of filtered) {
+      if (w.rating == null) continue;
+      const y = w.d.getUTCFullYear();
+      const e = by.get(y) ?? { sum: 0, n: 0 };
+      e.sum += w.rating;
+      e.n += 1;
+      by.set(y, e);
+    }
+    return [...by.entries()].map(([year, { sum, n }]) => {
+      const mean = sum / n;
+      const laneTop = MARGIN_TOP + (year - startYear) * LANE_H;
+      const y = laneTop + (1 - mean / 100) * LANE_H;
+      return (
+        <g key={year}>
+          <line
+            x1={MARGIN_LEFT}
+            y1={y}
+            x2={MARGIN_LEFT + CHART_WIDTH}
+            y2={y}
+            stroke={ACCENT}
+            strokeWidth={1.5}
+            strokeOpacity={0.45}
+            strokeDasharray="7 5"
+          />
+          <text
+            x={MARGIN_LEFT + CHART_WIDTH - 4}
+            y={y + 12}
+            fill={ACCENT}
+            fontSize={10}
+            fontWeight="bold"
+            textAnchor="end"
+          >
+            {Math.round(mean)}
+          </text>
+        </g>
+      );
+    });
+  }, [showYearMeans, filtered, startYear, CHART_WIDTH]);
 
   const { rect, handlers } = useDragRect(
     () => ({ w: BASE_WIDTH, h: viewBoxHeight }),
@@ -213,26 +323,10 @@ export function SwimLaneChart() {
 
         {/* Points. Unrated watches (no score) draw as a hollow ring at the lane
             midline, so they can't be mistaken for a genuine mid-70s rating. */}
-        {points.map((p, i) => {
-          const ring = p.unrated && !p.sel;
-          return (
-            <circle
-              key={i}
-              cx={p.x}
-              cy={p.y}
-              r={p.r}
-              fill={ring ? "none" : p.color}
-              fillOpacity={ring ? 0 : p.op}
-              stroke={p.sel ? ACCENT : ring ? p.color : "none"}
-              strokeWidth={p.sel ? 2 : ring ? 1 : 0}
-              strokeOpacity={ring ? p.op : 1}
-              style={{ cursor: "pointer" }}
-              onMouseEnter={() => setHover({ x: p.x, y: p.y, w: p.w })}
-              onMouseLeave={() => setHover(null)}
-              onClick={() => setSelected(p.w.tmdb_id)}
-            />
-          );
-        })}
+        {circleLayer}
+
+        {/* Story-gated per-year average markers. */}
+        {yearMeanLayer}
 
         {/* Brush rect */}
         <BrushRectOverlay rect={rect} />
@@ -258,6 +352,7 @@ export function SwimLaneChart() {
             {hover.w.d.toISOString().slice(0, 10)} · {primaryGenre(hover.w.film)}
             {hover.w.rating != null ? ` · ${Math.round(hover.w.rating)}` : ""}
             {hover.w.rewatch ? " · rewatch" : ""}
+            {isSolstice(hover.w) ? " · summer solstice ☀" : ""}
           </div>
         </div>
       )}

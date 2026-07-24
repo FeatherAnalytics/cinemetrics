@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRecommend } from "@/lib/recommendStore";
 import { useExplorer } from "@/lib/store";
 import {
   loadEmbeddings,
   topNSimilar,
   filterRecommendations,
+  scoreByTaste,
+  tasteVector,
   type Recommendation,
   type CandidateMetadata,
 } from "@/lib/recommend";
@@ -31,11 +33,29 @@ function matchesDashboardFilters(meta: CandidateMetadata, dashFilters: Filters):
     if (y == null || y < dashFilters.releaseYearRange[0] || y > dashFilters.releaseYearRange[1]) return false;
   }
   if (dashFilters.country && !(meta.production_countries || "").split(", ").includes(dashFilters.country)) return false;
+  if (dashFilters.language && meta.language !== dashFilters.language) return false;
+  if (dashFilters.rated && meta.rated !== dashFilters.rated) return false;
+  if (dashFilters.runtimeRange) {
+    const rt = meta.runtime;
+    if (rt == null || rt < dashFilters.runtimeRange[0] || rt > dashFilters.runtimeRange[1])
+      return false;
+  }
+  // franchise and my-rating aren't in the candidate metadata, so they can't
+  // boost recommendations.
   return true;
 }
 
 function hasDashboardFilters(f: Filters): boolean {
-  return f.genres.size > 0 || !!f.director || !!f.actor || !!f.country || f.releaseYearRange !== null;
+  return (
+    f.genres.size > 0 ||
+    !!f.director ||
+    !!f.actor ||
+    !!f.country ||
+    !!f.language ||
+    !!f.rated ||
+    f.releaseYearRange !== null ||
+    f.runtimeRange !== null
+  );
 }
 
 function weightedSample(pool: Recommendation[], n: number): Recommendation[] {
@@ -65,7 +85,7 @@ async function fetchRecs(
   dashFilters: Filters,
 ): Promise<{ recs: Recommendation[]; reasons: Record<number, Reason[]>; boostCount: number }> {
   if (!R2_URL) return { recs: [], reasons: {}, boostCount: 0 };
-  const { data } = await loadEmbeddings(R2_URL);
+  const { data } = await loadEmbeddings(R2_URL, String(watches.length));
   const TARGET = 10;
   let finalRecs: Recommendation[] = [];
   let boostCount = 0;
@@ -80,15 +100,17 @@ async function fetchRecs(
     } as { language?: "en" | "non-en"; genre?: string });
     finalRecs = results.slice(0, TARGET);
   } else {
-    const allIds = Object.keys(data.vectors).map(Number);
     const excludeIds = state.hideRated ? ratedIds : new Set<number>();
-    let pool: Recommendation[] = [];
-    for (const id of allIds) {
-      if (excludeIds.has(id)) continue;
-      const meta = data.metadata[id];
-      if (!meta) continue;
-      pool.push({ tmdb_id: id, score: 0, metadata: meta });
-    }
+    // Score candidates against the user's taste vector (rating-weighted mean of
+    // their rated films' embeddings) so "recommended for you" is earned, not
+    // random. weightedSample keeps variety; the scores steer it.
+    const taste = tasteVector(data, watches);
+    let pool: Recommendation[] = taste
+      ? scoreByTaste(taste, data, excludeIds)
+      : Object.keys(data.vectors)
+          .map(Number)
+          .filter((id) => !excludeIds.has(id) && data.metadata[id])
+          .map((id) => ({ tmdb_id: id, score: 0, metadata: data.metadata[id] }));
     pool = filterRecommendations(pool, {
       ...state.filters,
       genre: state.mode === "genre-recommend" ? (state.genre ?? undefined) : undefined,
@@ -130,11 +152,25 @@ export function RecommendDrawer() {
 
   const ratedIds = useMemo(() => new Set(all.map((w) => w.tmdb_id)), [all]);
 
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!state.open) return;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") dispatch({ type: "CLOSE" });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [state.open, dispatch]);
+
   // Recommendations depend on every dashboard filter EXCEPT the brush selection,
   // which fetchRecs never reads. Memoize on the rec-relevant fields so brushing
   // (selection only) does not re-run the fetch or flash the skeleton.
-  const { genres, country, rewatch, title, director, actor, yearRange, releaseYearRange } =
-    dashFilters;
+  const {
+    genres, country, language, rated, franchise, rewatch, title, director, actor,
+    yearRange, releaseYearRange, runtimeRange, ratingRange,
+  } = dashFilters;
   const recFilters = useMemo<Filters>(
     () => ({
       genres,
@@ -145,9 +181,14 @@ export function RecommendDrawer() {
       director,
       actor,
       country,
+      language,
+      rated,
+      franchise,
+      runtimeRange,
+      ratingRange,
       selection: null,
     }),
-    [genres, country, rewatch, title, director, actor, yearRange, releaseYearRange],
+    [genres, country, language, rated, franchise, rewatch, title, director, actor, yearRange, releaseYearRange, runtimeRange, ratingRange],
   );
 
   useEffect(() => {
@@ -182,12 +223,17 @@ export function RecommendDrawer() {
   const dashSig = [
     [...genres].sort().join(","),
     country,
+    language,
+    rated,
+    franchise,
     rewatch,
     title,
     director,
     actor,
     yearRange?.join("-") ?? "",
     releaseYearRange?.join("-") ?? "",
+    runtimeRange?.join("-") ?? "",
+    ratingRange?.join("-") ?? "",
   ].join("|");
   const currentKey = `${state.mode}:${state.sourceTmdbId}:${state.genre}:${state.filters.language}:${shuffleCount}:${dashSig}`;
   if (state.open && R2_URL && currentKey !== reqKey) {
@@ -224,6 +270,9 @@ export function RecommendDrawer() {
       />
 
       <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label={headerText}
         className="fixed bottom-0 left-0 right-0 z-50 max-h-[60vh] overflow-y-auto rounded-t-2xl
           border-t transition-transform duration-300
           md:bottom-auto md:left-auto md:right-0 md:top-0 md:h-full md:max-h-none md:w-[360px]
@@ -243,6 +292,7 @@ export function RecommendDrawer() {
               {headerText}
             </span>
             <button
+              ref={closeRef}
               onClick={() => dispatch({ type: "CLOSE" })}
               className="text-lg leading-none"
               style={{ color: INK.muted }}
@@ -308,7 +358,7 @@ export function RecommendDrawer() {
           {effectiveStatus === "error" && (
             <p className="text-sm" style={{ color: INK.secondary }}>
               Recommendations are unavailable right now. The model that powers them
-              couldn&rsquo;t load — try again in a moment.
+              couldn&rsquo;t load. Try again in a moment.
             </p>
           )}
 
