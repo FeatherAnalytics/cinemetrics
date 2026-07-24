@@ -31,7 +31,7 @@ export function CopyChartLink({ anchor, title }: { anchor: string; title: string
       onClick={copy}
       aria-label={`Copy link to ${title}`}
       title={`Copy link to ${title}`}
-      className="opacity-0 transition-opacity duration-150 focus:opacity-100 group-hover:opacity-100"
+      className="opacity-40 transition-opacity duration-150 hover:opacity-100 focus:opacity-100 group-hover:opacity-70"
       style={{ color: copied ? ACCENT : INK.muted }}
     >
       {copied ? (

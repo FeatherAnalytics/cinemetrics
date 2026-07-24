@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useExplorer } from "@/lib/store";
 import { useRecommend } from "@/lib/recommendStore";
 import { ACCENT, GENRE_COLORS, GENRE_KEYS } from "@/lib/palette";
@@ -141,7 +141,14 @@ export function FilterBar() {
         </button>
       </FieldGroup>
 
-      {/* Search */}
+      <FieldGroup
+        label="search"
+        collapsible
+        active={Boolean(
+          filters.title || filters.director || filters.actor || filters.country ||
+          filters.language || filters.rated || filters.franchise,
+        )}
+      >
       <div className="flex flex-col gap-2">
         <SearchInput field="title" placeholder="movie title…" options={titleOptions} />
         <SearchInput field="director" placeholder="director…" options={directorOptions} />
@@ -178,6 +185,7 @@ export function FilterBar() {
           }))}
         />
       </div>
+      </FieldGroup>
 
       <FieldGroup label="genre">
         <div className="flex flex-wrap gap-1.5">
@@ -222,7 +230,7 @@ export function FilterBar() {
         </div>
       </FieldGroup>
 
-      <FieldGroup label="watched">
+      <FieldGroup label="watched" collapsible defaultOpen={false} active={filters.yearRange !== null}>
         <div className="flex items-center gap-3">
           <RangeSlider min={yearBounds[0]} max={yearBounds[1]} value={[wLo, wHi]} onChange={setYearRange} />
           <span className="font-mono text-xs text-[#3d3c38]">
@@ -231,7 +239,7 @@ export function FilterBar() {
         </div>
       </FieldGroup>
 
-      <FieldGroup label="released">
+      <FieldGroup label="released" collapsible defaultOpen={false} active={filters.releaseYearRange !== null}>
         <div className="flex items-center gap-3">
           <RangeSlider
             min={releaseYearBounds[0]}
@@ -245,7 +253,7 @@ export function FilterBar() {
         </div>
       </FieldGroup>
 
-      <FieldGroup label="runtime">
+      <FieldGroup label="runtime" collapsible defaultOpen={false} active={filters.runtimeRange !== null}>
         <div className="flex items-center gap-3">
           <RangeSlider
             min={runtimeBounds[0]}
@@ -261,7 +269,7 @@ export function FilterBar() {
         </div>
       </FieldGroup>
 
-      <FieldGroup label="my rating">
+      <FieldGroup label="my rating" collapsible defaultOpen={false} active={filters.ratingRange !== null}>
         <div className="flex items-center gap-3">
           <RangeSlider
             min={0}
@@ -292,11 +300,51 @@ export function FilterBar() {
   );
 }
 
-function FieldGroup({ label, children }: { label: string; children: ReactNode }) {
+function FieldGroup({
+  label,
+  children,
+  collapsible = false,
+  defaultOpen = true,
+  active = false,
+}: {
+  label: string;
+  children: ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  active?: boolean; // shows a dot on a collapsed header when its filter is set
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const header = (
+    <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#67655f]">{label}</span>
+  );
+  if (!collapsible) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        {header}
+        {children}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#67655f]">{label}</span>
-      {children}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex items-center gap-1.5 text-left"
+      >
+        <span aria-hidden className="text-[9px] text-[#67655f]">
+          {open ? "▾" : "▸"}
+        </span>
+        {header}
+        {!open && active && (
+          <span
+            className="inline-block h-1.5 w-1.5 rounded-full"
+            style={{ background: ACCENT }}
+            aria-label="filter active"
+          />
+        )}
+      </button>
+      {open && children}
     </div>
   );
 }
