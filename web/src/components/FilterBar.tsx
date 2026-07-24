@@ -142,8 +142,9 @@ export function FilterBar() {
       </FieldGroup>
 
       <FieldGroup
-        label="search"
+        label="film details"
         collapsible
+        defaultOpen={false}
         active={Boolean(
           filters.title || filters.director || filters.actor || filters.country ||
           filters.language || filters.rated || filters.franchise,
@@ -230,58 +231,49 @@ export function FilterBar() {
         </div>
       </FieldGroup>
 
-      <FieldGroup label="watched" collapsible defaultOpen={false} active={filters.yearRange !== null}>
-        <div className="flex items-center gap-3">
-          <RangeSlider min={yearBounds[0]} max={yearBounds[1]} value={[wLo, wHi]} onChange={setYearRange} />
-          <span className="font-mono text-xs text-[#3d3c38]">
-            {wLo}–{wHi}
-          </span>
-        </div>
-      </FieldGroup>
-
-      <FieldGroup label="released" collapsible defaultOpen={false} active={filters.releaseYearRange !== null}>
-        <div className="flex items-center gap-3">
-          <RangeSlider
-            min={releaseYearBounds[0]}
-            max={releaseYearBounds[1]}
-            value={[rLo, rHi]}
-            onChange={setReleaseYearRange}
-          />
-          <span className="font-mono text-xs text-[#3d3c38]">
-            {rLo}–{rHi}
-          </span>
-        </div>
-      </FieldGroup>
-
-      <FieldGroup label="runtime" collapsible defaultOpen={false} active={filters.runtimeRange !== null}>
-        <div className="flex items-center gap-3">
-          <RangeSlider
-            min={runtimeBounds[0]}
-            max={runtimeBounds[1]}
-            step={5}
-            unit="minutes"
-            value={[mLo, mHi]}
-            onChange={setRuntimeRange}
-          />
-          <span className="font-mono text-xs text-[#3d3c38]">
-            {mLo}–{mHi}m
-          </span>
-        </div>
-      </FieldGroup>
-
-      <FieldGroup label="my rating" collapsible defaultOpen={false} active={filters.ratingRange !== null}>
-        <div className="flex items-center gap-3">
-          <RangeSlider
-            min={0}
-            max={100}
-            step={5}
-            unit="rating"
-            value={[sLo, sHi]}
-            onChange={setRatingRange}
-          />
-          <span className="font-mono text-xs text-[#3d3c38]">
-            {sLo}–{sHi}
-          </span>
+      <FieldGroup
+        label="ranges"
+        collapsible
+        defaultOpen={false}
+        active={
+          filters.yearRange !== null ||
+          filters.releaseYearRange !== null ||
+          filters.runtimeRange !== null ||
+          filters.ratingRange !== null
+        }
+      >
+        <div className="flex flex-col gap-2.5">
+          <SliderRow label="watched" display={`${wLo}–${wHi}`}>
+            <RangeSlider min={yearBounds[0]} max={yearBounds[1]} value={[wLo, wHi]} onChange={setYearRange} />
+          </SliderRow>
+          <SliderRow label="released" display={`${rLo}–${rHi}`}>
+            <RangeSlider
+              min={releaseYearBounds[0]}
+              max={releaseYearBounds[1]}
+              value={[rLo, rHi]}
+              onChange={setReleaseYearRange}
+            />
+          </SliderRow>
+          <SliderRow label="runtime" display={`${mLo}–${mHi}m`}>
+            <RangeSlider
+              min={runtimeBounds[0]}
+              max={runtimeBounds[1]}
+              step={5}
+              unit="minutes"
+              value={[mLo, mHi]}
+              onChange={setRuntimeRange}
+            />
+          </SliderRow>
+          <SliderRow label="my rating" display={`${sLo}–${sHi}`}>
+            <RangeSlider
+              min={0}
+              max={100}
+              step={5}
+              unit="rating"
+              value={[sLo, sHi]}
+              onChange={setRatingRange}
+            />
+          </SliderRow>
         </div>
       </FieldGroup>
 
@@ -295,6 +287,29 @@ export function FilterBar() {
         <button onClick={reset} className="underline underline-offset-2 hover:text-[#0b0b0b]">
           reset
         </button>
+      </div>
+    </div>
+  );
+}
+
+// One labelled slider inside the "ranges" group.
+function SliderRow({
+  label,
+  display,
+  children,
+}: {
+  label: string;
+  display: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#67655f]">
+        {label}
+      </span>
+      <div className="flex items-center gap-3">
+        {children}
+        <span className="font-mono text-xs text-[#3d3c38]">{display}</span>
       </div>
     </div>
   );
@@ -332,7 +347,7 @@ function FieldGroup({
         aria-expanded={open}
         className="flex items-center gap-1.5 text-left"
       >
-        <span aria-hidden className="text-[9px] text-[#67655f]">
+        <span aria-hidden className="text-[9px]" style={{ color: ACCENT }}>
           {open ? "▾" : "▸"}
         </span>
         {header}

@@ -352,6 +352,7 @@ export function SwimLaneChart() {
             {hover.w.d.toISOString().slice(0, 10)} · {primaryGenre(hover.w.film)}
             {hover.w.rating != null ? ` · ${Math.round(hover.w.rating)}` : ""}
             {hover.w.rewatch ? " · rewatch" : ""}
+            {isSolstice(hover.w) ? " · summer solstice ☀" : ""}
           </div>
         </div>
       )}

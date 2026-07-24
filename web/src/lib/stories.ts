@@ -69,7 +69,8 @@ function computeSpooktober(films: Film[], watches: EnrichedWatch[]): StoryResult
     rollingDimension: "genre",
     monthFocus: 9,
     notes: {
-      spiral: "The tenth column lights up. Horror packs into October year after year.",
+      spiral:
+        "The tenth column lights up. Horror packs into October year after year. And the lone crimson sun in June 2024? Midsommar, watched on the summer solstice.",
       rolling: "Horror rates just below my overall average, yet it's still what I watch most.",
       keywords:
         "Remake floats to the top. But I avoid remakes unless word of mouth clears them, so the few I watch are pre-screened. Self-selection bias, in one bar.",
