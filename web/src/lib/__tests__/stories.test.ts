@@ -23,8 +23,10 @@ function makeWatch(film: Film, overrides: Partial<EnrichedWatch> = {}): Enriched
 }
 
 const spooktober = STORIES.find((s) => s.id === "spooktober")!;
+const binges = STORIES.find((s) => s.id === "binges")!;
+const franchises = STORIES.find((s) => s.id === "franchises")!;
 const hiddenGems = STORIES.find((s) => s.id === "hidden-gems")!;
-const genreContrarian = STORIES.find((s) => s.id === "genre-contrarian")!;
+const genreContrarian = STORIES.find((s) => s.id === "critics-and-me")!;
 const runtime = STORIES.find((s) => s.id === "runtime")!;
 const pickier = STORIES.find((s) => s.id === "getting-pickier")!;
 
@@ -121,9 +123,100 @@ describe("hidden-gems", () => {
     const result = hiddenGems.compute([popular], watches);
     expect(result.headline).toBeTruthy();
   });
+
+  it("judges a rewatched film by its latest rating, not the average", () => {
+    // Rated 60 first, 90 on rewatch: average (75) would miss the 80 bar, but
+    // the latest score is what counts.
+    const grower = makeFilm({ tmdb_id: 1, title: "Grower", imdb_votes: 500 });
+    const watches = [
+      makeWatch(grower, { tmdb_id: 1, rating: 60, date: "2019-06-21" }),
+      makeWatch(grower, { tmdb_id: 1, rating: 90, date: "2020-09-20", rewatch: true }),
+    ];
+    const result = hiddenGems.compute([grower], watches);
+    expect(result.headline).toContain("Grower");
+    // Both watches of the gem are selected, not just the qualifying one.
+    expect(result.selection!.size).toBe(2);
+  });
+
+  it("drops a film whose latest rating fell below the bar", () => {
+    const fader = makeFilm({ tmdb_id: 1, title: "Fader", imdb_votes: 500 });
+    const watches = [
+      makeWatch(fader, { tmdb_id: 1, rating: 90, date: "2019-06-21" }),
+      makeWatch(fader, { tmdb_id: 1, rating: 60, date: "2020-09-20", rewatch: true }),
+    ];
+    const result = hiddenGems.compute([fader], watches);
+    expect(result.headline).not.toContain("Fader");
+  });
+
+  it("notes how many gems lack full critic coverage", () => {
+    const covered = makeFilm({ tmdb_id: 1, title: "Covered", imdb_votes: 500 });
+    const uncovered = makeFilm({
+      tmdb_id: 2, title: "Uncovered", imdb_votes: 500,
+      metascore: null, rt_rating: null, imdb_rating: null,
+    });
+    const watches = [
+      makeWatch(covered, { tmdb_id: 1, rating: 90 }),
+      makeWatch(uncovered, { tmdb_id: 2, rating: 85 }),
+    ];
+    const result = hiddenGems.compute([covered, uncovered], watches);
+    expect(result.notes?.contrarian).toContain("1 of the 2");
+  });
 });
 
-describe("genre-contrarian", () => {
+describe("binges", () => {
+  it("selects every watch on days with two or more films and names the peak day", () => {
+    const a = makeFilm({ tmdb_id: 1 });
+    const b = makeFilm({ tmdb_id: 2 });
+    const c = makeFilm({ tmdb_id: 3 });
+    const solo = makeFilm({ tmdb_id: 4 });
+    const watches = [
+      makeWatch(a, { tmdb_id: 1, date: "2023-06-15" }),
+      makeWatch(b, { tmdb_id: 2, date: "2023-06-15" }),
+      makeWatch(c, { tmdb_id: 3, date: "2023-06-15" }),
+      makeWatch(solo, { tmdb_id: 4, date: "2023-06-20" }),
+    ];
+    const result = binges.compute([a, b, c, solo], watches);
+    expect(result.headline).toContain("1 double-feature day");
+    expect(result.headline).toContain("peaking at 3 films on June 15, 2023");
+    expect(result.selection!.size).toBe(3); // the solo day is excluded
+  });
+
+  it("degrades when every day has a single watch", () => {
+    const a = makeFilm({ tmdb_id: 1 });
+    const result = binges.compute([a], [makeWatch(a, { tmdb_id: 1, date: "2023-06-15" })]);
+    expect(result.headline).toContain("No double-feature");
+    expect(result.selection).toBeUndefined();
+  });
+});
+
+describe("franchises", () => {
+  it("headlines the most-watched collection and selects all franchise watches", () => {
+    const hp1 = makeFilm({ tmdb_id: 1, collection: "Wizard Collection" });
+    const hp2 = makeFilm({ tmdb_id: 2, collection: "Wizard Collection" });
+    const bond = makeFilm({ tmdb_id: 3, collection: "Spy Collection" });
+    const standalone = makeFilm({ tmdb_id: 4 });
+    const watches = [
+      makeWatch(hp1, { tmdb_id: 1, date: "2021-12-25" }),
+      makeWatch(hp2, { tmdb_id: 2, date: "2021-12-26" }),
+      makeWatch(hp1, { tmdb_id: 1, date: "2022-12-25", rewatch: true }),
+      // Only one Spy film watched, so it isn't a franchise run yet.
+      makeWatch(bond, { tmdb_id: 3, date: "2022-01-01" }),
+      makeWatch(standalone, { tmdb_id: 4, date: "2022-02-01" }),
+    ];
+    const result = franchises.compute([hp1, hp2, bond, standalone], watches);
+    expect(result.headline).toBe("Wizard: 3 watches across 2 films");
+    expect(result.selection!.size).toBe(3);
+    expect(result.notes?.rewatch).toContain("%");
+  });
+
+  it("degrades when no collection has two watched films", () => {
+    const solo = makeFilm({ tmdb_id: 1, collection: "Lonely Collection" });
+    const result = franchises.compute([solo], [makeWatch(solo, { tmdb_id: 1 })]);
+    expect(result.headline).toContain("No franchise runs");
+  });
+});
+
+describe("critics-and-me", () => {
   it("finds genre with biggest rating delta from critics", () => {
     const horror1 = makeFilm({ tmdb_id: 1, genres: ["Horror"], metascore: 40 });
     const horror2 = makeFilm({ tmdb_id: 2, genres: ["Horror"], metascore: 45 });

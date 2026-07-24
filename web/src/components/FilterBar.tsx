@@ -39,12 +39,51 @@ function SearchInput({
   );
 }
 
+// Shared styling for the single-pick dropdown filters.
+function SelectFilter({
+  value,
+  onChange,
+  label,
+  placeholder,
+  options,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+  label: string;
+  placeholder: string;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <select
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value || null)}
+      aria-label={label}
+      className="w-full rounded-md border px-2.5 py-1 text-sm outline-none focus:border-[#c01023]"
+      style={{
+        borderColor: "rgba(11,11,11,0.2)",
+        background: "transparent",
+        color: value ? "#0b0b0b" : "#67655f",
+      }}
+    >
+      <option value="">{placeholder}</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value} style={{ color: "#0b0b0b" }}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function FilterBar() {
   const {
     filters,
     toggleGenre,
     setRewatch,
     setCountry,
+    setLanguage,
+    setRated,
+    setFranchise,
     reset,
     filtered,
     all,
@@ -52,16 +91,24 @@ export function FilterBar() {
     setYearRange,
     releaseYearBounds,
     setReleaseYearRange,
+    runtimeBounds,
+    setRuntimeRange,
+    setRatingRange,
     titleOptions,
     directorOptions,
     actorOptions,
     countryOptions,
+    languageOptions,
+    ratedOptions,
+    franchiseOptions,
     activeStory,
     setStory,
   } = useExplorer();
   const { dispatch: recDispatch } = useRecommend();
   const [wLo, wHi] = filters.yearRange ?? yearBounds;
   const [rLo, rHi] = filters.releaseYearRange ?? releaseYearBounds;
+  const [mLo, mHi] = filters.runtimeRange ?? runtimeBounds;
+  const [sLo, sHi] = filters.ratingRange ?? [0, 100];
 
   return (
     <div className="flex flex-col gap-4 text-sm">
@@ -99,23 +146,37 @@ export function FilterBar() {
         <SearchInput field="title" placeholder="movie title…" options={titleOptions} />
         <SearchInput field="director" placeholder="director…" options={directorOptions} />
         <SearchInput field="actor" placeholder="actor…" options={actorOptions} />
-        <select
-          value={filters.country ?? ""}
-          onChange={(e) => setCountry(e.target.value || null)}
-          className="w-full rounded-md border px-2.5 py-1 text-sm outline-none focus:border-[#c01023]"
-          style={{
-            borderColor: "rgba(11,11,11,0.2)",
-            background: "transparent",
-            color: filters.country ? "#0b0b0b" : "rgba(11,11,11,0.5)",
-          }}
-        >
-          <option value="">country…</option>
-          {countryOptions.map((c) => (
-            <option key={c.iso} value={c.iso} style={{ color: "#0b0b0b" }}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <SelectFilter
+          value={filters.country}
+          onChange={setCountry}
+          label="Production country"
+          placeholder="country…"
+          options={countryOptions.map((c) => ({ value: c.iso, label: c.name }))}
+        />
+        <SelectFilter
+          value={filters.language}
+          onChange={setLanguage}
+          label="Original language"
+          placeholder="language…"
+          options={languageOptions.map((l) => ({ value: l.code, label: l.name }))}
+        />
+        <SelectFilter
+          value={filters.rated}
+          onChange={setRated}
+          label="Content rating"
+          placeholder="content rating…"
+          options={ratedOptions.map((r) => ({ value: r, label: r }))}
+        />
+        <SelectFilter
+          value={filters.franchise}
+          onChange={setFranchise}
+          label="Franchise"
+          placeholder="franchise…"
+          options={franchiseOptions.map((f) => ({
+            value: f,
+            label: f.replace(/ Collection$/, ""),
+          }))}
+        />
       </div>
 
       <FieldGroup label="genre">
@@ -184,6 +245,38 @@ export function FilterBar() {
         </div>
       </FieldGroup>
 
+      <FieldGroup label="runtime">
+        <div className="flex items-center gap-3">
+          <RangeSlider
+            min={runtimeBounds[0]}
+            max={runtimeBounds[1]}
+            step={5}
+            unit="minutes"
+            value={[mLo, mHi]}
+            onChange={setRuntimeRange}
+          />
+          <span className="font-mono text-xs text-[#3d3c38]">
+            {mLo}–{mHi}m
+          </span>
+        </div>
+      </FieldGroup>
+
+      <FieldGroup label="my rating">
+        <div className="flex items-center gap-3">
+          <RangeSlider
+            min={0}
+            max={100}
+            step={5}
+            unit="rating"
+            value={[sLo, sHi]}
+            onChange={setRatingRange}
+          />
+          <span className="font-mono text-xs text-[#3d3c38]">
+            {sLo}–{sHi}
+          </span>
+        </div>
+      </FieldGroup>
+
       <div
         className="flex items-center justify-between border-t pt-3 text-[#67655f]"
         style={{ borderColor: "rgba(11,11,11,0.12)" }}
@@ -202,7 +295,7 @@ export function FilterBar() {
 function FieldGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#8b8981]">{label}</span>
+      <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#67655f]">{label}</span>
       {children}
     </div>
   );

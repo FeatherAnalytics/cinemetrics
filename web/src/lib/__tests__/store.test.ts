@@ -59,6 +59,11 @@ const EMPTY: Filters = {
   director: "",
   actor: "",
   country: null,
+  language: null,
+  rated: null,
+  franchise: null,
+  runtimeRange: null,
+  ratingRange: null,
   selection: null,
 };
 

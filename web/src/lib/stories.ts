@@ -11,7 +11,8 @@ export type ChartId =
   | "stripes"
   | "rolling"
   | "rewatch"
-  | "keywords";
+  | "keywords"
+  | "franchise";
 
 export type StoryFocus = {
   primary: ChartId;
@@ -29,6 +30,7 @@ export const CHART_TITLES: Record<ChartId, string> = {
   stripes: "Streaks and slumps",
   rolling: "Warming up or wearing out",
   rewatch: "Second thoughts",
+  franchise: "Franchise runs",
 };
 
 export type StoryResult = {
@@ -40,6 +42,7 @@ export type StoryResult = {
   extras?: ReactNode;
   rollingDimension?: string;
   monthFocus?: number; // 0–11: the swim lane spotlights this month, dims the rest
+  yearMeans?: boolean; // swim lane marks each year-row's average rating
   // Per-chart prose tying the story to what each relevant chart shows. Rendered
   // in the right-hand story panel (desktop) and inline under each chart (mobile).
   notes?: Partial<Record<ChartId, string>>;
@@ -68,32 +71,37 @@ function computeSpooktober(films: Film[], watches: EnrichedWatch[]): StoryResult
     notes: {
       spiral: "The tenth column lights up. Horror packs into October year after year.",
       rolling: "Horror rates just below my overall average, yet it's still what I watch most.",
+      keywords:
+        "Remake floats to the top. But I avoid remakes unless word of mouth clears them, so the few I watch are pre-screened. Self-selection bias, in one bar.",
+      stripes:
+        "The coldest run in the whole barcode is October 2020: a film a day for Spooktober, and the daily grind shows in the scores.",
     },
   };
 }
 
 function computeHiddenGems(films: Film[], watches: EnrichedWatch[]): StoryResult {
   const filmMap = new Map(films.map((f) => [f.tmdb_id, f]));
-  const byFilm = new Map<number, { ratings: number[]; watches: EnrichedWatch[] }>();
+  const byFilm = new Map<number, { latest: EnrichedWatch | null; watches: EnrichedWatch[] }>();
   for (const w of watches) {
-    const entry = byFilm.get(w.tmdb_id) ?? { ratings: [], watches: [] };
+    const entry = byFilm.get(w.tmdb_id) ?? { latest: null, watches: [] };
     entry.watches.push(w);
-    if (w.rating != null) entry.ratings.push(w.rating);
+    // A gem is judged by where I landed on it, so the most recent rating wins
+    // (a rewatch that grew on me counts; an early lukewarm score doesn't).
+    if (w.rating != null && (entry.latest == null || w.d > entry.latest.d)) entry.latest = w;
     byFilm.set(w.tmdb_id, entry);
   }
 
-  const gems: Array<{ film: Film; avg: number; watches: EnrichedWatch[] }> = [];
-  for (const [tmdb_id, { ratings, watches: ws }] of byFilm) {
-    if (ratings.length === 0) continue;
-    const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+  const gems: Array<{ film: Film; rating: number; watches: EnrichedWatch[] }> = [];
+  for (const [tmdb_id, { latest, watches: ws }] of byFilm) {
+    if (latest?.rating == null) continue;
     const film = filmMap.get(tmdb_id);
     if (!film) continue;
-    if (avg >= 80 && (film.imdb_votes ?? 0) < 10000) {
-      gems.push({ film, avg, watches: ws });
+    if (latest.rating >= 80 && (film.imdb_votes ?? 0) < 10000) {
+      gems.push({ film, rating: latest.rating, watches: ws });
     }
   }
 
-  gems.sort((a, b) => b.avg - a.avg);
+  gems.sort((a, b) => b.rating - a.rating);
 
   if (gems.length === 0) {
     return { headline: "No hidden gems found (yet!)" };
@@ -106,12 +114,24 @@ function computeHiddenGems(films: Film[], watches: EnrichedWatch[]): StoryResult
     }
   }
 
+  // The residual chart only plots films with all three critic scores, and by
+  // definition gems are films critics barely covered — say so instead of
+  // letting the counts silently disagree.
+  const withCritics = gems.filter(
+    ({ film }) =>
+      film.metascore != null && film.rt_rating != null && film.imdb_rating != null,
+  ).length;
+  const coverageNote =
+    withCritics < gems.length
+      ? ` Only ${withCritics} of the ${gems.length} gems have full critic scores (obscurity and critic coverage don't mix), so the rest can't be placed here.`
+      : "";
+
   return {
     headline: `Hidden gem: ${gems[0].film.title}`,
     chip: "Hidden gems",
     selection,
     notes: {
-      contrarian: "The highlighted films sit far right: I rate them well above the small crowd that saw them.",
+      contrarian: `The highlighted films sit far right: I rate them well above the small crowd that saw them.${coverageNote}`,
       spiral: "Highlighted dots are films almost no one else logged.",
     },
   };
@@ -189,7 +209,7 @@ function computeRuntime(films: Film[], watches: EnrichedWatch[]): StoryResult {
     chip: "The longer, the better",
     selection: new Set(longWatches.map(watchKey)),
     notes: {
-      spiral: "The highlighted films all run 150 minutes or more. They sit high in nearly every year band.",
+      spiral: "The highlighted films all run 150 minutes or more. They sit high in every single year band.",
       contrarian: "Critics barely reward length. I do: the long films skew right of the model here.",
     },
   };
@@ -222,10 +242,120 @@ function computePickier(films: Film[], watches: EnrichedWatch[]): StoryResult {
   return {
     headline,
     chip: "Getting pickier",
+    yearMeans: true,
     notes: {
       stripes: "Recent stripes lean crimson: higher scores across fewer films each year.",
-      spiral: "The later year-rows average higher than the early ones.",
+      spiral: `The dashed line across each row is that year's average rating: ${Math.round(firstAvg)} in ${years[0]}, ${Math.round(lastAvg)} in ${years[years.length - 1]}.`,
       rolling: "My overall average drifts up as the yearly pace slows.",
+    },
+  };
+}
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function prettyDate(iso: string): string {
+  const d = new Date(iso + "T00:00:00Z");
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+}
+
+function computeBinges(films: Film[], watches: EnrichedWatch[]): StoryResult {
+  const byDay = new Map<string, EnrichedWatch[]>();
+  for (const w of watches) {
+    const list = byDay.get(w.date) ?? [];
+    list.push(w);
+    byDay.set(w.date, list);
+  }
+  const bingeDays = [...byDay.entries()].filter(([, ws]) => ws.length >= 2);
+  if (bingeDays.length === 0) {
+    return { headline: "No double-feature days yet" };
+  }
+  let peak = bingeDays[0];
+  for (const d of bingeDays) if (d[1].length > peak[1].length) peak = d;
+
+  const selection = new Set<string>();
+  for (const [, ws] of bingeDays) for (const w of ws) selection.add(watchKey(w));
+
+  return {
+    headline: `${bingeDays.length} double-feature days, peaking at ${peak[1].length} films on ${prettyDate(peak[0])}`,
+    chip: "Double features",
+    selection,
+    notes: {
+      spiral: "Every highlighted dot shares its date with at least one other film. Stacked pairs and towers are single sittings.",
+      stripes: "Binge days land as back-to-back stripes with no gap: the barcode's densest clusters.",
+    },
+  };
+}
+
+function computeCollections(films: Film[], watches: EnrichedWatch[]): StoryResult {
+  const byCollection = new Map<string, { watches: EnrichedWatch[]; filmIds: Set<number> }>();
+  for (const w of watches) {
+    const c = w.film?.collection;
+    if (!c) continue;
+    const e = byCollection.get(c) ?? { watches: [], filmIds: new Set() };
+    e.watches.push(w);
+    e.filmIds.add(w.tmdb_id);
+    byCollection.set(c, e);
+  }
+  // A franchise "counts" once I've watched at least two entries of it.
+  const franchises = [...byCollection.entries()].filter(([, e]) => e.filmIds.size >= 2);
+  if (franchises.length === 0) {
+    return { headline: "No franchise runs yet" };
+  }
+  franchises.sort((a, b) => b[1].watches.length - a[1].watches.length);
+  const [topName, topEntry] = franchises[0];
+
+  // Densest run: the most watches of one collection inside any 7-day window.
+  let run = { name: "", count: 0, start: "", end: "" };
+  for (const [name, e] of franchises) {
+    const ds = e.watches.map((w) => w.d.getTime()).sort((a, b) => a - b);
+    for (let i = 0; i < ds.length; i++) {
+      let j = i;
+      while (j + 1 < ds.length && ds[j + 1] - ds[i] <= 7 * 86400_000) j++;
+      if (j - i + 1 > run.count) {
+        run = {
+          name,
+          count: j - i + 1,
+          start: new Date(ds[i]).toISOString().slice(0, 10),
+          end: new Date(ds[j]).toISOString().slice(0, 10),
+        };
+      }
+    }
+  }
+
+  const selection = new Set<string>();
+  for (const [, e] of franchises) for (const w of e.watches) selection.add(watchKey(w));
+
+  const shortName = topName.replace(/ Collection$/, "");
+  // The headline already names the leading franchise, so the chart note only
+  // carries what the headline doesn't: the densest week-long run.
+  const runNote =
+    run.count >= 3
+      ? `The densest run is ${run.count} ${run.name.replace(/ Collection$/, "")} films in the week of ${prettyDate(run.start)}.`
+      : "";
+
+  // Share of returned-to films that belong to any collection, for the rewatch note.
+  const watchCounts = new Map<number, number>();
+  for (const w of watches) watchCounts.set(w.tmdb_id, (watchCounts.get(w.tmdb_id) ?? 0) + 1);
+  const filmById = new Map(films.map((f) => [f.tmdb_id, f]));
+  const rewatched = [...watchCounts.entries()].filter(([, n]) => n >= 2);
+  const rewatchedInCollection = rewatched.filter(
+    ([id]) => filmById.get(id)?.collection != null,
+  ).length;
+  const rewatchPct = rewatched.length
+    ? Math.round((100 * rewatchedInCollection) / rewatched.length)
+    : 0;
+
+  return {
+    headline: `${shortName}: ${topEntry.watches.length} watches across ${topEntry.filmIds.size} films`,
+    chip: "Franchise runs",
+    selection,
+    notes: {
+      ...(runNote ? { franchise: runNote } : {}),
+      spiral: "Highlighted dots are franchise entries, meaning collections where I've watched two or more films.",
+      rewatch: `${rewatchPct}% of the films I've returned to belong to a franchise.`,
     },
   };
 }
@@ -240,11 +370,13 @@ export const STORIES: StoryConfig[] = [
   {
     id: "hidden-gems",
     label: "Hidden Gems",
-    focus: { primary: "contrarian", emphasize: ["contrarian", "spiral"], dim: ["rewatch", "rolling"] },
+    // keywords is dimmed because gems are too few (and too critic-sparse) to
+    // ever clear the keyword chart's 10-film threshold.
+    focus: { primary: "contrarian", emphasize: ["contrarian", "spiral"], dim: ["rewatch", "rolling", "keywords"] },
     compute: computeHiddenGems,
   },
   {
-    id: "genre-contrarian",
+    id: "critics-and-me",
     label: "Genre Contrarian",
     focus: { primary: "contrarian", emphasize: ["contrarian", "rolling"], dim: ["rewatch"] },
     compute: computeGenreContrarian,
@@ -260,6 +392,18 @@ export const STORIES: StoryConfig[] = [
     label: "Getting pickier",
     focus: { primary: "stripes", emphasize: ["stripes", "spiral", "rolling"], dim: ["countries", "keywords"] },
     compute: computePickier,
+  },
+  {
+    id: "binges",
+    label: "Double features",
+    focus: { primary: "spiral", emphasize: ["spiral", "stripes"], dim: ["countries", "keywords", "rolling"] },
+    compute: computeBinges,
+  },
+  {
+    id: "franchises",
+    label: "Franchise runs",
+    focus: { primary: "franchise", emphasize: ["franchise", "spiral", "rewatch"], dim: ["countries", "keywords"] },
+    compute: computeCollections,
   },
 ];
 

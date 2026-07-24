@@ -38,7 +38,7 @@ export function StatBar() {
           screen time
         </div>
         {stats.isFiltered && (
-          <div className="font-mono text-[9px] text-[#8b8981]">{stats.screenPct}% of total</div>
+          <div className="font-mono text-[9px] text-[#67655f]">{stats.screenPct}% of total</div>
         )}
       </div>
       <div className="min-w-0">
@@ -47,7 +47,7 @@ export function StatBar() {
           watches
         </div>
         {stats.isFiltered && (
-          <div className="font-mono text-[9px] text-[#8b8981]">{stats.watchPct}% of total</div>
+          <div className="font-mono text-[9px] text-[#67655f]">{stats.watchPct}% of total</div>
         )}
       </div>
       <div className="min-w-0">

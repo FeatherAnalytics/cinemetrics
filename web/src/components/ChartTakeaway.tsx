@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 export function ChartTakeaway({ children }: { children: ReactNode }) {
   if (children == null || children === false) return null;
   return (
-    <p className="mt-1 text-right font-mono text-[10px] uppercase tracking-[0.1em] text-[#8b8981]">
+    <p className="mt-1 text-right font-mono text-[10px] uppercase tracking-[0.1em] text-[#67655f]">
       {children}
     </p>
   );

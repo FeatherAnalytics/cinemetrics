@@ -79,17 +79,18 @@ export function KeywordBars() {
       });
     }
 
-    // Sort by avg residual
-    candidates.sort((a, b) => a.avgResidual - b.avgResidual);
+    // Sort by avg residual, strongest positive first — the chart reads top to
+    // bottom from "I rate these higher" down to "I rate these lower".
+    candidates.sort((a, b) => b.avgResidual - a.avgResidual);
 
     // When fewer than 2*TOP_N, just show all sorted
     if (candidates.length <= TOP_N * 2) return candidates;
 
-    // Take bottom N + top N (no overlap possible)
-    const bottom = candidates.slice(0, TOP_N);
-    const top = candidates.slice(-TOP_N);
+    // Take top N + bottom N (no overlap possible)
+    const top = candidates.slice(0, TOP_N);
+    const bottom = candidates.slice(-TOP_N);
 
-    return [...bottom, ...top];
+    return [...top, ...bottom];
   }, [filtered, byId]);
 
   const maxAbs = useMemo(() => {
@@ -101,8 +102,12 @@ export function KeywordBars() {
 
   if (bars.length === 0) {
     return (
-      <div className="flex h-48 items-center justify-center text-sm text-[#67655f]">
-        Not enough data for keyword analysis.
+      <div
+        className="rounded-md border border-dashed px-4 py-6 text-sm text-[#67655f]"
+        style={{ borderColor: "rgba(11,11,11,0.15)" }}
+      >
+        Not enough data for keyword analysis: it needs a keyword shared by{" "}
+        {MIN_FILMS}+ rated films. Widen the filters to bring more films in.
       </div>
     );
   }

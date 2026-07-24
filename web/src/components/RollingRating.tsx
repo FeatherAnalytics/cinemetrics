@@ -192,8 +192,15 @@ function PanelChart({
 
 export function RollingRating() {
   const { all, filtered, setSelection, rollingDimension } = useExplorer();
+  // A story's rollingDimension only SEEDS the switcher (adjusted during render
+  // as it changes); the user can still regroup to drill into the story.
   const [localDim, setLocalDim] = useState<Dimension>("genre");
-  const dim = (rollingDimension as Dimension) ?? localDim;
+  const [prevStoryDim, setPrevStoryDim] = useState(rollingDimension);
+  if (rollingDimension !== prevStoryDim) {
+    setPrevStoryDim(rollingDimension);
+    if (rollingDimension) setLocalDim(rollingDimension as Dimension);
+  }
+  const dim = localDim;
   const setDim = setLocalDim;
   const [hoverX, setHoverX] = useState<number | null>(null);
 

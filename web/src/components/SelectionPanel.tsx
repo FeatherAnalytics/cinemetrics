@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
 import { countryName } from "@/lib/countries";
@@ -24,11 +24,40 @@ type Row = {
 // Letterboxd resolves films by TMDB id and redirects to the canonical page.
 const letterboxdUrl = (tmdbId: number) => `https://letterboxd.com/tmdb/${tmdbId}/`;
 
+type SortKey = "date" | "title" | "year" | "me" | "mc" | "rt" | "imdb" | "genre";
+type Sort = { key: SortKey; dir: 1 | -1 };
+
+const COLUMNS: { key: SortKey; label: string; numeric: boolean }[] = [
+  { key: "date", label: "Watched", numeric: false },
+  { key: "title", label: "Title", numeric: false },
+  { key: "year", label: "Year", numeric: true },
+  { key: "me", label: "Me", numeric: true },
+  { key: "mc", label: "MC", numeric: true },
+  { key: "rt", label: "RT", numeric: true },
+  { key: "imdb", label: "IMDB", numeric: true },
+  { key: "genre", label: "Genre", numeric: false },
+];
+
+function compareRows(a: Row, b: Row, sort: Sort): number {
+  const { key, dir } = sort;
+  if (key === "date") return dir * (a.t - b.t || a.title.localeCompare(b.title));
+  if (key === "title" || key === "genre") return dir * a[key].localeCompare(b[key]);
+  // Numeric columns: missing values always sink to the bottom, whatever the
+  // direction, so the interesting rows stay on top.
+  const av = a[key];
+  const bv = b[key];
+  if (av == null && bv == null) return a.t - b.t;
+  if (av == null) return 1;
+  if (bv == null) return -1;
+  return dir * (av - bv) || a.t - b.t;
+}
+
 // Shown while a brush selection OR a map country pick is active. Both are just
 // cross-filters, so `filtered` already IS the selection; we summarise it and
 // list every watch in date order.
 export function SelectionPanel() {
   const { filtered, filters, setSelection, setCountry } = useExplorer();
+  const [sort, setSort] = useState<Sort>({ key: "date", dir: 1 }); // oldest → most recent
 
   const { rows, films, avgMe, avgCritic, genres } = useMemo(() => {
     const rows: Row[] = filtered.map((w) => ({
@@ -44,7 +73,7 @@ export function SelectionPanel() {
       rt: w.film?.rt_rating ?? null,
       imdb: w.film?.imdb_rating ?? null,
     }));
-    rows.sort((a, b) => a.t - b.t || a.title.localeCompare(b.title)); // oldest → most recent
+    rows.sort((a, b) => compareRows(a, b, sort));
 
     // Distinct films for the summary (a rewatched film counts once).
     const seen = new Map<number, { genre: GenreKey; mc: number | null }>();
@@ -64,7 +93,10 @@ export function SelectionPanel() {
     const genres = [...gCounts.entries()].sort((a, b) => b[1] - a[1]);
 
     return { rows, films: seen.size, avgMe, avgCritic, genres };
-  }, [filtered]);
+  }, [filtered, sort]);
+
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
 
   if (!filters.selection && !filters.country) return null;
 
@@ -132,14 +164,26 @@ export function SelectionPanel() {
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0" style={{ background: "#f2f1ec" }}>
             <tr style={{ color: INK.muted }}>
-              <th className="px-3 py-1.5 text-left font-medium">Watched</th>
-              <th className="px-3 py-1.5 text-left font-medium">Title</th>
-              <th className="px-2 py-1.5 text-right font-medium">Year</th>
-              <th className="px-2 py-1.5 text-right font-medium">Me</th>
-              <th className="px-2 py-1.5 text-right font-medium">MC</th>
-              <th className="px-2 py-1.5 text-right font-medium">RT</th>
-              <th className="px-2 py-1.5 text-right font-medium">IMDB</th>
-              <th className="px-3 py-1.5 text-left font-medium">Genre</th>
+              {COLUMNS.map((c) => (
+                <th
+                  key={c.key}
+                  aria-sort={
+                    sort.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : undefined
+                  }
+                  className={`py-1.5 font-medium ${c.numeric ? "px-2 text-right" : "px-3 text-left"}`}
+                >
+                  <button
+                    onClick={() => toggleSort(c.key)}
+                    className="inline-flex items-center gap-1 font-medium hover:text-[#0b0b0b]"
+                    title={`Sort by ${c.label}`}
+                  >
+                    {c.label}
+                    <span aria-hidden className="text-[9px]">
+                      {sort.key === c.key ? (sort.dir === 1 ? "▲" : "▼") : ""}
+                    </span>
+                  </button>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
