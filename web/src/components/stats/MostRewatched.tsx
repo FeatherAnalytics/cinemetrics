@@ -44,6 +44,10 @@ export type RewatchSummary = {
   allFilms: number;
   viewings: number;
   returns: number;
+  tailFilms: number;
+  tailViewings: number;
+  tailMin: number;
+  tailMax: number;
 };
 
 /**
@@ -91,13 +95,22 @@ export function useMostRewatched(limit = TOP_N): RewatchSummary {
       );
 
     const viewings = repeat.reduce((s, f) => s + f.watches.length, 0);
+    const shown = repeat.slice(0, limit);
+    const tail = repeat.slice(limit);
     return {
-      rows: repeat.slice(0, limit),
+      rows: shown,
       repeatFilms: repeat.length,
       allFilms: byFilm.size,
       viewings,
       // A film seen three times is two returns, not three.
       returns: viewings - repeat.length,
+      // Everything below the cut. The list stops at twelve, and the twelfth
+      // film has three viewings, so without this the chart silently implies
+      // nothing was watched exactly twice when in fact most repeats were.
+      tailFilms: tail.length,
+      tailViewings: tail.reduce((s, f) => s + f.watches.length, 0),
+      tailMin: tail.length ? Math.min(...tail.map((f) => f.watches.length)) : 0,
+      tailMax: tail.length ? Math.max(...tail.map((f) => f.watches.length)) : 0,
     };
   }, [filtered, limit]);
 }
@@ -115,7 +128,7 @@ export function useMostRewatched(limit = TOP_N): RewatchSummary {
  */
 export function MostRewatched() {
   const { filters, setSelection } = useExplorer();
-  const { rows } = useMostRewatched();
+  const { rows, tailFilms, tailMin, tailMax } = useMostRewatched();
   // Hover is the same contract as "What travels well": the row lifts its own
   // fill from 0.72 to 0.9, and once something is selected every other row drops
   // to 0.35. No tooltip, no growth, no color change. These two charts are the
@@ -124,7 +137,7 @@ export function MostRewatched() {
   const accent = accentFor(filters.genres);
   if (!rows.length) return null;
 
-  const HEIGHT = 20 + rows.length * (BAR_H + GAP);
+  const HEIGHT = 20 + (rows.length + (tailFilms > 0 ? 1 : 0)) * (BAR_H + GAP);
   const maxN = Math.max(...rows.map((r) => r.watches.length));
   // Rating bars scale against the full 0-100 range rather than the local max, so
   // a 70 and an 80 do not read as a short bar and a huge one.
@@ -193,7 +206,11 @@ export function MostRewatched() {
                 dominantBaseline="middle"
               >
                 {clipTitle(f.title)}
-                <title>{f.title}</title>
+                {/* Only when the name was actually cut. A `<title>` on text the
+                    reader can already read in full is a native tooltip for no
+                    reason; on a truncated string it is the standard way to
+                    recover what was dropped. */}
+                {f.title.length > MAX_TITLE && <title>{f.title}</title>}
               </text>
 
               <rect
@@ -252,6 +269,29 @@ export function MostRewatched() {
             </g>
           );
         })}
+
+        {/* The cut, stated. The list stops at twelve and the twelfth film has
+            three viewings, so without this row the chart reads as though
+            nothing was watched exactly twice, when in fact that is most of
+            them. Same shape as the "+ N more countries" row in CountryBars. */}
+        {tailFilms > 0 && (
+          <text
+            // Left-aligned into the bar track, not right-aligned into the label
+            // gutter the way CountryBars does it. That gutter is 176px and this
+            // sentence is far longer than "+ 12 more countries", so anchored at
+            // the end it ran off the left edge of the viewBox and lost its first
+            // words. The track next to it is empty on this row.
+            x={LABEL_W}
+            y={20 + rows.length * (BAR_H + GAP) + BAR_H / 2}
+            fill={INK.muted}
+            fontSize={11}
+            textAnchor="start"
+            dominantBaseline="middle"
+          >
+            + {tailFilms} more film{tailFilms === 1 ? "" : "s"} at{" "}
+            {tailMin === tailMax ? tailMin : `${tailMin}–${tailMax}`} viewings
+          </text>
+        )}
       </svg>
     </figure>
   );

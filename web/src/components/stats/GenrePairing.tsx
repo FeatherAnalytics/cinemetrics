@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, type GenreKey } from "@/lib/palette";
 import { insetRect, lerpHex, mean, NO_DATA_STROKE } from "@/lib/statsChart";
@@ -62,6 +62,9 @@ export function GenrePairing() {
   const { filtered, filters, setSelection } = useExplorer();
   const [ref, W] = useWidth(720);
   const accent = accentFor(filters.genres);
+  const [hover, setHover] = useState<{ a: string; b: string; n: number; rating: number } | null>(
+    null,
+  );
 
   const model = useMemo(() => {
     const byFilm = new Map<number, { ratings: number[]; watches: EnrichedWatch[]; genres: string[] }>();
@@ -149,36 +152,53 @@ export function GenrePairing() {
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
         style={{ color: INK.muted }}
       >
-        shade = film count · number = mean rating · MIN N = {MIN_FILMS_PER_GENRE}
+        {/* Hover reads out in the strip, in the site's own type, rather than in
+            a browser `<title>` tooltip. The pair is named with a plain "+"
+            because the cell is a combination, not a direction. */}
+        {hover ? (
+          <>
+            <span style={{ color: axisFill(hover.a) }}>{hover.a}</span>
+            {" + "}
+            <span style={{ color: axisFill(hover.b) }}>{hover.b}</span>
+            {" · "}
+            <span style={{ color: INK.primary }}>
+              {hover.n} film{hover.n === 1 ? "" : "s"} · {(hover.rating / 20).toFixed(1)}★
+            </span>
+          </>
+        ) : (
+          <>shade = film count · number = mean rating · MIN N = {MIN_FILMS_PER_GENRE}</>
+        )}
       </div>
       {/* Scrolls rather than shrinks below CELL_MIN: a matrix squeezed past the
           point its numbers fit is not a smaller chart, it is an unreadable one. */}
       <div className="overflow-x-auto">
         <svg width={size} height={size} role="img">
-          {/* Axis titles. Only the upper triangle is drawn, so a cell is an
-              ordered pair and the two axes are not interchangeable: naming them
-              is what makes "Horror row, Mystery column" readable as one thing
-              rather than two labels that happen to cross. */}
+          {/* Each axis title runs ALONG its own axis rather than stacking in the
+              corner. Stacked, the two read as one phrase and the row title's
+              arrow appeared to point at the column title instead of at the
+              rows. Set on the axes they label, neither points at the other and
+              no arrows are needed at all. */}
           <text
-            x={4}
-            y={14}
+            x={pad}
+            y={12}
             fontSize={8}
             fill={INK.muted}
             letterSpacing="0.1em"
             fontFamily="var(--font-mono)"
           >
-            FIRST GENRE ↓
+            SECOND GENRE
           </text>
           <text
-            x={pad - 6}
-            y={26}
-            textAnchor="end"
+            x={0}
+            y={0}
             fontSize={8}
             fill={INK.muted}
             letterSpacing="0.1em"
             fontFamily="var(--font-mono)"
+            textAnchor="middle"
+            transform={`translate(10 ${pad + (genres.length * cell) / 2}) rotate(-90)`}
           >
-            SECOND GENRE →
+            FIRST GENRE
           </text>
           {genres.map((g, i) => (
             <text
@@ -220,6 +240,8 @@ export function GenrePairing() {
                 <g
                   key={`${a}-${b}`}
                   style={{ cursor: "pointer" }}
+                  onMouseEnter={() => setHover({ a, b, n: v.n, rating: v.rating })}
+                  onMouseLeave={() => setHover(null)}
                   onClick={() => pickWatches(v.watches, filters.selection, setSelection)}
                 >
                   {/* Cells butt together: a gutter reads as a white grid drawn
@@ -276,9 +298,6 @@ export function GenrePairing() {
                   >
                     {Math.round(v.rating)}
                   </text>
-                  <title>{`${a} + ${b}: ${v.n} film${v.n === 1 ? "" : "s"}, mean ${Math.round(
-                    v.rating,
-                  )}`}</title>
                 </g>
               );
             }),

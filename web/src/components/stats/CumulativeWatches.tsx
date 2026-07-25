@@ -117,17 +117,13 @@ export function CumulativeWatches() {
   const x = (i: number) => ML + (i / Math.max(months.length - 1, 1)) * (W - ML - 12);
   const y = (v: number) => H - MB - (v / scaleMax) * (H - MB - 12);
 
-  // Each band is a closed polygon between its lower and upper edges. `mid` is
-  // the vertical center of the band AT the hovered month, which is where that
-  // band's readout is parked so the number sits on the color it describes.
+  // Each band is a closed polygon between its lower and upper edges.
   const polys: {
     key: string;
     color: string;
     points: string;
     end: number;
     at: number;
-    mid: number;
-    thickness: number;
     stars: number | null;
   }[] = [];
   const floor = Array(months.length).fill(0) as number[];
@@ -144,8 +140,6 @@ export function CumulativeWatches() {
       points,
       end: b.running[b.running.length - 1],
       at: b.running[at],
-      mid: (y(upper[at]) + y(floor[at])) / 2,
-      thickness: y(floor[at]) - y(upper[at]),
       // Mean rating of everything in this band SO FAR, on the 0-5 star scale
       // the rest of the site reads in. Running sums, so this is the exact mean
       // up to the hovered month rather than a mean of monthly means.
@@ -164,11 +158,27 @@ export function CumulativeWatches() {
 
   return (
     <div ref={ref}>
+      {/* ONE legend, above the chart, carrying every band: swatch, name, count
+          and average rating, all in the band's own color. In-band star labels
+          were tried and cut, because the thin bands could not fit type and got
+          skipped, so the chart showed four of six ratings and silently dropped
+          the two smallest genres. Above the plot every genre gets its number at
+          the same size, and the color does the work of pointing at the band.
+          The counts legend that used to sit below is folded in here. */}
       <div
-        className="mb-1 font-mono text-[10px] uppercase tracking-wider"
+        className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 font-mono text-[10px]"
         style={{ color: INK.muted }}
       >
-        {isFiltered ? `${bands[0].key} vs other` : "all films"}
+        <span className="uppercase tracking-wider">
+          {isFiltered ? `${bands[0].key} vs other` : "all films"}
+        </span>
+        {polys.map((p) => (
+          <span key={p.key} className="inline-flex items-center gap-1" style={{ color: p.color }}>
+            <span className="inline-block h-2 w-2" style={{ background: p.color }} />
+            {p.key} {p.at}
+            {p.stars != null && <> · {p.stars.toFixed(1)}★</>}
+          </span>
+        ))}
       </div>
       <svg
         width={W}
@@ -214,28 +224,6 @@ export function CumulativeWatches() {
             >
               {months[hover]}
             </text>
-            {/* One star readout per band, parked at that band's vertical center
-                so the number is ON the color it describes. Bands thinner than
-                the type are skipped: a label that overlaps its neighbor is
-                worse than no label. */}
-            {polys.map((p) => {
-              if (p.stars == null || p.thickness < 11) return null;
-              const right = hover > months.length * 0.85;
-              return (
-                <text
-                  key={`h-${p.key}`}
-                  x={x(hover) + (right ? -5 : 5)}
-                  y={p.mid + 3}
-                  textAnchor={right ? "end" : "start"}
-                  fontSize={9}
-                  fontWeight={700}
-                  fill={INK.primary}
-                  pointerEvents="none"
-                >
-                  {p.stars.toFixed(1)}★
-                </text>
-              );
-            })}
           </>
         )}
         {months.map((m, i) =>
@@ -246,22 +234,6 @@ export function CumulativeWatches() {
           ) : null,
         )}
       </svg>
-      {/* Legend numbers track the hover, so it reads each band AT that month
-          rather than only ever showing the final total the chart already draws.
-          The month itself is NOT repeated here: it is drawn at the head of the
-          hover line, on the chart. */}
-      <div className="mt-1 flex flex-wrap gap-3 font-mono text-[10px]" style={{ color: INK.muted }}>
-        <span style={{ color: INK.primary }}>{hover != null ? "watches · ★ avg" : "total"}</span>
-        {/* Legend order matches the stacking order (alphabetical), not the
-            current values: a legend that resorts as you hover makes the reader
-            re-find each genre on every move. */}
-        {polys.map((p) => (
-            <span key={p.key} className="inline-flex items-center gap-1">
-              <span className="inline-block h-2 w-2" style={{ background: p.color }} />
-              {p.key} {p.at}
-            </span>
-          ))}
-      </div>
     </div>
   );
 }

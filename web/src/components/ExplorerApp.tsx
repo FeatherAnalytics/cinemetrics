@@ -192,7 +192,7 @@ const CHART_SECTIONS: ChartSection[] = [
     mode: "stats",
     title: "Viewing velocity",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: <>Every bucket since the first logged watch, split by genre. No smoothing.</>,
+    blurb: <>Every bucket since the first logged watch. No smoothing.</>,
     Chart: ViewingVelocity,
   },
   {

@@ -180,9 +180,7 @@ export function RatingsByGenre() {
                 fill="transparent"
                 style={{ cursor: "pointer" }}
                 onClick={() => pickWatches(r.watches, filters.selection, setSelection)}
-              >
-                <title>{`${r.genre}: ${r.n} films, median ${Math.round(r.med)}`}</title>
-              </rect>
+              />
               <text
                 x={cx}
                 y={14}

@@ -219,9 +219,7 @@ export function ViewingVelocity() {
                 fillOpacity={picked ? 0.12 : 1}
                 style={{ cursor: "pointer" }}
                 onClick={() => pickWatches(c, filters.selection, setSelection)}
-              >
-                <title>{`${k}: ${c.length}${u.length ? ` (+${u.length} not recorded)` : ""}`}</title>
-              </rect>
+              />
             </g>
           );
         })}

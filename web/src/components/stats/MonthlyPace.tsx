@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { INK } from "@/lib/palette";
 import {
@@ -31,6 +31,7 @@ import { accentFor, isPicked, pickWatches } from "./pick";
  */
 export function MonthlyPace() {
   const { all, filtered, filters, setSelection } = useExplorer();
+  const [hover, setHover] = useState<number | null>(null);
 
   const model = useMemo(() => {
     const counts = Array(12).fill(0) as number[];
@@ -53,37 +54,44 @@ export function MonthlyPace() {
     return { counts, byMonth, exposure, avg };
   }, [all, filtered]);
 
-  // The rating lives ONLY here, on hover. It used to ride the story headline as
-  // "and rate them 1 point apart", which spent a headline on a non-finding: the
-  // whole point is that the rating does not move, so it belongs where a reader
-  // who wonders can check it, not where everyone has to read it.
-  const bars: CategoryBar[] = MONTH_ABBR.map((label, i) => {
-    const a = model.avg[i];
-    return {
-      label,
-      value: model.exposure[i] ? model.counts[i] / model.exposure[i] : 0,
-      title:
-        `${label}: ${model.counts[i]} watches over ${model.exposure[i]} calendar days` +
-        (a != null ? ` · avg rating ${Math.round(a)}` : ""),
-      keys: [],
-    };
-  });
+  const bars: CategoryBar[] = MONTH_ABBR.map((label, i) => ({
+    label,
+    value: model.exposure[i] ? model.counts[i] / model.exposure[i] : 0,
+  }));
 
   const activeIndex = model.byMonth.findIndex((ws) => isPicked(ws, filters.selection));
 
   return (
     <div>
+      {/* The hover readout is the AVERAGE RATING, and only that. The counts and
+          the exposure days are already the bar; a tooltip restating them would
+          be printing the picture back at the reader. The rating is the one
+          thing the chart cannot show, and it is the whole point of the story:
+          the pace swings threefold and this number does not move.
+
+          It renders in the chart's own strip, in the site's type, matching the
+          cumulative chart. There is no `<title>` anywhere in this chart. */}
       <div
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
         style={{ color: INK.muted }}
       >
-        days between films
+        {hover != null && model.avg[hover] != null ? (
+          <>
+            {MONTH_ABBR[hover]} avg{" "}
+            <span style={{ color: INK.primary }}>
+              {(model.avg[hover]! / 20).toFixed(1)}★
+            </span>
+          </>
+        ) : (
+          "days between films"
+        )}
       </div>
       <CategoryBars
         bars={bars}
         fmt={paceLabel}
         accent={accentFor(filters.genres)}
         active={activeIndex >= 0 ? activeIndex : null}
+        onHover={setHover}
         onPick={(i) => pickWatches(model.byMonth[i], filters.selection, setSelection)}
       />
     </div>

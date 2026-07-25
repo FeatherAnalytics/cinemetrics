@@ -35,11 +35,11 @@ export function WeekdayCounts() {
     return { counts, byDay };
   }, [filtered]);
 
+  // No hover. The bar, its value and its percentage against the median are all
+  // already on screen, so there is nothing left for a hover to say.
   const bars: CategoryBar[] = DAY_ABBR.map((label, i) => ({
     label,
     value: model.counts[i],
-    title: `${label}: ${model.counts[i]} watches`,
-    keys: [],
   }));
 
   const activeIndex = model.byDay.findIndex((ws) => isPicked(ws, filters.selection));

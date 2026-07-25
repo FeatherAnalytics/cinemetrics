@@ -326,6 +326,23 @@ export function ExplorerProvider({
   };
 
   /**
+   * The annotation a story is currently showing.
+   *
+   * Most stories compute once, when activated, and `storyResult` holds that.
+   * A story with `recomputeOnFilter` instead recomputes against the filtered
+   * watches, so a headline like "3.4x more in October than November" is a
+   * statement about what the reader is actually looking at rather than about
+   * the whole library. `computeStoryHeadlines` is untouched by this: the chips
+   * stay stable invitations computed from everything.
+   */
+  const activeResult = useMemo(() => {
+    if (!activeStory) return null;
+    const cfg = getStoryById(activeStory);
+    if (!cfg?.recomputeOnFilter) return storyResult;
+    return cfg.compute(derived.films, filtered);
+  }, [activeStory, storyResult, derived.films, filtered]);
+
+  /**
    * Filtering by hand normally drops out of the active story, because for the
    * narrative stories the filters ARE the story: leaving the chip lit while the
    * reader filters elsewhere would claim a finding the charts no longer show.
@@ -416,17 +433,17 @@ export function ExplorerProvider({
         setSelectedId(null);
       },
       activeStory,
-      storyResult,
+      storyResult: activeResult,
       storyFocus: activeStory ? (getStoryById(activeStory)?.focus ?? null) : null,
       storyHeadlines,
       setStory,
-      rollingDimension: storyResult?.rollingDimension ?? null,
+      rollingDimension: activeResult?.rollingDimension ?? null,
     }),
     // setStory and exitStoryOnFilter are recreated each render but only read
     // `derived` and `activeStory`, both already dependencies, so the closures
     // here are never stale and both are safe to leave out.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [derived, filtered, filters, selectedId, activeStory, storyResult, storyHeadlines],
+    [derived, filtered, filters, selectedId, activeStory, activeResult, storyHeadlines],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

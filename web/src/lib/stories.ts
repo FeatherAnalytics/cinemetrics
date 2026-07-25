@@ -3,7 +3,7 @@ import type { Filters } from "./store";
 import type { Film, EnrichedWatch } from "./types";
 import { primaryGenre, type GenreKey } from "./palette";
 import { watchKey } from "./brush";
-import { ALPHA, anova, chicagoParts, mean } from "./statsChart";
+import { ALPHA, anova, chicagoParts, hasKnownRewatchState, mean } from "./statsChart";
 
 export type ChartId =
   | "spiral"
@@ -97,6 +97,18 @@ export type StoryConfig = {
    * has never seen.
    */
   scrollToPrimary?: boolean;
+  /**
+   * Recompute the annotation against the FILTERED watches on every filter
+   * change, rather than computing it once from the whole dataset.
+   *
+   * Off for the narrative stories: they set the filters themselves, so their
+   * headline describes a set they chose and there is nothing to track. The
+   * stats story sets no filters and leaves the rail live, so its headline has
+   * to move with the rail or it starts describing a view that is no longer on
+   * screen. Note this is the ANNOTATION only; the chip strip is always computed
+   * from the full dataset, so the invitations stay stable.
+   */
+  recomputeOnFilter?: boolean;
 };
 
 function computeSpooktober(films: Film[], watches: EnrichedWatch[]): StoryResult {
@@ -463,6 +475,47 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
     perGenre.set(g, [...(perGenre.get(g) ?? []), mean(rs)]);
   }
 
+  // The two heaviest years, for the velocity note. Measured, so it follows the
+  // filter instead of asserting 2020 and 2021 about a set that may not contain
+  // them.
+  const perYear = new Map<number, number>();
+  for (const w of watches) {
+    const y = Number(w.date.slice(0, 4));
+    perYear.set(y, (perYear.get(y) ?? 0) + 1);
+  }
+  const peakYears = [...perYear.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+    .slice(0, 2)
+    .map(([y]) => y)
+    .sort((a, b) => a - b);
+
+  /**
+   * Do I rate a film higher on the way back than the first time through?
+   *
+   * D5: `rewatch` is three-state. The 129 sheet-era rows record `false` because
+   * the Google Sheet had no such field, not because they were first viewings,
+   * so they are excluded from BOTH sides rather than silently counted as first
+   * watches, which would drag the first-watch mean toward the sheet era.
+   */
+  const firstRatings: number[] = [];
+  const rewatchRatings: number[] = [];
+  for (const w of watches) {
+    if (w.rating == null || !hasKnownRewatchState(w)) continue;
+    (w.rewatch ? rewatchRatings : firstRatings).push(w.rating);
+  }
+  const rewatchNote =
+    firstRatings.length >= 10 && rewatchRatings.length >= 10
+      ? (() => {
+          const f = mean(firstRatings) / 20;
+          const r = mean(rewatchRatings) / 20;
+          const d = r - f;
+          const verb = Math.abs(d) < 0.05 ? "the same" : d > 0 ? "higher" : "lower";
+          return verb === "the same"
+            ? `Going back does not change the score: ${r.toFixed(1)}★ on rewatches against ${f.toFixed(1)}★ on first watches.`
+            : `I rate rewatches ${verb}, ${r.toFixed(1)}★ against ${f.toFixed(1)}★ on first watches.`;
+        })()
+      : null;
+
   // A missing test counts as null: too few groups to find an effect is not
   // evidence of one.
   const isNull = (a: ReturnType<typeof anova>) => a == null || a.p >= ALPHA;
@@ -485,13 +538,17 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
     ...(nothingPredicts
       ? { subtext: "What changes is how much I watch, not what I think of it." }
       : {}),
-    // One note. A note earns its place only by saying something neither the
-    // chart nor its blurb already says, and that a reader could not get by
-    // looking. The rest were restating an axis, repeating the headline,
-    // duplicating a blurb, or announcing that the chart is interactive, which
-    // every chart on this site already is.
+    // Two notes, both MEASURED from the filtered set rather than written down,
+    // so they describe whatever the reader is looking at. A note earns its
+    // place only by saying something neither the chart nor its blurb already
+    // says, and that a reader could not get by looking.
     notes: {
-      velocity: "The twin peaks are 2020 and 2021. Nothing since has come close.",
+      ...(peakYears.length === 2
+        ? {
+            velocity: `The peak years are ${peakYears[0]} and ${peakYears[1]}. Nothing since has come close.`,
+          }
+        : {}),
+      ...(rewatchNote ? { rewatched: rewatchNote } : {}),
     },
   };
 }
@@ -550,6 +607,7 @@ export const STORIES: StoryConfig[] = [
     compute: computeStats,
     dismissOnFilter: false,
     scrollToPrimary: false,
+    recomputeOnFilter: true,
   },
 ];
 

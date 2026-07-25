@@ -13,9 +13,6 @@ const MID = "#eceae3";
 export type CategoryBar = {
   label: string;
   value: number;
-  title: string;
-  /** Watch keys this bar stands for; clicking selects them. */
-  keys: string[];
 };
 
 /**
@@ -37,6 +34,7 @@ export function CategoryBars({
   fmt = (v: number) => String(Math.round(v)),
   accent = "#c01023",
   showShare = false,
+  onHover,
 }: {
   bars: CategoryBar[];
   /** Indices given a flat backdrop tint, e.g. the weekend. */
@@ -61,6 +59,16 @@ export function CategoryBars({
    * a percentage of a rate rendered as a duration is not a number.
    */
   showShare?: boolean;
+  /**
+   * Hovered column index, or null on leave. The PARENT renders the readout, in
+   * its own strip above the chart, the way the cumulative chart does.
+   *
+   * Deliberately not an SVG `<title>`: that renders the browser's native
+   * tooltip, a gray OS box with its own font and its own half-second delay,
+   * which looks nothing like anything else here. Omit this prop and the chart
+   * simply has no hover.
+   */
+  onHover?: (index: number | null) => void;
 }) {
   // Width tracks the column, height is fixed: there is no viewBox, so one user
   // unit is one pixel and the type stays the same size at every width.
@@ -133,9 +141,9 @@ export function CategoryBars({
               fill="transparent"
               style={{ cursor: onPick ? "pointer" : "default" }}
               onClick={onPick ? () => onPick(i) : undefined}
-            >
-              <title>{b.title}</title>
-            </rect>
+              onMouseEnter={onHover ? () => onHover(i) : undefined}
+              onMouseLeave={onHover ? () => onHover(null) : undefined}
+            />
             {/* The value rides its own bar, inside when there is room, exactly
                 as it does on every horizontal bar chart here: same 11px, same
                 bold, same INK.surface / INK.primary flip. It used to sit under
