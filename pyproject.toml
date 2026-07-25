@@ -13,6 +13,10 @@ dependencies = [
     "scikit-learn>=1.5",
     "numpy>=1.26",
     "boto3>=1.34",
+    # Parsing Letterboxd film pages for their outbound TMDB/IMDb links. Regex over
+    # HTML is brittle here — attribute order in the anchor tags is not guaranteed.
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
 ]
 
 [tool.setuptools.packages.find]

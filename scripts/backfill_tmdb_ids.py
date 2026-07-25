@@ -17,6 +17,7 @@ load_dotenv()
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from ingest.csvio import dict_writer  # noqa: E402
 from ingest.http import tmdb_get  # noqa: E402
 
 SEEDS = ROOT / "transform" / "seeds"
@@ -35,6 +36,10 @@ LOG_COLUMNS = [
     "my_rating",
     "star_rating",
     "is_rewatch",
+    # Must stay in sync with scripts/update.py: this script rewrites film_log.csv
+    # wholesale with extrasaction="ignore", so a column missing here would be
+    # silently dropped from the seed if it were ever re-run.
+    "liked",
 ]
 
 ENRICH_COLUMNS = [
@@ -142,7 +147,7 @@ def backfill_log(mapping: dict[str, str]) -> int:
             rows.append(row)
 
     with open(LOG_PATH, "w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=LOG_COLUMNS, extrasaction="ignore")
+        writer = dict_writer(f, LOG_COLUMNS)
         writer.writeheader()
         writer.writerows(rows)
 
@@ -158,7 +163,7 @@ def backfill_enrichment() -> int:
             rows.append(row)
 
     with open(ENRICH_PATH, "w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=ENRICH_COLUMNS, extrasaction="ignore")
+        writer = dict_writer(f, ENRICH_COLUMNS)
         writer.writeheader()
         writer.writerows(rows)
 

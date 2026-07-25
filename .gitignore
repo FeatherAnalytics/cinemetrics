@@ -11,6 +11,9 @@ data/ml/
 .env.*
 !.env.example
 config/secrets*
+# HAR captures embed live session cookies and auth headers
+.logs/
+*.har
 
 # --- Python ---
 .venv/

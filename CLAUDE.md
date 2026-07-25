@@ -15,8 +15,17 @@ Personal film analytics pipeline: Letterboxd watch history → dbt/DuckDB → Ne
 ## Data Pipeline
 
 - **Primary key**: `tmdb_id` (integer). `imdb_id` kept as secondary identifier.
-- **Rating scale**: 0–100 (Letterboxd stars × 20).
+- **Rating scale**: 0–100 (`my_rating`). `star_rating` is 0–5; the factor is exactly 20.
 - **Seeds are append-only**: The auto-updater appends new rows; never modifies existing data.
+  One-off repairs go in their own `scripts/` file with a `--apply` flag, never in `update.py`.
+- **Never use `csv.writer`/`csv.DictWriter` directly** — use `ingest.csvio.dict_writer`.
+  The csv module defaults to CRLF line endings on *every* platform, while
+  `.gitattributes` checks seeds out as LF. Mixing the two makes DuckDB's sniffer fail
+  the dbt build (`Error when sniffing file`). This bug recurred for months because it
+  only appeared after new rows were appended to a clean checkout.
+- **Three-state `liked`**: `true`/`false`/NULL, where NULL means *unknown* (the 129
+  pre-Letterboxd rows), not "not liked". Always filter `liked is not null` before
+  computing an affection rate — collapsing them understates it by ~7.5 points.
 - **Pipeline order**: RSS parse → enrich new films → dbt build → export JSON → train embeddings → upload to R2.
 - **Franchise rollups**: curated in the `franchise_mapping()` macro (`transform/macros/`), keyed by collection, tmdb_id, or director.
 

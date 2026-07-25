@@ -67,7 +67,10 @@ def main() -> None:
             tmdb_id,
             rating_100   as rating,
             star_rating  as stars,
-            is_rewatch   as rewatch
+            is_rewatch   as rewatch,
+            -- Three-state: true / false / null. NULL means UNKNOWN (pre-Letterboxd
+            -- watches), NOT "not liked" — filter nulls before any affection rate.
+            liked
         from fct_watches
         order by watched_date
         """,

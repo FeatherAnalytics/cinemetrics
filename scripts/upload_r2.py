@@ -1,5 +1,14 @@
-"""Upload ML artifacts to Cloudflare R2."""
+"""Upload ML artifacts to Cloudflare R2, gzipped.
 
+The embeddings file is ~4 MB of JSON but compresses ~4.2x, so it is gzipped here
+and served with Content-Encoding: gzip — browsers decompress transparently and no
+client change is needed. Compressing at upload rather than relying on edge
+compression makes the ~1 MB transfer a property of the artifact instead of a
+CDN configuration detail that could silently change.
+"""
+
+import gzip
+import io
 import os
 from pathlib import Path
 
@@ -36,20 +45,29 @@ def main() -> None:
         if not path.exists():
             print(f"skipping {name} (not found)")
             continue
+        raw = path.read_bytes()
+        # mtime=0 keeps the gzip header deterministic, so an unchanged artifact
+        # produces identical bytes rather than a spurious diff each run.
+        buffer = io.BytesIO()
+        with gzip.GzipFile(fileobj=buffer, mode="wb", compresslevel=6, mtime=0) as gz:
+            gz.write(raw)
+        payload = buffer.getvalue()
+
         # One day of caching matches the daily update cadence; the client also
         # appends a version query param derived from the dataset, so a new
         # deploy busts the cache immediately.
-        s3.upload_file(
-            str(path),
-            bucket,
-            name,
-            ExtraArgs={
-                "ContentType": "application/json",
-                "CacheControl": "public, max-age=86400",
-            },
+        s3.put_object(
+            Bucket=bucket,
+            Key=name,
+            Body=payload,
+            ContentType="application/json",
+            ContentEncoding="gzip",
+            CacheControl="public, max-age=86400",
         )
-        kb = path.stat().st_size / 1024
-        print(f"uploaded {name} ({kb:.0f} KB)")
+        print(
+            f"uploaded {name}: {len(raw) / 1024:.0f} KB -> "
+            f"{len(payload) / 1024:.0f} KB gzipped ({len(raw) / len(payload):.1f}x)"
+        )
 
 
 if __name__ == "__main__":

@@ -17,11 +17,23 @@ models:
               min_value: 0
               max_value: 100
       - name: star_rating
-        description: Original Letterboxd star rating (0-5); null for pre-Letterboxd history.
+        description: >
+          Star rating (0-5). Recorded by Letterboxd where available; for the 129
+          pre-Letterboxd rows it is derived as my_rating/20 (the factor is exactly
+          20.0 across all 665 rows carrying both values). Never null.
         tests:
+          - not_null
           - dbt_utils.accepted_range:
               min_value: 0
               max_value: 5
+      - name: liked
+        description: >
+          Per-watch like state from letterboxd:memberLike (the heart, independent of
+          the star rating). NULL means UNKNOWN — the 129 pre-Letterboxd rows have no
+          like data — which is NOT the same as false. Filter `liked is not null`
+          before computing any affection rate. Note the historical backfill applied
+          the export's current like state retroactively; only watches ingested from
+          2026-07-25 onward carry true point-in-time state.
 
   - name: stg_film_enrichment
     description: One row per film — TMDB + OMDb attributes keyed by tmdb_id.
@@ -30,6 +42,20 @@ models:
         description: TMDB film identifier — the primary film key.
         tests: [unique, not_null]
       - name: imdb_id
+        tests: [not_null]
+
+  - name: stg_watchlist
+    description: >
+      Films currently on the Letterboxd watchlist, keyed by tmdb_id, with the date
+      each was added. A SNAPSHOT, not history — removals are recorded nowhere, so
+      conversion/dwell metrics built on this will be biased by films watched and then
+      removed (which happens inconsistently).
+    columns:
+      - name: tmdb_id
+        description: TMDB film identifier — the primary film key.
+        tests: [unique, not_null]
+      - name: added_date
+        description: Date the film was added to the watchlist.
         tests: [not_null]
 
   - name: stg_candidate_enrichment
