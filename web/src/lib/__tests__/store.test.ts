@@ -42,6 +42,7 @@ function makeWatch(
     tmdb_id: film.tmdb_id,
     rating: 70,
     stars: 3.5,
+    liked: null,
     rewatch: false,
     film,
     d,

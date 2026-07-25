@@ -41,7 +41,7 @@ let tid = 100;
 function watch(rating: number | null, film: Partial<Film>, date = "2021-01-01"): EnrichedWatch {
   const f = makeFilm({ tmdb_id: tid++, ...film });
   const d = new Date(date + "T00:00:00Z");
-  return { date, tmdb_id: f.tmdb_id, rating, stars: null, rewatch: false, film: f, d, yearFrac: 0 };
+  return { date, tmdb_id: f.tmdb_id, rating, stars: null, rewatch: false, liked: null, film: f, d, yearFrac: 0 };
 }
 
 // Successive daily watches, so date ordering matches array order.

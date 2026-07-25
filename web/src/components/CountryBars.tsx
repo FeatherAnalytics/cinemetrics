@@ -8,11 +8,18 @@ import { aggregateCountries, type CountryRow } from "@/lib/countryStats";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { ChartTakeaway } from "./ChartTakeaway";
 
-const LABEL_W = 200;
-const BAR_W = 360;
-const VALUE_W = 90;
-const WIDTH = LABEL_W + BAR_W + VALUE_W;
+const LABEL_W = 176;
+const BAR_W = 286; // films track, grows left to right
+const RESID_W = 226; // residual track, grows right to left
+const WIDTH = LABEL_W + BAR_W + RESID_W;
+// Where the residual bars are anchored. They grow back toward the films bars, so
+// the two series meet in the middle instead of diverging from a central spine.
+// No reserved value column: both value labels sit at their own bar's end, which
+// is what buys the extra track width.
+const RESID_ORIGIN = WIDTH;
 const TOP_N = 15;
+// Below this length a value label will not fit inside its bar and sits outside.
+const INSIDE_MIN = 44;
 
 export function CountryBars() {
   const { all, byId, filters, setCountry } = useExplorer();
@@ -27,6 +34,7 @@ export function CountryBars() {
   }, [all, byId, filters]);
 
   const maxCount = agg.rows.reduce((m, r) => Math.max(m, r.count), 1);
+  const maxResid = agg.rows.reduce((m, r) => Math.max(m, Math.abs(r.residual ?? 0)), 0.1);
   const tailRow = agg.tailCountries > 0;
 
   // Strongest finding among the ranked countries: the biggest deviation from
@@ -57,7 +65,7 @@ export function CountryBars() {
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
         role="img"
-        aria-label="Top production countries ranked by film count, coloured by dominant genre, with my average rating residual per country"
+        aria-label="Top production countries ranked by film count, coloured by dominant genre. Films bars grow rightward from the country name; mirrored bars grow leftward from the right edge showing how far my average rating sits from the critic estimate."
       >
         {/* Column headers */}
         <text
@@ -71,7 +79,7 @@ export function CountryBars() {
           FILMS
         </text>
         <text
-          x={LABEL_W + BAR_W + VALUE_W - 8}
+          x={RESID_ORIGIN}
           y={8}
           fill={INK.muted}
           fontSize={9}
@@ -88,7 +96,10 @@ export function CountryBars() {
           const sel = filters.country === row.iso;
           const dim = filters.country != null && !sel;
           const isHover = hover === row.iso;
-          const countInside = barLen > 44;
+          const countInside = barLen > INSIDE_MIN;
+          const residLen =
+            row.residual != null ? (Math.abs(row.residual) / maxResid) * RESID_W : 0;
+          const residInside = residLen > INSIDE_MIN;
           const name = countryName(row.iso);
 
           return (
@@ -139,18 +150,36 @@ export function CountryBars() {
                 {row.count}
               </text>
 
-              {/* Mean residual vs prediction, when enough films to be meaningful */}
+              {/* Mean residual vs prediction, when enough films to be meaningful.
+                  Mirrors the films bar: same fill, opposite direction, anchored at
+                  the right so the pair converges. Magnitude only; the sign lives in
+                  the label rather than in a second colour. */}
               {row.residual != null && (
-                <text
-                  x={LABEL_W + BAR_W + VALUE_W - 8}
-                  y={y + BAR_H / 2}
-                  fill={INK.muted}
-                  fontSize={11}
-                  textAnchor="end"
-                  dominantBaseline="middle"
-                >
-                  {fmtResidual(row.residual)}
-                </text>
+                <>
+                  <rect
+                    x={RESID_ORIGIN - residLen}
+                    y={y}
+                    width={residLen}
+                    height={BAR_H}
+                    fill={GENRE_COLORS[row.genre]}
+                    fillOpacity={isHover || sel ? 0.9 : 0.72}
+                    stroke={sel ? ACCENT : "none"}
+                    strokeWidth={sel ? 1.75 : 0}
+                  />
+                  {/* Mirrors the film-count label: at the growing end of its own
+                      bar, inside when there is room, same weight and fill rule. */}
+                  <text
+                    x={RESID_ORIGIN - residLen + (residInside ? 6 : -6)}
+                    y={y + BAR_H / 2}
+                    fill={valueLabelFill(residInside)}
+                    fontSize={11}
+                    fontWeight={700}
+                    textAnchor={residInside ? "start" : "end"}
+                    dominantBaseline="middle"
+                  >
+                    {fmtResidual(row.residual)}
+                  </text>
+                </>
               )}
 
             </g>

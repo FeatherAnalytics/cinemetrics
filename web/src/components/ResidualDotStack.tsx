@@ -12,7 +12,11 @@ const ML = 16;
 const MR = 16;
 const MT = 12;
 const MB = 36;
-const BIN = 2.5; // residual points per column
+// One column per half-star (10 points on the 0-100 scale), matching the tick
+// spacing and Letterboxd's own rating granularity. Columns are CENTRED on the
+// ticks rather than spanning between them: binning by edges would sit each
+// column on a quarter-star, half a step off the axis labels beneath it.
+const BIN = 10;
 
 type Dot = FilmResidual & {
   genre: GenreKey;
@@ -26,20 +30,26 @@ export function ResidualDotStack() {
   const { filtered, byId, selectedId, setSelected, setSelection } = useExplorer();
   const [hover, setHover] = useState<Dot | null>(null);
 
-  const { dots, r2, rMax, H, baseline, dotR } = useMemo(() => {
+  const { dots, r2, rMax, axisMax, H, baseline, dotR } = useMemo(() => {
     const { films, r2 } = computeResiduals(filtered, byId);
     if (films.length === 0)
-      return { dots: [] as Dot[], r2: 0, rMax: 25, H: 240, baseline: 200, dotR: 3 };
+      return {
+        dots: [] as Dot[], r2: 0, rMax: 25, axisMax: 30, H: 240, baseline: 200, dotR: 3,
+      };
 
     let rMax = 10;
     for (const f of films) rMax = Math.max(rMax, Math.abs(f.residual));
     rMax = Math.ceil(rMax / BIN) * BIN;
 
-    const nBins = (2 * rMax) / BIN;
+    // Bin index counts half-stars from the centre, so bin 0 is "agreed with the
+    // critics" and bin +1 is "half a star above". nBins is odd: a zero column
+    // plus a symmetric fan either side.
+    const half = rMax / BIN;
+    const nBins = 2 * half + 1;
     const binW = (W - ML - MR) / nBins;
     const bins: FilmResidual[][] = Array.from({ length: nBins }, () => []);
     for (const f of films) {
-      const i = Math.min(nBins - 1, Math.floor((f.residual + rMax) / BIN));
+      const i = Math.max(0, Math.min(nBins - 1, Math.round(f.residual / BIN) + half));
       bins[i].push(f);
     }
     // Dots pack into a grid inside each column, grouped by genre so a column
@@ -51,29 +61,46 @@ export function ResidualDotStack() {
           a.residual - c.residual,
       );
 
-    // One dot per slot, single column per bin: a stack's height IS its count.
+    // Dots pack into a GRID within each column, not a single file. Half-star bins
+    // are wide, and one-dot-per-row would make the modal column hundreds of pixels
+    // tall; filling the available width first keeps the chart readable while a
+    // stack's area still reads as its count.
     const maxStack = bins.reduce((m, b) => Math.max(m, b.length), 1);
-    const r = Math.max(2.2, Math.min(3.4, binW / 2 - 0.5, 480 / (2 * maxStack)));
+    const r = Math.max(2.2, Math.min(3.4, binW / 2 - 0.5));
     const cell = 2 * r;
-    const H = MT + maxStack * cell + MB;
+    const perRow = Math.max(1, Math.floor((binW - 2) / cell));
+    const maxRows = Math.ceil(maxStack / perRow);
+    const H = MT + maxRows * cell + MB;
     const baseline = H - MB;
+
+    // The axis domain is padded by half a bin either side so the outermost
+    // columns sit fully on canvas rather than straddling the edge.
+    const axisMax = rMax + BIN / 2;
 
     const dots: Dot[] = [];
     bins.forEach((b, i) => {
-      const cx = ML + (i + 0.5) * binW;
+      // Column centre derived from its VALUE, using the same mapping as the axis
+      // ticks, so a column can never drift from the label beneath it.
+      const value = (i - half) * BIN;
+      const centre = ML + ((value + axisMax) / (2 * axisMax)) * (W - ML - MR);
+      // Grid is centred on the column, so the stack stays visually anchored to
+      // its tick even when the top row is partly filled.
+      const gridLeft = centre - (Math.min(b.length, perRow) * cell) / 2;
       b.forEach((f, k) => {
         const film = byId.get(f.tmdb_id);
+        const row = Math.floor(k / perRow);
+        const col = k % perRow;
         dots.push({
           ...f,
           genre: primaryGenre(film),
           title: film?.title ?? String(f.tmdb_id),
           year: film?.year ?? null,
-          cx,
-          cy: baseline - (k + 0.5) * cell,
+          cx: gridLeft + (col + 0.5) * cell,
+          cy: baseline - (row + 0.5) * cell,
         });
       });
     });
-    return { dots, r2, rMax, H, baseline, dotR: r };
+    return { dots, r2, rMax, axisMax, H, baseline, dotR: r };
   }, [filtered, byId]);
 
   const { rect, handlers } = useDragRect(
@@ -96,7 +123,7 @@ export function ResidualDotStack() {
   }
 
   const hasSel = selectedId != null;
-  const xOfValue = (v: number) => ML + ((v + rMax) / (2 * rMax)) * (W - ML - MR);
+  const xOfValue = (v: number) => ML + ((v + axisMax) / (2 * axisMax)) * (W - ML - MR);
   const ticks: number[] = [];
   for (let v = -rMax; v <= rMax; v += 10) ticks.push(v);
   const pct = Math.round(r2 * 100);

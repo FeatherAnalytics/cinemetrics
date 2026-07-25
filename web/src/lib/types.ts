@@ -26,6 +26,15 @@ export type Watch = {
   rating: number | null;
   stars: number | null;
   rewatch: boolean;
+  /**
+   * The Letterboxd heart, per watch: a film can be disliked on first viewing
+   * and liked on a rewatch.
+   *
+   * NULL means UNKNOWN, not "not liked": the 129 pre-Letterboxd watches have no
+   * like data at all. Filter nulls out before computing any rate, or the
+   * denominator overstates by ~19%.
+   */
+  liked: boolean | null;
 };
 
 export type Dataset = { films: Film[]; watches: Watch[] };

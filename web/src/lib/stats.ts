@@ -9,18 +9,44 @@ export function computeScreenTime(watches: EnrichedWatch[]): number {
 export type AvgRatingResult = {
   mean: number | null;
   ci: number | null;
+  /** Standard deviation: the spread of ratings, not the precision of the mean. */
+  sd: number | null;
   n: number;
 };
 
 export function computeAvgRating(watches: EnrichedWatch[]): AvgRatingResult {
   const rated = watches.filter((w) => w.rating != null).map((w) => w.rating!);
   const n = rated.length;
-  if (n === 0) return { mean: null, ci: null, n: 0 };
+  if (n === 0) return { mean: null, ci: null, sd: null, n: 0 };
   const mean = rated.reduce((a, b) => a + b, 0) / n;
-  if (n < 2) return { mean, ci: null, n };
+  if (n < 2) return { mean, ci: null, sd: null, n };
   const variance = rated.reduce((sum, r) => sum + (r - mean) ** 2, 0) / (n - 1);
+  const sd = Math.sqrt(variance);
   const ci = Math.round(1.96 * Math.sqrt(variance / n));
-  return { mean, ci, n };
+  return { mean, ci, sd, n };
+}
+
+/** Share of watches that were rewatches, 0..1. Null when there is nothing to divide. */
+export function computeRewatchShare(watches: EnrichedWatch[]): number | null {
+  if (watches.length === 0) return null;
+  return watches.filter((w) => w.rewatch).length / watches.length;
+}
+
+/**
+ * Mean runtime of the films watched, in minutes.
+ *
+ * Averaged over WATCHES rather than distinct films, so a film seen three times
+ * counts three times: this describes a typical sitting, matching how the
+ * neighbouring screen-time total is built.
+ */
+export function computeAvgRuntime(watches: EnrichedWatch[]): number | null {
+  const runtimes: number[] = [];
+  for (const w of watches) {
+    const r = w.film?.runtime;
+    if (r != null && r > 0) runtimes.push(r);
+  }
+  if (runtimes.length === 0) return null;
+  return runtimes.reduce((a, b) => a + b, 0) / runtimes.length;
 }
 
 export function computeMedianRating(watches: EnrichedWatch[]): number | null {

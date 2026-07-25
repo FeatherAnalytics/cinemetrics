@@ -2,7 +2,13 @@
 
 import { useMemo } from "react";
 import { useExplorer } from "@/lib/store";
-import { computeScreenTime, computeAvgRating, formatScreenTime } from "@/lib/stats";
+import {
+  computeAvgRating,
+  computeAvgRuntime,
+  computeRewatchShare,
+  computeScreenTime,
+  formatScreenTime,
+} from "@/lib/stats";
 import { fmt1 } from "@/lib/format";
 import { ACCENT } from "@/lib/palette";
 
@@ -17,8 +23,25 @@ export function StatBar() {
     const isFiltered = filtered.length < all.length;
     const screenPct = allMin > 0 ? Math.round((totalMin / allMin) * 100) : 100;
     const watchPct = all.length > 0 ? Math.round((filtered.length / all.length) * 100) : 100;
-    return { screen, watchCount: filtered.length, rating, isFiltered, screenPct, watchPct };
+    return {
+      screen,
+      watchCount: filtered.length,
+      rating,
+      isFiltered,
+      screenPct,
+      watchPct,
+      avgRuntime: computeAvgRuntime(filtered),
+      rewatchShare: computeRewatchShare(filtered),
+    };
   }, [all, filtered]);
+
+  // Standard deviation: how spread out the ratings are. Labelled "sd" explicitly
+  // because the headline figure already carries a bare ±, which is the confidence
+  // interval of the mean. Different quantity, so it needs a different label.
+  const spread =
+    stats.rating.sd != null && stats.rating.sd > 0
+      ? `±${Math.round(stats.rating.sd)} sd`
+      : null;
 
   const ratingDisplay = stats.rating.mean != null
     ? stats.rating.ci != null && stats.rating.ci <= 5
@@ -37,6 +60,11 @@ export function StatBar() {
         <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">
           screen time
         </div>
+        {stats.avgRuntime != null && (
+          <div className="font-mono text-[9px] text-[#67655f]">
+            {Math.round(stats.avgRuntime)} min avg
+          </div>
+        )}
         {stats.isFiltered && (
           <div className="font-mono text-[9px] text-[#67655f]">{stats.screenPct}% of total</div>
         )}
@@ -46,6 +74,11 @@ export function StatBar() {
         <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">
           watches
         </div>
+        {stats.rewatchShare != null && (
+          <div className="font-mono text-[9px] text-[#67655f]">
+            {Math.round(stats.rewatchShare * 100)}% rewatches
+          </div>
+        )}
         {stats.isFiltered && (
           <div className="font-mono text-[9px] text-[#67655f]">{stats.watchPct}% of total</div>
         )}
@@ -55,6 +88,7 @@ export function StatBar() {
         <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">
           avg rating
         </div>
+        {spread && <div className="font-mono text-[9px] text-[#67655f]">{spread}</div>}
       </div>
     </div>
   );
