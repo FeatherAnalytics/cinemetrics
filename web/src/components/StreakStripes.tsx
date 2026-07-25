@@ -29,7 +29,7 @@ export function StreakStripes() {
       .filter((w) => w.rating != null)
       .sort((a, b) => a.d.getTime() - b.d.getTime());
     // The median is always taken from the FULL log, not the filtered set, so a
-    // stripe keeps its colour no matter which filters are active — a filtered
+    // stripe keeps its color no matter which filters are active — a filtered
     // view never quietly moves the bar.
     const med = computeMedianRating(all);
     let devMax = 10;
@@ -77,7 +77,7 @@ export function StreakStripes() {
         viewBox={`0 0 ${W} ${H}`}
         className="w-full"
         role="img"
-        aria-label="One stripe per rated watch in order, coloured by how far the rating sat above or below my median"
+        aria-label="One stripe per rated watch in order, colored by how far the rating sat above or below my median"
       >
         {rated.map((w, i) => {
           const sel = hasSel && w.tmdb_id === selectedId;
@@ -97,7 +97,7 @@ export function StreakStripes() {
             />
           );
         })}
-        {/* Unlabelled month ticks under the block; year starts get the label. */}
+        {/* Unlabeled month ticks under the block; year starts get the label. */}
         {monthStarts.map((x, i) => (
           <line key={`m-${i}`} x1={x} y1={H - MB} x2={x} y2={H - MB + 3} stroke={INK.grid} strokeWidth={0.75} />
         ))}

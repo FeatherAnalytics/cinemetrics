@@ -35,7 +35,7 @@ export function StatBar() {
     };
   }, [all, filtered]);
 
-  // Standard deviation: how spread out the ratings are. Labelled "sd" explicitly
+  // Standard deviation: how spread out the ratings are. Labeled "sd" explicitly
   // because the headline figure already carries a bare ±, which is the confidence
   // interval of the mean. Different quantity, so it needs a different label.
   const spread =

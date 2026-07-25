@@ -1,26 +1,31 @@
 import type { Film } from "./types";
 
-// Genre identity colours: validated categorical slots 1-5 + neutral "Other".
+// Genre identity colors: validated categorical slots 1-5 + neutral "Other".
 // (Validated all-pairs with scripts/validate_palette.js; the crimson/green pair
 // is a known deuteranopia collision the labels + hover mitigate — identity is
-// never colour-alone. Adventure (violet) added as slot 5, well separated from
+// never color-alone. Adventure (violet) added as slot 5, well separated from
 // the rest.) Adventure sits last in GENRE_ORDER, so it only claims films that
 // carry none of the earlier four.
+//
+// Comedy and Thriller trade slots: amber reads as the lighter genre and green as
+// the colder one. The color SET is unchanged, only the assignment, so the
+// all-pairs validation still holds and needs no re-run. It does move the
+// crimson/green deuteranopia collision from Horror/Thriller to Horror/Comedy.
 export const GENRE_ORDER = ["Horror", "Thriller", "Drama", "Comedy", "Adventure"] as const;
 export type GenreKey = (typeof GENRE_ORDER)[number] | "Other";
 
 export const GENRE_COLORS: Record<GenreKey, string> = {
   Horror: "#c01023",
-  Thriller: "#008300",
+  Thriller: "#eda100",
   Drama: "#2a78d6",
-  Comedy: "#eda100",
+  Comedy: "#008300",
   Adventure: "#7b2cbf",
   Other: "#898781",
 };
 
 export const GENRE_KEYS: GenreKey[] = [...GENRE_ORDER, "Other"];
 
-// A film's dominant genre for colouring: first of the tracked genres it carries
+// A film's dominant genre for coloring: first of the tracked genres it carries
 // (Horror wins when present, which is what the seasonality story turns on).
 export function primaryGenre(film: Film | undefined): GenreKey {
   const gs = film?.genres ?? [];

@@ -194,24 +194,24 @@ export function RecommendDrawer() {
   useEffect(() => {
     // No backing store configured → handled as "unavailable" at render time.
     if (!state.open || !R2_URL) return;
-    let cancelled = false;
+    let canceled = false;
     const watches = all.map((w) => ({ tmdb_id: w.tmdb_id, rating: w.rating }));
     fetchRecs(state, ratedIds, byId as never, watches, recFilters)
       .then((result) => {
-        if (cancelled) return;
+        if (canceled) return;
         setRecs(result.recs);
         setReasonsMap(result.reasons);
         setBoostCount(result.boostCount);
         setStatus("ready");
       })
       .catch(() => {
-        if (!cancelled) {
+        if (!canceled) {
           setRecs([]);
           setStatus("error");
         }
       });
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [state, shuffleCount, ratedIds, all, byId, recFilters]);
 

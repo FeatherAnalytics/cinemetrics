@@ -30,7 +30,7 @@ type Domain = {
   lo: number;
   hi: number;
   yTicks: number[];
-  // Flat reference: mean rating over the current filter set. The old grey
+  // Flat reference: mean rating over the current filter set. The old gray
   // rolling line plotted "nth watch overall" against "nth watch in group" —
   // different moments in time at the same x — so it compared nothing real.
   overallAvg: number | null;

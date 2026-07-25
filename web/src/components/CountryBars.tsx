@@ -65,7 +65,7 @@ export function CountryBars() {
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
         role="img"
-        aria-label="Top production countries ranked by film count, coloured by dominant genre. Films bars grow rightward from the country name; mirrored bars grow leftward from the right edge showing how far my average rating sits from the critic estimate."
+        aria-label="Top production countries ranked by film count, colored by dominant genre. Films bars grow rightward from the country name; mirrored bars grow leftward from the right edge showing how far my average rating sits from the critic estimate."
       >
         {/* Column headers */}
         <text
@@ -153,7 +153,7 @@ export function CountryBars() {
               {/* Mean residual vs prediction, when enough films to be meaningful.
                   Mirrors the films bar: same fill, opposite direction, anchored at
                   the right so the pair converges. Magnitude only; the sign lives in
-                  the label rather than in a second colour. */}
+                  the label rather than in a second color. */}
               {row.residual != null && (
                 <>
                   <rect

@@ -13,7 +13,7 @@ const MR = 16;
 const MT = 12;
 const MB = 36;
 // One column per half-star (10 points on the 0-100 scale), matching the tick
-// spacing and Letterboxd's own rating granularity. Columns are CENTRED on the
+// spacing and Letterboxd's own rating granularity. Columns are CENTERED on the
 // ticks rather than spanning between them: binning by edges would sit each
 // column on a quarter-star, half a step off the axis labels beneath it.
 const BIN = 10;
@@ -53,7 +53,7 @@ export function ResidualDotStack() {
       bins[i].push(f);
     }
     // Dots pack into a grid inside each column, grouped by genre so a column
-    // reads as ordered colour bands rather than confetti.
+    // reads as ordered color bands rather than confetti.
     for (const b of bins)
       b.sort(
         (a, c) =>
@@ -83,7 +83,7 @@ export function ResidualDotStack() {
       // ticks, so a column can never drift from the label beneath it.
       const value = (i - half) * BIN;
       const centre = ML + ((value + axisMax) / (2 * axisMax)) * (W - ML - MR);
-      // Grid is centred on the column, so the stack stays visually anchored to
+      // Grid is centered on the column, so the stack stays visually anchored to
       // its tick even when the top row is partly filled.
       const gridLeft = centre - (Math.min(b.length, perRow) * cell) / 2;
       b.forEach((f, k) => {

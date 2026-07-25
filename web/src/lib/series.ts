@@ -30,9 +30,9 @@ export const OVERALL_KEY = "__overall__";
 // filtering never repaints a surviving series. "Other" stays neutral gray.
 const SLOT_COLORS = [
   GENRE_COLORS.Horror, // crimson
-  GENRE_COLORS.Thriller, // green
+  GENRE_COLORS.Thriller, // amber
   GENRE_COLORS.Drama, // blue
-  GENRE_COLORS.Comedy, // amber
+  GENRE_COLORS.Comedy, // green
   GENRE_COLORS.Adventure, // violet
 ];
 const OTHER_COLOR = GENRE_COLORS.Other;

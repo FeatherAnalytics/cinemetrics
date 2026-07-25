@@ -80,7 +80,7 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 text-xs text-[#67655f]",
     blurb: (
       <>
-        Countries ranked by how many of my films they helped produce, coloured by the genre
+        Countries ranked by how many of my films they helped produce, colored by the genre
         I watch most from each. The right column shows how I rate that country&rsquo;s films
         against prediction. Click a row to filter the other charts.
       </>
@@ -105,8 +105,8 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-3 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        One panel per group: the coloured line is my rolling {10}-watch average rating as
-        I work through that group; the dashed grey line is my overall average, so stretches
+        One panel per group: the colored line is my rolling {10}-watch average rating as
+        I work through that group; the dashed gray line is my overall average, so stretches
         above it are runs where that group was beating my baseline. Switch how the films are
         grouped: genre, language, country, runtime, release decade, or content rating.
       </>

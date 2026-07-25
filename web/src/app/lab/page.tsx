@@ -1,11 +1,12 @@
-import { LabCharts } from "@/components/lab/LabCharts";
+import { StatsStoryPreview } from "@/components/stats/StatsStoryPreview";
 import type { Dataset } from "@/lib/types";
 import dataset from "../../../public/data/cinemetrics.json";
 
-// Scratch route for chart prototypes — /lab. Not linked from anywhere; each
-// prototype is either promoted into a real component or deleted after review.
-export const metadata = { title: "Chart lab" };
+// Preview of the stats story at /lab. Not linked from anywhere. Unlike the
+// prototypes that used to live here, these are the real components: promoting
+// them is a matter of wiring the story swap, not rewriting the charts.
+export const metadata = { title: "The stats (preview)" };
 
 export default function Page() {
-  return <LabCharts data={dataset as unknown as Dataset} />;
+  return <StatsStoryPreview data={dataset as unknown as Dataset} />;
 }
