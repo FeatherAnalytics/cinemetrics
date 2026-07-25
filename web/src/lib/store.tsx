@@ -325,6 +325,25 @@ export function ExplorerProvider({
     setSelectedId(null);
   };
 
+  /**
+   * Filtering by hand normally drops out of the active story, because for the
+   * narrative stories the filters ARE the story: leaving the chip lit while the
+   * reader filters elsewhere would claim a finding the charts no longer show.
+   *
+   * A story can opt out with `dismissOnFilter: false`. The stats story does,
+   * because it sets no filters and instead swaps the chart SET: dismissing it on
+   * filter pulled all eight charts off the page mid-click, taking the chart the
+   * reader had just clicked with them.
+   *
+   * `reset` deliberately does NOT go through here. That is the explicit "clear
+   * everything" action and it should clear the story too.
+   */
+  const exitStoryOnFilter = () => {
+    if (activeStory && getStoryById(activeStory)?.dismissOnFilter === false) return;
+    setActiveStory(null);
+    setStoryResult(null);
+  };
+
   // The context value is memoized so consumers only re-render when state that
   // feeds them actually changes, not on every provider render.
   const value: ExplorerValue = useMemo(
@@ -334,8 +353,7 @@ export function ExplorerProvider({
       filters,
       selectedId,
       toggleGenre: (g) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => {
           const genres = new Set(f.genres);
           if (genres.has(g)) genres.delete(g);
@@ -344,62 +362,54 @@ export function ExplorerProvider({
         });
       },
       setYearRange: (r) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, yearRange: r }));
       },
       setReleaseYearRange: (r) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, releaseYearRange: r }));
       },
       setRuntimeRange: (r) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, runtimeRange: r }));
       },
       setRatingRange: (r) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, ratingRange: r }));
       },
       setRewatch: (r) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, rewatch: r }));
       },
       setText: (field, value) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, [field]: value }));
       },
       setCountry: (iso) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, country: f.country === iso ? null : iso }));
       },
       setLanguage: (code) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, language: f.language === code ? null : code }));
       },
       setRated: (rated) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, rated: f.rated === rated ? null : rated }));
       },
       setFranchise: (name) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, franchise: f.franchise === name ? null : name }));
       },
       setSelected: (id) => setSelectedId((cur) => (cur === id ? null : id)),
       setSelection: (keys) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, selection: keys && keys.size > 0 ? keys : null }));
       },
       reset: () => {
+        // Not exitStoryOnFilter: reset is the explicit "clear everything"
+        // action, so it clears the story even when the story opted out of
+        // being dismissed by filtering.
         setActiveStory(null);
         setStoryResult(null);
         setFilters(EMPTY_FILTERS);
@@ -412,8 +422,9 @@ export function ExplorerProvider({
       setStory,
       rollingDimension: storyResult?.rollingDimension ?? null,
     }),
-    // setStory is recreated each render but only reads `derived`, which is
-    // already a dependency, so it's safe to leave out.
+    // setStory and exitStoryOnFilter are recreated each render but only read
+    // `derived` and `activeStory`, both already dependencies, so the closures
+    // here are never stale and both are safe to leave out.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [derived, filtered, filters, selectedId, activeStory, storyResult, storyHeadlines],
   );

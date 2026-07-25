@@ -13,6 +13,14 @@ import { CountryBars } from "@/components/CountryBars";
 import { RewatchCadence } from "@/components/RewatchCadence";
 import { FranchiseRuns } from "@/components/FranchiseRuns";
 import { RollingRating } from "@/components/RollingRating";
+import { ViewingVelocity } from "@/components/stats/ViewingVelocity";
+import { CumulativeWatches } from "@/components/stats/CumulativeWatches";
+import { ViewingsToDate } from "@/components/stats/ViewingsToDate";
+import { MostRewatched, MostRewatchedBlurb } from "@/components/stats/MostRewatched";
+import { MonthlyPace } from "@/components/stats/MonthlyPace";
+import { WeekdayCounts } from "@/components/stats/WeekdayCounts";
+import { RatingsByGenre } from "@/components/stats/RatingsByGenre";
+import { GenrePairing } from "@/components/stats/GenrePairing";
 import { SelectionPanel } from "@/components/SelectionPanel";
 import { StatBar } from "@/components/StatBar";
 import { StoryAnnotation } from "@/components/StoryAnnotation";
@@ -29,7 +37,13 @@ type ChartSection = {
   title: string;
   blurbClass: string;
   blurb: ReactNode;
-  Chart: () => React.JSX.Element;
+  // Several stats charts return null when a filter empties them out.
+  Chart: () => React.JSX.Element | null;
+  // The narrative charts are the default page. The stats charts REPLACE them
+  // while the stats story is active; the two sets are never on screen together,
+  // which is the whole point of that story (see docs/CHART-IDEAS.md X1c).
+  // Omitted means narrative, so the eight entries below need no annotation.
+  mode?: "narrative" | "stats";
 };
 
 // Section order and copy are load-bearing — the story chips dim charts by id and
@@ -141,6 +155,108 @@ const CHART_SECTIONS: ChartSection[] = [
     ),
     Chart: FranchiseRuns,
   },
+
+  // --- The stats set. Rendered only while the stats story is active. ---
+  {
+    id: "velocity",
+    mode: "stats",
+    title: "Viewing velocity",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Every bucket since the first logged watch, with no smoothing: each bar is
+        exactly what happened. A trailing mean has to pick a window, and the window
+        is a claim; a calendar unit is a real one.
+      </>
+    ),
+    Chart: ViewingVelocity,
+  },
+  {
+    id: "cumulative",
+    mode: "stats",
+    title: "Cumulative watches",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        The running total, stacked by genre. The slope carries the pace and the band
+        thickness carries the mix, so a binge reads as a steepening. Filter, and the
+        stack collapses to the matching watches against everything else.
+      </>
+    ),
+    Chart: CumulativeWatches,
+  },
+  {
+    id: "ytd",
+    mode: "stats",
+    title: "Viewings to date",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        One line per year, each restarting at zero in January, so the question is
+        whether I&rsquo;m ahead of last year at this point rather than how much in
+        total. Lines stop at each year&rsquo;s final watch.
+      </>
+    ),
+    Chart: ViewingsToDate,
+  },
+  {
+    id: "rewatched",
+    mode: "stats",
+    title: "What I go back to",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: <MostRewatchedBlurb />,
+    Chart: MostRewatched,
+  },
+  {
+    id: "monthly",
+    mode: "stats",
+    title: "Pace by month",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        How many days pass between films in each calendar month, divided by the days
+        of that month rather than the days I happened to log, so a part-month
+        can&rsquo;t read as a busy one. A short bar is a busy month.
+      </>
+    ),
+    Chart: MonthlyPace,
+  },
+  {
+    id: "weekday",
+    mode: "stats",
+    title: "Pace by weekday",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: <>Watches by day of the week, with the weekend tinted.</>,
+    Chart: WeekdayCounts,
+  },
+  {
+    id: "genrebox",
+    mode: "stats",
+    title: "Ratings by primary genre",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Standard Tukey box plots, one value per film and each film in exactly one
+        genre. The point is the clumping: every median lands within half a star of
+        every other.
+      </>
+    ),
+    Chart: RatingsByGenre,
+  },
+  {
+    id: "pairing",
+    mode: "stats",
+    title: "Genre pairing",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Which genre combinations show up and how they rate. Self-pairs are excluded,
+        so every cell is a genuine combination. Pale cells are backed by a single
+        film and are held out of the color scale.
+      </>
+    ),
+    Chart: GenrePairing,
+  },
 ];
 
 // Small spans read better as words ("Seven years"); past twelve, digits win.
@@ -197,6 +313,12 @@ function Explorer() {
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
+
+  // The stats story swaps the chart set rather than dimming it. Every other
+  // story works on the narrative eight, so anything that is not "stats" gets
+  // them unchanged.
+  const wanted = activeStory === "stats" ? "stats" : "narrative";
+  const sections = CHART_SECTIONS.filter((s) => (s.mode ?? "narrative") === wanted);
 
   const chartStyle = (id: ChartId): React.CSSProperties =>
     storyFocus?.dim.includes(id)
@@ -310,7 +432,7 @@ function Explorer() {
           <div className="grid grid-cols-1 gap-8">
             <SelectionPanel />
 
-            {CHART_SECTIONS.map(({ id, title, blurbClass, blurb, Chart }) => (
+            {sections.map(({ id, title, blurbClass, blurb, Chart }) => (
               <section key={id} id={`chart-${id}`} className="scroll-mt-6" style={chartStyle(id)}>
                 <div className="min-w-0">
                   <h2 className="group flex items-center gap-2 font-display text-lg font-semibold text-[#0b0b0b]">

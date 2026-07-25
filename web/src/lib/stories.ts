@@ -3,6 +3,7 @@ import type { Filters } from "./store";
 import type { Film, EnrichedWatch } from "./types";
 import { primaryGenre, type GenreKey } from "./palette";
 import { watchKey } from "./brush";
+import { chicagoParts, mean, quantile } from "./statsChart";
 
 export type ChartId =
   | "spiral"
@@ -12,7 +13,17 @@ export type ChartId =
   | "rolling"
   | "rewatch"
   | "keywords"
-  | "franchise";
+  | "franchise"
+  // The stats set. These render only while the stats story is active, and when
+  // they do, the eight above do not: see the `mode` field in ExplorerApp.
+  | "velocity"
+  | "cumulative"
+  | "ytd"
+  | "rewatched"
+  | "monthly"
+  | "weekday"
+  | "genrebox"
+  | "pairing";
 
 export type StoryFocus = {
   primary: ChartId;
@@ -20,7 +31,7 @@ export type StoryFocus = {
   dim: ChartId[];
 };
 
-// Display titles per chart — kept in sync with the section headings in page.tsx.
+// Display titles per chart — kept in sync with CHART_SECTIONS in ExplorerApp.tsx.
 // Used to label story notes in the story panel.
 export const CHART_TITLES: Record<ChartId, string> = {
   spiral: "When I watch",
@@ -31,6 +42,14 @@ export const CHART_TITLES: Record<ChartId, string> = {
   rolling: "Warming up or wearing out",
   rewatch: "Second thoughts",
   franchise: "Franchise runs",
+  velocity: "Viewing velocity",
+  cumulative: "Cumulative watches",
+  ytd: "Viewings to date",
+  rewatched: "What I go back to",
+  monthly: "Pace by month",
+  weekday: "Pace by weekday",
+  genrebox: "Ratings by primary genre",
+  pairing: "Genre pairing",
 };
 
 export type StoryResult = {
@@ -53,6 +72,20 @@ export type StoryConfig = {
   label: string;
   focus: StoryFocus;
   compute: (films: Film[], watches: EnrichedWatch[]) => StoryResult;
+  /**
+   * Whether filtering by hand drops out of this story. Defaults to true.
+   *
+   * For every narrative story the filters ARE the story: it selects a set of
+   * watches and the charts highlight them, so once the reader filters to
+   * something else the chip would be claiming a finding the page no longer
+   * shows. Dropping out is right there.
+   *
+   * The stats story is the exception. It sets no filters at all; what it
+   * carries is a different CHART SET. Cross-filtering within it is the intended
+   * interaction, and dismissing on filter would swap all eight charts out from
+   * under the click that caused it.
+   */
+  dismissOnFilter?: boolean;
 };
 
 function computeSpooktober(films: Film[], watches: EnrichedWatch[]): StoryResult {
@@ -361,6 +394,98 @@ function computeCollections(films: Film[], watches: EnrichedWatch[]): StoryResul
   };
 }
 
+/**
+ * The stats story: eight statistical charts in place of the eight narrative
+ * ones, rather than alongside them.
+ *
+ * The finding it is built around is a NULL result, deliberately. Month, weekday
+ * and genre all fail to predict my rating (p = 0.40, p = 0.19, medians inside
+ * half a star of each other), while the amount I watch swings by a factor of
+ * three. Stated once, up front, that reads as a finding; left as three separate
+ * captions saying a test failed, it reads as three failures.
+ *
+ * So the headline pairs the two directly: the pace gap between the busiest and
+ * quietest month against the rating gap between those same months. Both numbers
+ * are measured here rather than written down, so the sentence cannot drift away
+ * from the charts under it.
+ */
+function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
+  const counts = Array(12).fill(0) as number[];
+  const sums = Array(12).fill(0) as number[];
+  const rated = Array(12).fill(0) as number[];
+  for (const w of watches) {
+    const { month } = chicagoParts(w.date);
+    counts[month] += 1;
+    if (w.rating != null) {
+      sums[month] += w.rating;
+      rated[month] += 1;
+    }
+  }
+  const seen = counts.map((n, m) => ({ m, n })).filter((e) => e.n > 0);
+  if (seen.length < 2) {
+    return { headline: "Not enough months logged to compare", chip: "The stats" };
+  }
+  const busiest = seen.reduce((a, b) => (b.n > a.n ? b : a));
+  const quietest = seen.reduce((a, b) => (b.n < a.n ? b : a));
+  const avg = (m: number) => (rated[m] ? sums[m] / rated[m] : null);
+  const hi = avg(busiest.m);
+  const lo = avg(quietest.m);
+  const ratio = busiest.n / quietest.n;
+  const gap = hi != null && lo != null ? Math.abs(hi - lo) : null;
+
+  // Rewatch concentration: how few films absorb every repeat viewing. A film
+  // seen three times is two returns, not three, which is why this subtracts the
+  // film count rather than reporting the raw viewing total.
+  const perFilm = new Map<number, number>();
+  for (const w of watches) perFilm.set(w.tmdb_id, (perFilm.get(w.tmdb_id) ?? 0) + 1);
+  const repeats = [...perFilm.values()].filter((n) => n > 1);
+  const returns = repeats.reduce((s, n) => s + n, 0) - repeats.length;
+  const repeatShare = perFilm.size ? Math.round((100 * repeats.length) / perFilm.size) : 0;
+
+  // Median rating per primary genre, for the spread the box plot is built to
+  // show. One value per FILM so a rewatched film cannot vote twice.
+  const ratingsByFilm = new Map<number, { g: GenreKey; rs: number[] }>();
+  for (const w of watches) {
+    if (w.rating == null) continue;
+    const e = ratingsByFilm.get(w.tmdb_id) ?? { g: primaryGenre(w.film), rs: [] };
+    e.rs.push(w.rating);
+    ratingsByFilm.set(w.tmdb_id, e);
+  }
+  const perGenre = new Map<GenreKey, number[]>();
+  for (const { g, rs } of ratingsByFilm.values()) {
+    perGenre.set(g, [...(perGenre.get(g) ?? []), mean(rs)]);
+  }
+  const medians = [...perGenre.values()]
+    .filter((vs) => vs.length > 0)
+    .map((vs) => quantile([...vs].sort((a, b) => a - b), 0.5));
+  const spreadStars = medians.length
+    ? (Math.max(...medians) - Math.min(...medians)) / 20
+    : 0;
+
+  const pts = gap == null ? 0 : Math.round(gap);
+  const headline =
+    gap == null
+      ? `${MONTHS[busiest.m]} outdraws ${MONTHS[quietest.m]} ${busiest.n} to ${quietest.n}`
+      : `I watch ${ratio.toFixed(1)}x more in ${MONTHS[busiest.m]} than ${MONTHS[quietest.m]}, and rate them ${pts} point${pts === 1 ? "" : "s"} apart`;
+
+  return {
+    headline,
+    chip: "The stats",
+    subtext:
+      "What changes is how much I watch, not what I think of it. Month, weekday and genre all fail to predict my rating.",
+    notes: {
+      monthly: `${MONTHS[busiest.m]} runs ${busiest.n} watches against ${MONTHS[quietest.m]}'s ${quietest.n}. The bars are days between films, so a short bar is a busy month.`,
+      velocity: "Every bar is one calendar bucket, unsmoothed. The twin peaks are 2020 and 2021; nothing since has come close.",
+      cumulative: "The slope is the pace and the band thickness is the mix. The mix barely moves while the slope does all the work.",
+      ytd: "Each year restarts at zero in January, so the question is whether I am ahead of last year at this point. Drag across it: the lead changes hands mid-year.",
+      rewatched: `Returning is concentrated: ${repeatShare}% of films account for all ${returns} returns.`,
+      weekday: "The weekend lean is real and monotonic, but it is a fact about weekends rather than about me.",
+      genrebox: `Every genre's median lands within ${spreadStars.toFixed(2)} of a star of every other. The clumping is the finding.`,
+      pairing: "Shade is how many films back a pair, the number is how they rate. The grid is mostly empty, which is its own answer.",
+    },
+  };
+}
+
 export const STORIES: StoryConfig[] = [
   {
     id: "spooktober",
@@ -405,6 +530,15 @@ export const STORIES: StoryConfig[] = [
     label: "Franchise runs",
     focus: { primary: "franchise", emphasize: ["franchise", "spiral", "rewatch"], dim: ["countries", "keywords"] },
     compute: computeCollections,
+  },
+  {
+    id: "stats",
+    label: "The stats",
+    // `dim` is empty by design. The narrative charts are ABSENT while this story
+    // runs, not faded, so there is nothing left on screen to dim.
+    focus: { primary: "monthly", emphasize: ["monthly", "velocity", "genrebox"], dim: [] },
+    compute: computeStats,
+    dismissOnFilter: false,
   },
 ];
 
