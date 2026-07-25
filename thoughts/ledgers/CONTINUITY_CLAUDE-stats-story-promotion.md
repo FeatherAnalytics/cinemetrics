@@ -131,15 +131,33 @@ matching watches, and #5c recolors to the active filter.
     - [x] Chip reads "Dive deep"; filter rail stays OPEN and drives the charts
     - [x] `scrollToPrimary: false` + pace by month leads, so the story lands
           at the top with its headline on screen
+  - [x] Phase 15: Fit the stats story into the site
+    - [x] `/lab` and `StatsStoryPreview.tsx` DELETED
+    - [x] CategoryBars value labels moved off the axis onto the bar head, in the
+          house `valueLabelFill` / 11px / bold / inside-outside rule
+    - [x] MostRewatched hover now matches CountryBars exactly: 0.72 to 0.9 on
+          hover, non-selected rows to 0.35
+    - [x] Weekday absolute deviation replaced by a PERCENTAGE vs the median day
+    - [x] `accentFor(filters.genres)` in `stats/pick.ts`: one filtered genre
+          recolors every stats chart, including the #12 recency ramp. Verified
+          with Drama (#2a78d6). Two or more genres fall back to ACCENT
+    - [x] RatingsByGenre switches to the SECOND genre when genres are filtered
+          (`secondaryGenre` in palette.ts)
+    - [x] Velocity genre split REVERTED; colored like the pace charts
+    - [x] Cumulative hover: month at the head of the crosshair, per-band running
+          avg rating in stars at each band's center, thin bands skipped
+    - [x] #12 standings table moved from a 62px right margin into the plot's
+          top-left as year + mini bar + count; month axis now aligns with pace
+    - [x] Genre pairing axes labeled FIRST / SECOND GENRE
+    - [x] Pace by month and pace by weekday adjacent
+    - [x] Headline dropped the rating clause (now a pace-chart hover); the
+          "drag across it" note deleted as an interactivity announcement
 - Now: [→] Ready for the four story beats in STATS-STORY-NARRATIVE.md.
 - Remaining:
   - [ ] `ChartTakeaway` per stats section, matching the narrative sections
-  - [ ] Hover readouts on the stats charts that lack them (only cumulative and
-        viewings-to-date have one). Must be distinct from the story annotations
-        and show something beyond the axis
-  - [ ] `/lab` now renders the same components as the main page via
-        `StatsStoryPreview.tsx`. Duplicate section list, will drift: delete it
-        or keep it deliberately as a bare review surface
+  - [ ] Hover readouts on the stats charts that still lack them. Cumulative,
+        viewings-to-date and pace-by-month have one; velocity, weekday, genrebox
+        and pairing have only a `<title>`
   - [ ] Split the one eight-chart story into the four beats
 
 ## Open Questions
@@ -153,13 +171,25 @@ matching watches, and #5c recolors to the active filter.
   rail. A second identical legend would be exactly the duplication that was
   called out; confirm that reads as intended.
 
-## Standing instruction (raised across multiple sessions)
+## Standing instructions (raised across MULTIPLE sessions)
 
-**Prune harder, and never duplicate a number.** Every chart element has to earn
-its place: if the blurb, the chart strip, the headline and the story note can
-all say a thing, exactly one of them should. Construction detail belongs in
-code comments, not on screen. Before adding copy to a chart, READ the chart's
-code and confirm what it actually encodes.
+**1. Prune harder, and never duplicate a number.** Every chart element has to
+earn its place: if the blurb, the chart strip, the headline and the story note
+can all say a thing, exactly one of them should. Construction detail belongs in
+code comments, not on screen. Statistical apparatus (F, p, n) almost never earns
+its place in UI copy. Never announce that a chart is interactive; that is the
+expectation here, and saying it talks down to the reader.
+
+**2. Before writing copy about a chart, READ the chart's code** and confirm what
+the marks encode. Pace by month is the trap: bar height is the RATE, so the
+tallest bar is the busiest month and carries the SMALLEST printed number.
+
+**3. Match the existing components, do not reinvent them.** New charts must fit
+the site's behaviors, aesthetics and visuals. `CountryBars.tsx` is the reference
+for horizontal bars and hover (0.72 to 0.9 on hover, 0.35 for non-selected,
+value labels on the bar via `valueLabelFill`); `RollingRating.tsx` for measured
+plots and lifted hover state; `barChart.ts` for the shared vocabulary. Read the
+closest existing chart BEFORE writing a new one.
 
 ## Working Set
 
