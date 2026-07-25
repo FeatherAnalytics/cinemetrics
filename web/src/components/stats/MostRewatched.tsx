@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
+import { GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { mean } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
-import { isPicked, pickWatches } from "./pick";
+import { accentFor, isPicked, pickWatches } from "./pick";
 
 // Geometry copied from "What travels well" so the two charts are the same
 // object seen twice, not two charts that resemble each other. BAR_H and GAP come
@@ -116,6 +116,12 @@ export function useMostRewatched(limit = TOP_N): RewatchSummary {
 export function MostRewatched() {
   const { filters, setSelection } = useExplorer();
   const { rows } = useMostRewatched();
+  // Hover is the same contract as "What travels well": the row lifts its own
+  // fill from 0.72 to 0.9, and once something is selected every other row drops
+  // to 0.35. No tooltip, no growth, no color change. These two charts are the
+  // same object seen twice, so they have to answer the cursor the same way.
+  const [hover, setHover] = useState<number | null>(null);
+  const accent = accentFor(filters.genres);
   if (!rows.length) return null;
 
   const HEIGHT = 20 + rows.length * (BAR_H + GAP);
@@ -158,6 +164,9 @@ export function MostRewatched() {
         {rows.map((f, i) => {
           const y = 20 + i * (BAR_H + GAP);
           const on = isPicked(f.watches, filters.selection);
+          const anySelected = filters.selection != null;
+          const dim = anySelected && !on;
+          const isHover = hover === i;
           const barLen = (f.watches.length / maxN) * COUNT_W;
           const countInside = barLen > INSIDE_MIN;
           const rLen = f.rating != null ? ratingLen(f.rating) : 0;
@@ -166,6 +175,9 @@ export function MostRewatched() {
             <g
               key={f.tmdb_id}
               style={{ cursor: "pointer" }}
+              opacity={dim ? 0.35 : 1}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
               onClick={() => pickWatches(f.watches, filters.selection, setSelection)}
             >
               {/* Row hit area, so the whole line is clickable */}
@@ -190,8 +202,8 @@ export function MostRewatched() {
                 width={barLen}
                 height={BAR_H}
                 fill={GENRE_COLORS[f.genre]}
-                fillOpacity={on ? 0.9 : 0.72}
-                stroke={on ? ACCENT : "none"}
+                fillOpacity={isHover || on ? 0.9 : 0.72}
+                stroke={on ? accent : "none"}
                 strokeWidth={on ? 1.75 : 0}
               />
 
@@ -218,8 +230,8 @@ export function MostRewatched() {
                     width={rLen}
                     height={BAR_H}
                     fill={GENRE_COLORS[f.genre]}
-                    fillOpacity={on ? 0.9 : 0.72}
-                    stroke={on ? ACCENT : "none"}
+                    fillOpacity={isHover || on ? 0.9 : 0.72}
+                    stroke={on ? accent : "none"}
                     strokeWidth={on ? 1.75 : 0}
                   />
                   {/* Mirrors the count label: at the growing end of its own bar,

@@ -5,7 +5,7 @@ import { useExplorer } from "@/lib/store";
 import { INK } from "@/lib/palette";
 import { chicagoParts, DAY_ABBR, WEEKEND } from "@/lib/statsChart";
 import { CategoryBars, type CategoryBar } from "./CategoryBars";
-import { isPicked, pickWatches } from "./pick";
+import { accentFor, isPicked, pickWatches } from "./pick";
 
 /**
  * Watch count by weekday.
@@ -15,9 +15,11 @@ import { isPicked, pickWatches } from "./pick";
  * across seven years where months differ by up to three days each. A pace
  * version was built and dropped for redrawing the identical shape.
  *
- * Each bar carries its distance from the median day. The raw counts run
- * 82 to 153, which reads as a wall of similar bars; the deviations run
- * -26 to +45, which is the same fact stated in the units of the question.
+ * Under the axis each day carries its distance from the median day as a
+ * PERCENTAGE. An absolute gap was tried and cut: the bars are already drawn
+ * against a median gridline, so "+47" was printing a distance the reader could
+ * see. "+44%" is the part the eye cannot do, and it states the gap against the
+ * level it departs from rather than against nothing.
  */
 export function WeekdayCounts() {
   const { filtered, filters, setSelection } = useExplorer();
@@ -53,7 +55,8 @@ export function WeekdayCounts() {
       <CategoryBars
         bars={bars}
         highlight={WEEKEND}
-        showDelta
+        showShare
+        accent={accentFor(filters.genres)}
         active={activeIndex >= 0 ? activeIndex : null}
         onPick={(i) => pickWatches(model.byDay[i], filters.selection, setSelection)}
       />

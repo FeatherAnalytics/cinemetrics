@@ -2,17 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
-import {
-  GENRE_ALPHA,
-  hasKnownRewatchState,
-  insetRect,
-  NO_DATA_STROKE,
-  quantile,
-} from "@/lib/statsChart";
+import { INK } from "@/lib/palette";
+import { hasKnownRewatchState, insetRect, NO_DATA_STROKE, quantile } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
-import { isPicked, pickWatches } from "./pick";
+import { accentFor, isPicked, pickWatches } from "./pick";
 import { Toggle } from "./Toggle";
 
 type Grain = "week" | "month" | "year";
@@ -29,6 +23,7 @@ const H = 170;
 // the text is right-anchored at ML - 4, so a label wider than that runs off the
 // left edge of the SVG rather than pushing the plot over.
 const ML = 44;
+const FADE = "#b3b1a6";
 const MB = 16;
 const MID = "#eceae3";
 
@@ -75,10 +70,12 @@ function bucketSpan(dates: string[], grain: Grain): string[] {
  * window is a claim; a calendar unit is a real one, so nothing here needs
  * justifying and each bar is exactly what happened.
  *
- * Each bar is split by genre, in the same colors and the same alphabetical
- * order as the cumulative bands and the box plots, so a reader who has learned
- * the five colors once reads all three charts with them. The KIND toggle still
- * says WHICH watches are counted; the color says what they were.
+ * Colored like the pace charts rather than split by genre: one chrome-gray
+ * series that takes the accent when a bucket is picked. A genre split was
+ * tried and cut, because at monthly grain most segments were one or two films
+ * tall and the composition it claimed to show was below the resolution of the
+ * bar. The cumulative chart carries the genre mix, where the bands are thick
+ * enough to read.
  *
  * Under first or rewatch the sheet-era months cannot be classified at all (D5),
  * so they drop out of the count and are drawn as the outlined "not recorded"
@@ -89,6 +86,7 @@ export function ViewingVelocity() {
   const [grain, setGrain] = useState<Grain>("month");
   const [kind, setKind] = useState<Kind>("all");
   const [ref, W] = useWidth(W0, W_MIN);
+  const accent = accentFor(filters.genres);
 
   const model = useMemo(() => {
     // The axis spans the FULL history so the chart keeps its shape under a
@@ -163,6 +161,7 @@ export function ViewingVelocity() {
           const x = ML + i * step;
           const wpx = Math.max(step - 0.6, 0.7);
           const hU = h(u.length);
+          const picked = isPicked(c, filters.selection);
           const ins = NO_DATA_STROKE / 2;
           // The unrecorded run is traced as a staircase off the bars' own edges:
           // outlining each bar as a box put strokes down both sides of every gap
@@ -204,37 +203,20 @@ export function ViewingVelocity() {
                   )}
                 </>
               )}
-              {/* Genre segments stack above the unrecorded band, alphabetically
-                  from the baseline up, so a given genre keeps the same position
-                  in every bar and its run reads as a continuous ribbon. */}
-              {(() => {
-                const segs: React.JSX.Element[] = [];
-                let acc = 0;
-                for (const g of GENRE_ALPHA) {
-                  const n = c.filter((w) => primaryGenre(w.film) === g).length;
-                  if (!n) continue;
-                  const hG = h(n);
-                  segs.push(
-                    <rect
-                      key={g}
-                      x={x}
-                      y={base - hU - acc - hG}
-                      width={wpx}
-                      height={hG}
-                      fill={GENRE_COLORS[g]}
-                    />,
-                  );
-                  acc += hG;
-                }
-                return segs;
-              })()}
+              <rect
+                x={x}
+                y={base - hU - h(c.length)}
+                width={wpx}
+                height={h(c.length)}
+                fill={picked ? accent : FADE}
+              />
               <rect
                 x={x}
                 y={0}
                 width={Math.max(step, 1)}
                 height={base}
-                fill={isPicked(c, filters.selection) ? ACCENT : "transparent"}
-                fillOpacity={isPicked(c, filters.selection) ? 0.12 : 1}
+                fill={picked ? accent : "transparent"}
+                fillOpacity={picked ? 0.12 : 1}
                 style={{ cursor: "pointer" }}
                 onClick={() => pickWatches(c, filters.selection, setSelection)}
               >

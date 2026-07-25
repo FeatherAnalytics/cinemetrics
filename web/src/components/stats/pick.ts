@@ -1,7 +1,27 @@
 "use client";
 
 import { watchKey } from "@/lib/brush";
+import { ACCENT, GENRE_COLORS, type GenreKey } from "@/lib/palette";
 import type { EnrichedWatch } from "@/lib/types";
+
+/**
+ * The color that means "this is the thing you picked", for the current filter.
+ *
+ * Filtered to exactly one genre, the whole story takes that genre's color: the
+ * reader has already said what they are looking at, and every highlight on the
+ * page agreeing with the chip they clicked is what makes eight charts read as
+ * one view. Crimson would be a second, competing claim on the same mark, and on
+ * a Horror filter it would be the genre color anyway.
+ *
+ * Any other filter state falls back to the house accent. With two genres
+ * selected there is no single right color, and inventing a blend would name a
+ * category that does not exist.
+ */
+export function accentFor(genres: Set<GenreKey | string>): string {
+  if (genres.size !== 1) return ACCENT;
+  const only = [...genres][0] as GenreKey;
+  return GENRE_COLORS[only] ?? ACCENT;
+}
 
 /**
  * Turn a group of watches into a cross-filter selection, toggling off when the

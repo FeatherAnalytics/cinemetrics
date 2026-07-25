@@ -2,11 +2,17 @@
 
 import { useMemo } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
+import {
+  GENRE_COLORS,
+  INK,
+  primaryGenre,
+  secondaryGenre,
+  type GenreKey,
+} from "@/lib/palette";
 import { GENRE_ALPHA, mean, tukey, type BoxBounds } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
-import { isPicked, pickWatches } from "./pick";
+import { accentFor, isPicked, pickWatches } from "./pick";
 
 const W0 = 720;
 const W_MIN = 300;
@@ -38,21 +44,37 @@ type Row = BoxBounds & { genre: GenreKey; n: number; watches: EnrichedWatch[] };
  *
  * One value per FILM, not per watch, so a rewatched film counts once and cannot
  * drag its genre toward whatever it was rated on the third viewing.
+ *
+ * FILTERED TO GENRES, the axis becomes the SECONDARY genre. Grouping by primary
+ * under a Horror filter draws one column called Horror, which is the filter
+ * read back rather than an answer. The useful question at that point is what
+ * else those films were, so the columns become Horror+Thriller, Horror+Drama
+ * and so on. With several genres filtered a film qualifies if its PRIMARY is
+ * any of them, so the columns stay a partition and each film is still counted
+ * exactly once.
  */
 export function RatingsByGenre() {
   const { filtered, filters, setSelection } = useExplorer();
   const [ref, W] = useWidth(W0, W_MIN);
+  const accent = accentFor(filters.genres);
+  const bySecondary = filters.genres.size > 0;
 
   const rows = useMemo(() => {
+    const wanted = filters.genres as Set<string>;
+    const useSecondary = wanted.size > 0;
     const byFilm = new Map<
       number,
       { ratings: number[]; watches: EnrichedWatch[]; genre: GenreKey }
     >();
     for (const w of filtered) {
+      // Only films the filter is actually ABOUT drive the secondary axis: a
+      // film that merely carries Horror further down its list belongs to
+      // whichever genre won it, not to this breakdown.
+      if (useSecondary && !wanted.has(primaryGenre(w.film))) continue;
       const e = byFilm.get(w.tmdb_id) ?? {
         ratings: [],
         watches: [],
-        genre: primaryGenre(w.film),
+        genre: useSecondary ? secondaryGenre(w.film) : primaryGenre(w.film),
       };
       if (w.rating != null) e.ratings.push(w.rating);
       e.watches.push(w);
@@ -79,7 +101,7 @@ export function RatingsByGenre() {
         ...tukey([...v.values].sort((a, b) => a - b)),
       };
     }) as Row[];
-  }, [filtered]);
+  }, [filtered, filters.genres]);
 
   if (!rows.length) return null;
 
@@ -94,7 +116,7 @@ export function RatingsByGenre() {
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
         style={{ color: INK.muted }}
       >
-        median spread{" "}
+        {bySecondary ? "second genre · " : ""}median spread{" "}
         <span style={{ color: INK.primary }}>{(spread / 20).toFixed(2)}★</span>
       </div>
       <svg width={W} height={H} role="img" style={{ maxWidth: "100%" }}>
@@ -127,7 +149,7 @@ export function RatingsByGenre() {
                 height={Math.max(y(r.q1) - y(r.q3), 1)}
                 fill={GENRE_COLORS[r.genre]}
                 fillOpacity={on ? 0.85 : 0.5}
-                stroke={on ? ACCENT : "none"}
+                stroke={on ? accent : "none"}
                 strokeWidth={2}
               />
               <line
@@ -167,7 +189,7 @@ export function RatingsByGenre() {
                 textAnchor="middle"
                 fontSize={9}
                 fontWeight={700}
-                fill={on ? ACCENT : INK.secondary}
+                fill={on ? accent : INK.secondary}
                 pointerEvents="none"
               >
                 {r.n}
@@ -177,7 +199,7 @@ export function RatingsByGenre() {
                 y={H - MB + 16}
                 textAnchor="middle"
                 fontSize={11}
-                fill={on ? ACCENT : INK.primary}
+                fill={on ? accent : INK.primary}
                 fontWeight={on ? 700 : 400}
                 pointerEvents="none"
               >

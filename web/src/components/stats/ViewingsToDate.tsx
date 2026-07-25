@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, INK } from "@/lib/palette";
+import { INK } from "@/lib/palette";
 import {
   ceilTo,
   chicagoParts,
@@ -15,18 +15,27 @@ import {
 } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
-import { isPicked, pickWatches } from "./pick";
+import { accentFor, isPicked, pickWatches } from "./pick";
 
 const W0 = 720;
-// Floored higher than the other plots: the right margin is a fixed-width table,
-// so the plot itself is what a narrow column eats into.
 const W_MIN = 380;
 const H = 250;
 const ML = 34;
-// Wide enough for "2020 146"; at 40 the labels clipped.
-const MR = 62;
+// The standings table used to live in a 62px right margin, which cost the plot
+// a tenth of its width and pushed the month axis out of alignment with the pace
+// chart directly above. It is now an overlay inside the plot's own top-left,
+// where the curves are always near zero and the space is dead anyway.
+const MR = 12;
 const MB = 22;
 const FADE = "#b3b1a6";
+
+// Standings overlay geometry, in plot coordinates.
+const LEG_X = 6; // inset from the y-axis
+const LEG_Y = 4;
+const LEG_ROW = 12;
+const LEG_YEAR_W = 26; // "2020"
+const LEG_BAR_W = 46; // the mini bar track
+const LEG_VAL_W = 26; // the count, right aligned
 
 /**
  * Watches accumulated so far within each calendar year, one line per year.
@@ -43,6 +52,7 @@ export function ViewingsToDate() {
   const { filtered, filters, setSelection } = useExplorer();
   const [hover, setHover] = useState<number | null>(null);
   const [ref, W] = useWidth(W0, W_MIN);
+  const accent = accentFor(filters.genres);
 
   const years = useMemo(() => {
     const daily = new Map<number, number[]>();
@@ -83,31 +93,29 @@ export function ViewingsToDate() {
   // Recency ramp on the house crimson-to-chrome scale, never a genre color, so a
   // year cannot read as a genre.
   const tint = (year: number) =>
-    lerpHex(ACCENT, FADE, newest === oldest ? 0 : (newest - year) / (newest - oldest));
+    lerpHex(accent, FADE, newest === oldest ? 0 : (newest - year) / (newest - oldest));
 
   /**
-   * The right margin is a TABLE, not a scatter of annotations.
+   * A STANDINGS TABLE overlaid on the plot's top-left, not a scatter of
+   * annotations in a margin.
    *
-   * Rows are evenly spaced rather than parked at each line's endpoint, so the eye
-   * can run straight down them; irregular gaps made scanning a series of small
-   * vertical jumps.
+   * Rows are evenly spaced rather than parked at each line's endpoint, so the
+   * eye can run straight down them; irregular gaps made scanning a series of
+   * small vertical jumps.
    *
-   * Year and count are separate text elements at fixed x, the count right
-   * aligned. One `{year} {count}` string would let a proportional font shift the
-   * count left and right by row, which is the same scanning problem one level
-   * down.
+   * Year, bar and count are separate elements at fixed x. One `{year} {count}`
+   * string would let a proportional font shift the count around by row, which
+   * is the same scanning problem one level down. The bar is what makes the
+   * table readable at a glance: seven right-aligned numbers are a list, seven
+   * bars are a ranking, and it is the ranking that changes hands mid-year.
    *
-   * Rows RESORT as the cursor moves, highest first, so the margin reads as a
-   * standings table: drag across the year and watch the order change hands.
+   * Rows RESORT as the cursor moves, highest first.
    *
    * A year whose data has run out holds its last value rather than dropping to a
    * dash, which is the "if I watched nothing else this year" reading. Without it
    * the current year would vanish from the table the moment the cursor passed
    * today, exactly when comparing it to the others is most interesting.
    */
-  const ROW_H = 13;
-  const LABEL_X = W - MR + 6;
-  const COUNT_RIGHT = W - 2;
   const labels = years
     .map((s) => {
       let stop = -1;
@@ -118,7 +126,12 @@ export function ViewingsToDate() {
     })
     .filter((l): l is NonNullable<typeof l> => l != null)
     .sort((a, b) => b.shown - a.shown || b.year - a.year)
-    .map((l, i) => ({ ...l, y: 12 + i * ROW_H }));
+    .map((l, i) => ({ ...l, y: LEG_Y + 8 + i * LEG_ROW }));
+
+  // Bars scale to the leader at the hovered date, so the top bar is always full
+  // width and the rest read as a share of it.
+  const legMax = Math.max(...labels.map((l) => l.shown), 1);
+  const legX = ML + LEG_X;
 
   const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -197,7 +210,8 @@ export function ViewingsToDate() {
 
         {labels.map((l) => {
           const on = isPicked(l.watches, filters.selection);
-          const color = on ? ACCENT : tint(l.year);
+          const color = on ? accent : tint(l.year);
+          const barLen = (l.shown / legMax) * LEG_BAR_W;
           return (
             <g
               key={l.year}
@@ -205,17 +219,28 @@ export function ViewingsToDate() {
               onClick={() => pickWatches(l.watches, filters.selection, setSelection)}
             >
               <rect
-                x={LABEL_X - 3}
-                y={l.y - ROW_H + 3}
-                width={W - LABEL_X + 3}
-                height={ROW_H}
+                x={legX - 3}
+                y={l.y - LEG_ROW + 3}
+                width={LEG_YEAR_W + LEG_BAR_W + LEG_VAL_W + 12}
+                height={LEG_ROW}
                 fill="transparent"
               />
-              <text x={LABEL_X} y={l.y} fontSize={9} fontWeight={700} fill={color}>
+              <text x={legX} y={l.y} fontSize={9} fontWeight={700} fill={color}>
                 {l.year}
               </text>
+              {/* The mini bar is the same object as this year's line, in the
+                  same recency tint, so the table and the plot cannot disagree
+                  about which year is which. */}
+              <rect
+                x={legX + LEG_YEAR_W}
+                y={l.y - 7}
+                width={Math.max(barLen, 0.5)}
+                height={8}
+                fill={color}
+                fillOpacity={l.partial ? 0.4 : 0.85}
+              />
               <text
-                x={COUNT_RIGHT}
+                x={legX + LEG_YEAR_W + LEG_BAR_W + LEG_VAL_W}
                 y={l.y}
                 textAnchor="end"
                 fontSize={9}

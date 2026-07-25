@@ -175,6 +175,19 @@ const CHART_SECTIONS: ChartSection[] = [
     Chart: MonthlyPace,
   },
   {
+    id: "weekday",
+    mode: "stats",
+    title: "Pace by weekday",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Watches by day, weekend tinted. Under each bar, its distance from the median
+        day as a percentage.
+      </>
+    ),
+    Chart: WeekdayCounts,
+  },
+  {
     id: "velocity",
     mode: "stats",
     title: "Viewing velocity",
@@ -215,14 +228,6 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: <MostRewatchedBlurb />,
     Chart: MostRewatched,
-  },
-  {
-    id: "weekday",
-    mode: "stats",
-    title: "Pace by weekday",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: <>Watches by day, against the median day. The weekend is tinted.</>,
-    Chart: WeekdayCounts,
   },
   {
     id: "genrebox",

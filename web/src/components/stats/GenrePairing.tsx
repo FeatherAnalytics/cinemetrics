@@ -6,7 +6,7 @@ import { ACCENT, GENRE_COLORS, INK, type GenreKey } from "@/lib/palette";
 import { insetRect, lerpHex, mean, NO_DATA_STROKE } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
-import { isPicked, pickWatches } from "./pick";
+import { accentFor, isPicked, pickWatches } from "./pick";
 
 const FADE = "#b3b1a6";
 const MID = "#eceae3";
@@ -61,6 +61,7 @@ function densityColor(share: number): string {
 export function GenrePairing() {
   const { filtered, filters, setSelection } = useExplorer();
   const [ref, W] = useWidth(720);
+  const accent = accentFor(filters.genres);
 
   const model = useMemo(() => {
     const byFilm = new Map<number, { ratings: number[]; watches: EnrichedWatch[]; genres: string[] }>();
@@ -154,6 +155,31 @@ export function GenrePairing() {
           point its numbers fit is not a smaller chart, it is an unreadable one. */}
       <div className="overflow-x-auto">
         <svg width={size} height={size} role="img">
+          {/* Axis titles. Only the upper triangle is drawn, so a cell is an
+              ordered pair and the two axes are not interchangeable: naming them
+              is what makes "Horror row, Mystery column" readable as one thing
+              rather than two labels that happen to cross. */}
+          <text
+            x={4}
+            y={14}
+            fontSize={8}
+            fill={INK.muted}
+            letterSpacing="0.1em"
+            fontFamily="var(--font-mono)"
+          >
+            FIRST GENRE ↓
+          </text>
+          <text
+            x={pad - 6}
+            y={26}
+            textAnchor="end"
+            fontSize={8}
+            fill={INK.muted}
+            letterSpacing="0.1em"
+            fontFamily="var(--font-mono)"
+          >
+            SECOND GENRE →
+          </text>
           {genres.map((g, i) => (
             <text
               key={`c${g}`}
@@ -235,7 +261,7 @@ export function GenrePairing() {
                     <rect
                       {...insetRect(x, yy, cell, cell)}
                       fill="none"
-                      stroke={ACCENT}
+                      stroke={accent}
                       strokeWidth={2}
                     />
                   )}

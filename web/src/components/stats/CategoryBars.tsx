@@ -35,7 +35,8 @@ export function CategoryBars({
   active,
   onPick,
   fmt = (v: number) => String(Math.round(v)),
-  showDelta = false,
+  accent = "#c01023",
+  showShare = false,
 }: {
   bars: CategoryBar[];
   /** Indices given a flat backdrop tint, e.g. the weekend. */
@@ -44,15 +45,22 @@ export function CategoryBars({
   active?: number | null;
   onPick?: (index: number) => void;
   fmt?: (v: number) => string;
+  /** Highlight color, so a genre filter recolors the chart. */
+  accent?: string;
   /**
-   * Print each bar's signed distance from the median at the head of the bar.
+   * Print each bar's distance from the median as a PERCENTAGE, under the axis
+   * label.
    *
-   * Only worth it where the reader's question is "how far from typical", and
-   * only where `fmt` is linear in the value: a reciprocal formatter like
-   * `paceLabel` would render the difference of two rates as if it were a
-   * duration, which is not a number that means anything.
+   * A raw difference is already in the picture: the bars are drawn against a
+   * median gridline, so "+47" is the gap the reader can see. A percentage is
+   * the part that cannot be eyeballed, and it is the honest way to compare a
+   * gap against the level it departs from.
+   *
+   * Only meaningful where the value is a count on a ratio scale with a
+   * non-zero median. Not used on the pace chart, whose `fmt` is a reciprocal:
+   * a percentage of a rate rendered as a duration is not a number.
    */
-  showDelta?: boolean;
+  showShare?: boolean;
 }) {
   // Width tracks the column, height is fixed: there is no viewBox, so one user
   // unit is one pixel and the type stays the same size at every width.
@@ -113,7 +121,7 @@ export function CategoryBars({
               y={y(b.value)}
               width={barW}
               height={H - MB - y(b.value)}
-              fill={active === i ? "#c01023" : FADE}
+              fill={active === i ? accent : FADE}
             />
             {/* Full-height hit area: a short bar is a small target, and the reader
                 is aiming at the column, not the ink. */}
@@ -128,29 +136,28 @@ export function CategoryBars({
             >
               <title>{b.title}</title>
             </rect>
-            {/* Distance from the median, at the head of the bar. Same position,
-                size, weight and inside/outside fill rule as the value labels on
-                the horizontal bar charts, so one convention covers both. */}
-            {showDelta &&
-              (() => {
-                const d = b.value - median;
-                const barH = H - MB - y(b.value);
-                const inside = barH > 24;
-                return (
-                  <text
-                    x={cx(i)}
-                    y={inside ? y(b.value) + 15 : y(b.value) - 6}
-                    textAnchor="middle"
-                    fontSize={11}
-                    fontWeight={700}
-                    fill={valueLabelFill(inside)}
-                    pointerEvents="none"
-                  >
-                    {d > 0 ? "+" : ""}
-                    {fmt(d)}
-                  </text>
-                );
-              })()}
+            {/* The value rides its own bar, inside when there is room, exactly
+                as it does on every horizontal bar chart here: same 11px, same
+                bold, same INK.surface / INK.primary flip. It used to sit under
+                the axis in 8px muted type, which was a second convention for
+                the same job. */}
+            {(() => {
+              const barH = H - MB - y(b.value);
+              const inside = barH > 24;
+              return (
+                <text
+                  x={cx(i)}
+                  y={inside ? y(b.value) + 15 : y(b.value) - 6}
+                  textAnchor="middle"
+                  fontSize={11}
+                  fontWeight={700}
+                  fill={valueLabelFill(inside)}
+                  pointerEvents="none"
+                >
+                  {fmt(b.value)}
+                </text>
+              );
+            })()}
           </g>
         ))}
 
@@ -182,26 +189,34 @@ export function CategoryBars({
             y={H - MB + 14}
             textAnchor="middle"
             fontSize={9}
-            fill={active === i ? "#c01023" : INK.primary}
+            fill={active === i ? accent : INK.primary}
             fontWeight={active === i ? 700 : 400}
             pointerEvents="none"
           >
             {b.label}
           </text>
         ))}
-        {bars.map((b, i) => (
-          <text
-            key={`n-${i}`}
-            x={cx(i)}
-            y={H - MB + 25}
-            textAnchor="middle"
-            fontSize={8}
-            fill={INK.muted}
-            pointerEvents="none"
-          >
-            {fmt(b.value)}
-          </text>
-        ))}
+        {showShare &&
+          bars.map((b, i) => {
+            // Against the median rather than the mean: with a spike the size of
+            // October a mean sits above most of the values it is baselining, so
+            // almost every bar would read negative.
+            const pct = median > 0 ? Math.round((100 * (b.value - median)) / median) : 0;
+            return (
+              <text
+                key={`pct-${i}`}
+                x={cx(i)}
+                y={H - MB + 25}
+                textAnchor="middle"
+                fontSize={8}
+                fill={INK.muted}
+                pointerEvents="none"
+              >
+                {pct > 0 ? "+" : ""}
+                {pct}%
+              </text>
+            );
+          })}
       </svg>
     </div>
   );

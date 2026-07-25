@@ -469,11 +469,15 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
   const nothingPredicts =
     isNull(anova(byMonth)) && isNull(anova(byDow)) && isNull(anova([...perGenre.values()]));
 
-  const pts = gap == null ? 0 : Math.round(gap);
+  // The rating gap between those two months is deliberately NOT in the
+  // headline. It is a non-finding by construction (the whole story is that the
+  // rating does not move), so it belongs on the pace chart's hover, where a
+  // reader who wonders can check it, rather than in the one line everybody
+  // reads. `gap` still gates the phrasing below.
   const headline =
     gap == null
       ? `${MONTHS[busiest.m]} outdraws ${MONTHS[quietest.m]} ${busiest.n} to ${quietest.n}`
-      : `I watch ${ratio.toFixed(1)}x more in ${MONTHS[busiest.m]} than ${MONTHS[quietest.m]}, and rate them ${pts} point${pts === 1 ? "" : "s"} apart`;
+      : `I watch ${ratio.toFixed(1)}x more in ${MONTHS[busiest.m]} than ${MONTHS[quietest.m]}`;
 
   return {
     headline,
@@ -481,12 +485,13 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
     ...(nothingPredicts
       ? { subtext: "What changes is how much I watch, not what I think of it." }
       : {}),
-    // Two notes, not eight. A note earns its place only by saying something
-    // neither the chart nor its blurb already says. The rest were restating an
-    // axis, repeating the headline, or duplicating a blurb outright.
+    // One note. A note earns its place only by saying something neither the
+    // chart nor its blurb already says, and that a reader could not get by
+    // looking. The rest were restating an axis, repeating the headline,
+    // duplicating a blurb, or announcing that the chart is interactive, which
+    // every chart on this site already is.
     notes: {
       velocity: "The twin peaks are 2020 and 2021. Nothing since has come close.",
-      ytd: "Drag across it: the lead changes hands mid-year.",
     },
   };
 }

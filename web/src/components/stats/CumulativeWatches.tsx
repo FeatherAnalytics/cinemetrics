@@ -13,7 +13,14 @@ const ML = 44;
 const MB = 24;
 const FADE = "#b3b1a6";
 
-type Band = { key: string; color: string; running: number[] };
+type Band = {
+  key: string;
+  color: string;
+  running: number[];
+  /** Running rating sum and rated count, so the mean AT a month is exact. */
+  sum: number[];
+  rated: number[];
+};
 
 /**
  * Watches accumulated over time, as stacked bands.
@@ -40,43 +47,59 @@ export function CumulativeWatches() {
     const idx = new Map(months.map((m, i) => [m, i]));
     const isFiltered = filtered.length !== all.length;
 
+    const blank = (): Band["running"] => Array(months.length).fill(0);
     const bands: Band[] = [];
     // Names the actual thing being compared when it can: "Horror vs other"
     // rather than the abstract "matching the current filter".
     const only = filters.genres.size === 1 ? [...filters.genres][0] : null;
+    const add = (b: Band, i: number, rating: number | null) => {
+      b.running[i] += 1;
+      if (rating != null) {
+        b.sum[i] += rating;
+        b.rated[i] += 1;
+      }
+    };
     if (isFiltered) {
       const keep = new Set(filtered);
       bands.push(
         {
           key: only ? only.toLowerCase() : "selected",
           color: only ? GENRE_COLORS[only] : ACCENT,
-          running: Array(months.length).fill(0),
+          running: blank(),
+          sum: blank(),
+          rated: blank(),
         },
-        { key: "other", color: FADE, running: Array(months.length).fill(0) },
+        { key: "other", color: FADE, running: blank(), sum: blank(), rated: blank() },
       );
       for (const w of all) {
         const i = idx.get(w.date.slice(0, 7));
         if (i == null) continue;
-        bands[keep.has(w) ? 0 : 1].running[i] += 1;
+        add(bands[keep.has(w) ? 0 : 1], i, w.rating);
       }
     } else {
       for (const g of GENRE_ALPHA) {
         bands.push({
           key: g.toLowerCase(),
           color: GENRE_COLORS[g],
-          running: Array(months.length).fill(0),
+          running: blank(),
+          sum: blank(),
+          rated: blank(),
         });
       }
       const slot = new Map<GenreKey, number>(GENRE_ALPHA.map((g, i) => [g, i]));
       for (const w of all) {
         const i = idx.get(w.date.slice(0, 7));
         if (i == null) continue;
-        bands[slot.get(primaryGenre(w.film))!].running[i] += 1;
+        add(bands[slot.get(primaryGenre(w.film))!], i, w.rating);
       }
     }
 
     for (const b of bands) {
-      for (let i = 1; i < b.running.length; i++) b.running[i] += b.running[i - 1];
+      for (let i = 1; i < b.running.length; i++) {
+        b.running[i] += b.running[i - 1];
+        b.sum[i] += b.sum[i - 1];
+        b.rated[i] += b.rated[i - 1];
+      }
     }
     const live = bands.filter((b) => b.running[b.running.length - 1] > 0);
     const total = live.reduce((s, b) => s + b.running[b.running.length - 1], 0);
@@ -94,8 +117,19 @@ export function CumulativeWatches() {
   const x = (i: number) => ML + (i / Math.max(months.length - 1, 1)) * (W - ML - 12);
   const y = (v: number) => H - MB - (v / scaleMax) * (H - MB - 12);
 
-  // Each band is a closed polygon between its lower and upper edges.
-  const polys: { key: string; color: string; points: string; end: number; at: number }[] = [];
+  // Each band is a closed polygon between its lower and upper edges. `mid` is
+  // the vertical center of the band AT the hovered month, which is where that
+  // band's readout is parked so the number sits on the color it describes.
+  const polys: {
+    key: string;
+    color: string;
+    points: string;
+    end: number;
+    at: number;
+    mid: number;
+    thickness: number;
+    stars: number | null;
+  }[] = [];
   const floor = Array(months.length).fill(0) as number[];
   const at = hover ?? months.length - 1;
   for (const b of bands) {
@@ -110,6 +144,12 @@ export function CumulativeWatches() {
       points,
       end: b.running[b.running.length - 1],
       at: b.running[at],
+      mid: (y(upper[at]) + y(floor[at])) / 2,
+      thickness: y(floor[at]) - y(upper[at]),
+      // Mean rating of everything in this band SO FAR, on the 0-5 star scale
+      // the rest of the site reads in. Running sums, so this is the exact mean
+      // up to the hovered month rather than a mean of monthly means.
+      stars: b.rated[at] ? b.sum[at] / b.rated[at] / 20 : null,
     });
     for (let i = 0; i < floor.length; i++) floor[i] = upper[i];
   }
@@ -150,7 +190,53 @@ export function CumulativeWatches() {
           <polygon key={p.key} points={p.points} fill={p.color} opacity={0.85} />
         ))}
         {hover != null && (
-          <line x1={x(hover)} y1={0} x2={x(hover)} y2={H - MB} stroke={INK.primary} strokeWidth={0.75} />
+          <>
+            <line
+              x1={x(hover)}
+              y1={10}
+              x2={x(hover)}
+              y2={H - MB}
+              stroke={INK.primary}
+              strokeWidth={0.75}
+              pointerEvents="none"
+            />
+            {/* The month sits at the TOP of its own line rather than in the
+                legend below, so the label and the thing it labels are the same
+                object. Flips side near the right edge so it never runs off. */}
+            <text
+              x={x(hover) + (hover > months.length * 0.85 ? -4 : 4)}
+              y={8}
+              textAnchor={hover > months.length * 0.85 ? "end" : "start"}
+              fontSize={9}
+              fontWeight={700}
+              fill={INK.primary}
+              pointerEvents="none"
+            >
+              {months[hover]}
+            </text>
+            {/* One star readout per band, parked at that band's vertical center
+                so the number is ON the color it describes. Bands thinner than
+                the type are skipped: a label that overlaps its neighbor is
+                worse than no label. */}
+            {polys.map((p) => {
+              if (p.stars == null || p.thickness < 11) return null;
+              const right = hover > months.length * 0.85;
+              return (
+                <text
+                  key={`h-${p.key}`}
+                  x={x(hover) + (right ? -5 : 5)}
+                  y={p.mid + 3}
+                  textAnchor={right ? "end" : "start"}
+                  fontSize={9}
+                  fontWeight={700}
+                  fill={INK.primary}
+                  pointerEvents="none"
+                >
+                  {p.stars.toFixed(1)}★
+                </text>
+              );
+            })}
+          </>
         )}
         {months.map((m, i) =>
           m.endsWith("-01") ? (
@@ -161,9 +247,11 @@ export function CumulativeWatches() {
         )}
       </svg>
       {/* Legend numbers track the hover, so it reads each band AT that month
-          rather than only ever showing the final total the chart already draws. */}
+          rather than only ever showing the final total the chart already draws.
+          The month itself is NOT repeated here: it is drawn at the head of the
+          hover line, on the chart. */}
       <div className="mt-1 flex flex-wrap gap-3 font-mono text-[10px]" style={{ color: INK.muted }}>
-        <span style={{ color: INK.primary }}>{hover != null ? months[hover] : "total"}</span>
+        <span style={{ color: INK.primary }}>{hover != null ? "watches · ★ avg" : "total"}</span>
         {/* Legend order matches the stacking order (alphabetical), not the
             current values: a legend that resorts as you hover makes the reader
             re-find each genre on every move. */}

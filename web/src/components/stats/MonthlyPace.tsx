@@ -10,7 +10,7 @@ import {
   paceLabel,
 } from "@/lib/statsChart";
 import { CategoryBars, type CategoryBar } from "./CategoryBars";
-import { isPicked, pickWatches } from "./pick";
+import { accentFor, isPicked, pickWatches } from "./pick";
 
 /**
  * Watch pace by calendar month.
@@ -34,24 +34,40 @@ export function MonthlyPace() {
 
   const model = useMemo(() => {
     const counts = Array(12).fill(0) as number[];
+    const sums = Array(12).fill(0) as number[];
+    const rated = Array(12).fill(0) as number[];
     const byMonth: (typeof filtered)[] = Array.from({ length: 12 }, () => []);
     for (const w of filtered) {
       const { month } = chicagoParts(w.date);
       counts[month] += 1;
       byMonth[month].push(w);
+      if (w.rating != null) {
+        sums[month] += w.rating;
+        rated[month] += 1;
+      }
     }
     // Whole calendar months, and from the FULL history rather than the filtered
     // subset: a filter removes watches, never the days they could have happened on.
     const exposure = calendarDaysPerMonth(all.map((w) => w.date));
-    return { counts, byMonth, exposure };
+    const avg = rated.map((n, i) => (n ? sums[i] / n : null));
+    return { counts, byMonth, exposure, avg };
   }, [all, filtered]);
 
-  const bars: CategoryBar[] = MONTH_ABBR.map((label, i) => ({
-    label,
-    value: model.exposure[i] ? model.counts[i] / model.exposure[i] : 0,
-    title: `${label}: ${model.counts[i]} watches over ${model.exposure[i]} calendar days`,
-    keys: [],
-  }));
+  // The rating lives ONLY here, on hover. It used to ride the story headline as
+  // "and rate them 1 point apart", which spent a headline on a non-finding: the
+  // whole point is that the rating does not move, so it belongs where a reader
+  // who wonders can check it, not where everyone has to read it.
+  const bars: CategoryBar[] = MONTH_ABBR.map((label, i) => {
+    const a = model.avg[i];
+    return {
+      label,
+      value: model.exposure[i] ? model.counts[i] / model.exposure[i] : 0,
+      title:
+        `${label}: ${model.counts[i]} watches over ${model.exposure[i]} calendar days` +
+        (a != null ? ` · avg rating ${Math.round(a)}` : ""),
+      keys: [],
+    };
+  });
 
   const activeIndex = model.byMonth.findIndex((ws) => isPicked(ws, filters.selection));
 
@@ -66,6 +82,7 @@ export function MonthlyPace() {
       <CategoryBars
         bars={bars}
         fmt={paceLabel}
+        accent={accentFor(filters.genres)}
         active={activeIndex >= 0 ? activeIndex : null}
         onPick={(i) => pickWatches(model.byMonth[i], filters.selection, setSelection)}
       />

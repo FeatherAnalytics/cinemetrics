@@ -33,6 +33,19 @@ export function primaryGenre(film: Film | undefined): GenreKey {
   return "Other";
 }
 
+/**
+ * The next tracked genre after the primary, by the same priority order.
+ *
+ * Answers "what else is this, once you already know it's Horror". Returns
+ * "Other" for a film that carries only one tracked genre, which is a real
+ * answer rather than a gap: 62 of the 676 films are single-genre.
+ */
+export function secondaryGenre(film: Film | undefined): GenreKey {
+  const gs = film?.genres ?? [];
+  const hits = GENRE_ORDER.filter((g) => gs.includes(g));
+  return hits[1] ?? "Other";
+}
+
 // Chart chrome (light mode). Chrome is deliberately darker than the validated
 // hairline defaults so lines and labels read clearly on the light surface.
 export const INK = {
