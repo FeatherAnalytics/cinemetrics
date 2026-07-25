@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, INK } from "@/lib/palette";
+import { ACCENT, GENRE_COLORS, INK, type GenreKey } from "@/lib/palette";
 import { insetRect, lerpHex, mean, NO_DATA_STROKE } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
@@ -18,6 +18,22 @@ const BASE_FONT = 9;
 const CELL_MIN = 34;
 const CELL_MAX = 52;
 const PAD = 96; // gutter for the genre labels, rotated on top and flush right
+
+/**
+ * Axis labels carry the genre's own color where the site tracks one.
+ *
+ * Only five genres have an identity color; the matrix lists every genre with
+ * ten or more films, so most axis labels stay muted. That asymmetry is the
+ * point rather than a gap: the colored labels are exactly the ones a reader can
+ * pick out of the filter rail, the cumulative bands and the box plots, so the
+ * axis ties this chart to those without inventing twelve more colors nobody
+ * could tell apart.
+ */
+function axisFill(genre: string): string {
+  return genre in GENRE_COLORS && genre !== "Other"
+    ? GENRE_COLORS[genre as GenreKey]
+    : INK.muted;
+}
 
 const MIN_FILMS_PER_GENRE = 10;
 
@@ -144,7 +160,8 @@ export function GenrePairing() {
               x={pad + i * cell + cell / 2}
               y={pad - 6}
               fontSize={9}
-              fill={INK.muted}
+              fill={axisFill(g)}
+              fontWeight={axisFill(g) === INK.muted ? 400 : 700}
               textAnchor="start"
               transform={`rotate(-55 ${pad + i * cell + cell / 2} ${pad - 6})`}
             >
@@ -157,7 +174,8 @@ export function GenrePairing() {
               x={pad - 6}
               y={pad + r * cell + cell / 2 + 3}
               fontSize={9}
-              fill={INK.muted}
+              fill={axisFill(g)}
+              fontWeight={axisFill(g) === INK.muted ? 400 : 700}
               textAnchor="end"
             >
               {g}

@@ -157,18 +157,29 @@ const CHART_SECTIONS: ChartSection[] = [
   },
 
   // --- The stats set. Rendered only while the stats story is active. ---
+  // Pace by month leads because it is the story's PRIMARY chart, and the
+  // headline bar renders on the primary. The stats story lands the reader at the
+  // top of the page rather than scrolling to its primary the way the narrative
+  // stories do, so the primary has to already be there.
+  {
+    id: "monthly",
+    mode: "stats",
+    title: "Pace by month",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Watches per calendar day, by month, so a taller bar is a busier month. The
+        number under each is the flip side: days between films.
+      </>
+    ),
+    Chart: MonthlyPace,
+  },
   {
     id: "velocity",
     mode: "stats",
     title: "Viewing velocity",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        Every bucket since the first logged watch, with no smoothing: each bar is
-        exactly what happened. A trailing mean has to pick a window, and the window
-        is a claim; a calendar unit is a real one.
-      </>
-    ),
+    blurb: <>Every bucket since the first logged watch, split by genre. No smoothing.</>,
     Chart: ViewingVelocity,
   },
   {
@@ -178,9 +189,8 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        The running total, stacked by genre. The slope carries the pace and the band
-        thickness carries the mix, so a binge reads as a steepening. Filter, and the
-        stack collapses to the matching watches against everything else.
+        The running total, stacked by genre. Filter, and it collapses to the matching
+        watches against everything else.
       </>
     ),
     Chart: CumulativeWatches,
@@ -192,9 +202,8 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        One line per year, each restarting at zero in January, so the question is
-        whether I&rsquo;m ahead of last year at this point rather than how much in
-        total. Lines stop at each year&rsquo;s final watch.
+        One line per year, each restarting in January. Lines stop at each year&rsquo;s
+        final watch.
       </>
     ),
     Chart: ViewingsToDate,
@@ -208,25 +217,11 @@ const CHART_SECTIONS: ChartSection[] = [
     Chart: MostRewatched,
   },
   {
-    id: "monthly",
-    mode: "stats",
-    title: "Pace by month",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        How many days pass between films in each calendar month, divided by the days
-        of that month rather than the days I happened to log, so a part-month
-        can&rsquo;t read as a busy one. A short bar is a busy month.
-      </>
-    ),
-    Chart: MonthlyPace,
-  },
-  {
     id: "weekday",
     mode: "stats",
     title: "Pace by weekday",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: <>Watches by day of the week, with the weekend tinted.</>,
+    blurb: <>Watches by day, against the median day. The weekend is tinted.</>,
     Chart: WeekdayCounts,
   },
   {
@@ -234,13 +229,7 @@ const CHART_SECTIONS: ChartSection[] = [
     mode: "stats",
     title: "Ratings by primary genre",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        Standard Tukey box plots, one value per film and each film in exactly one
-        genre. The point is the clumping: every median lands within half a star of
-        every other.
-      </>
-    ),
+    blurb: <>Tukey box plots, one value per film, each film in exactly one genre.</>,
     Chart: RatingsByGenre,
   },
   {
@@ -250,9 +239,8 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        Which genre combinations show up and how they rate. Self-pairs are excluded,
-        so every cell is a genuine combination. Pale cells are backed by a single
-        film and are held out of the color scale.
+        Which genre combinations show up and how they rate. Pale cells are backed by
+        a single film.
       </>
     ),
     Chart: GenrePairing,
@@ -283,12 +271,24 @@ function Explorer() {
   // full width for the story's highlights. Restores when the story clears; the
   // user can still toggle manually until the next story change. Adjusted during
   // render (not in an effect) so it tracks activeStory changes.
+  //
+  // The stats story is the exception. It sets no filters of its own, so the rail
+  // is a live control there rather than idle chrome: the reader filters, and the
+  // eight statistical charts recompute against the filtered set. Collapsing it
+  // would hide the only thing there is to do with them.
   const [collapsed, setCollapsed] = useState(false);
   const [prevStory, setPrevStory] = useState(activeStory);
   if (activeStory !== prevStory) {
     setPrevStory(activeStory);
-    setCollapsed(!!activeStory);
+    setCollapsed(!!activeStory && activeStory !== "stats");
   }
+
+  // Only the stats story swaps the chart set, so only there does the reader's
+  // scroll offset point at a chart that no longer exists. Every other story
+  // leaves the sections in place, where holding position is the right behavior.
+  useEffect(() => {
+    if (activeStory === "stats") window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeStory]);
 
   const drawerCloseRef = useRef<HTMLButtonElement>(null);
 

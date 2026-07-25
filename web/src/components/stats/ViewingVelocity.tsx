@@ -2,8 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, INK } from "@/lib/palette";
-import { hasKnownRewatchState, insetRect, NO_DATA_STROKE, quantile } from "@/lib/statsChart";
+import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
+import {
+  GENRE_ALPHA,
+  hasKnownRewatchState,
+  insetRect,
+  NO_DATA_STROKE,
+  quantile,
+} from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
 import { isPicked, pickWatches } from "./pick";
@@ -19,7 +25,10 @@ const W0 = 720;
 // real resolution here rather than just air.
 const W_MIN = 320;
 const H = 170;
-const ML = 30;
+// Wide enough for the "median 7" tick label. At 30 it rendered as "edian 7":
+// the text is right-anchored at ML - 4, so a label wider than that runs off the
+// left edge of the SVG rather than pushing the plot over.
+const ML = 44;
 const MB = 16;
 const MID = "#eceae3";
 
@@ -66,11 +75,14 @@ function bucketSpan(dates: string[], grain: Grain): string[] {
  * window is a claim; a calendar unit is a real one, so nothing here needs
  * justifying and each bar is exactly what happened.
  *
- * A single series rather than a stack: the KIND toggle says which watches are
- * being counted, which is the job a stacked legend used to do in two extra lines
- * of type. Under first or rewatch the sheet-era months cannot be classified at
- * all (D5), so they drop out of the count and are drawn as the outlined
- * "not recorded" band instead of silently reading as zero.
+ * Each bar is split by genre, in the same colors and the same alphabetical
+ * order as the cumulative bands and the box plots, so a reader who has learned
+ * the five colors once reads all three charts with them. The KIND toggle still
+ * says WHICH watches are counted; the color says what they were.
+ *
+ * Under first or rewatch the sheet-era months cannot be classified at all (D5),
+ * so they drop out of the count and are drawn as the outlined "not recorded"
+ * band instead of silently reading as zero.
  */
 export function ViewingVelocity() {
   const { all, filtered, filters, setSelection } = useExplorer();
@@ -150,7 +162,6 @@ export function ViewingVelocity() {
           const u = unknown[i];
           const x = ML + i * step;
           const wpx = Math.max(step - 0.6, 0.7);
-          const hC = h(c.length);
           const hU = h(u.length);
           const ins = NO_DATA_STROKE / 2;
           // The unrecorded run is traced as a staircase off the bars' own edges:
@@ -193,7 +204,30 @@ export function ViewingVelocity() {
                   )}
                 </>
               )}
-              <rect x={x} y={base - hU - hC} width={wpx} height={hC} fill={ACCENT} />
+              {/* Genre segments stack above the unrecorded band, alphabetically
+                  from the baseline up, so a given genre keeps the same position
+                  in every bar and its run reads as a continuous ribbon. */}
+              {(() => {
+                const segs: React.JSX.Element[] = [];
+                let acc = 0;
+                for (const g of GENRE_ALPHA) {
+                  const n = c.filter((w) => primaryGenre(w.film) === g).length;
+                  if (!n) continue;
+                  const hG = h(n);
+                  segs.push(
+                    <rect
+                      key={g}
+                      x={x}
+                      y={base - hU - acc - hG}
+                      width={wpx}
+                      height={hG}
+                      fill={GENRE_COLORS[g]}
+                    />,
+                  );
+                  acc += hG;
+                }
+                return segs;
+              })()}
               <rect
                 x={x}
                 y={0}

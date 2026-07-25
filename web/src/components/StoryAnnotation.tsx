@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useExplorer } from "@/lib/store";
+import { getStoryById, useExplorer } from "@/lib/store";
 import type { ChartId } from "@/lib/stories";
 
 export function StoryAnnotation({ target }: { target: ChartId }) {
@@ -16,6 +16,9 @@ export function StoryAnnotation({ target }: { target: ChartId }) {
     // Interacting with any control rewrites the URL without the hash, so
     // in-session story switches scroll normally.
     if (window.location.hash.startsWith("#chart-")) return;
+    // A story that swapped the whole chart set starts at the top of the page,
+    // so scrolling to its primary would skip charts the reader has not seen.
+    if (activeStory && getStoryById(activeStory)?.scrollToPrimary === false) return;
     if (isTarget && ref.current) {
       ref.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }

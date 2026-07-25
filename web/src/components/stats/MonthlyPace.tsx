@@ -4,8 +4,6 @@ import { useMemo } from "react";
 import { useExplorer } from "@/lib/store";
 import { INK } from "@/lib/palette";
 import {
-  anova,
-  anovaCaption,
   chicagoParts,
   calendarDaysPerMonth,
   MONTH_ABBR,
@@ -15,30 +13,37 @@ import { CategoryBars, type CategoryBar } from "./CategoryBars";
 import { isPicked, pickWatches } from "./pick";
 
 /**
- * Watch PACE by calendar month: how many days pass between films.
+ * Watch pace by calendar month.
  *
- * A raw count penalizes February, which is up to three days shorter than
- * January. The denominator is not a flat 31/30/28 but the days of each month
- * that actually fall inside the observed range, so leap days and the partial
- * months at either end are handled by construction.
+ * READ THE ENCODING BEFORE WRITING COPY ABOUT THIS CHART. Bar height is the
+ * RATE, watches per calendar day, so the TALLEST bar is the busiest month.
+ * Only the label inverts, printing the rate's reciprocal as days between
+ * films, which means the tallest bar carries the SMALLEST number: October is
+ * the tallest bar and reads 1.7, January is short and reads 3.3. Plotting
+ * days-per-film as the height would put the busiest month at the bottom, and
+ * an inverted axis fighting the reader's intuition is what sank an earlier
+ * version. See `paceLabel`.
+ *
+ * A raw count would penalize February, which is up to three days shorter than
+ * January. The denominator is whole calendar months over the observed range,
+ * not the days that happened to have a watch on them, so a part-month at
+ * either end cannot read as a busy one.
  */
 export function MonthlyPace() {
   const { all, filtered, filters, setSelection } = useExplorer();
 
   const model = useMemo(() => {
     const counts = Array(12).fill(0) as number[];
-    const ratings: number[][] = Array.from({ length: 12 }, () => []);
     const byMonth: (typeof filtered)[] = Array.from({ length: 12 }, () => []);
     for (const w of filtered) {
       const { month } = chicagoParts(w.date);
       counts[month] += 1;
       byMonth[month].push(w);
-      if (w.rating != null) ratings[month].push(w.rating);
     }
     // Whole calendar months, and from the FULL history rather than the filtered
     // subset: a filter removes watches, never the days they could have happened on.
     const exposure = calendarDaysPerMonth(all.map((w) => w.date));
-    return { counts, ratings, byMonth, exposure, test: anova(ratings) };
+    return { counts, byMonth, exposure };
   }, [all, filtered]);
 
   const bars: CategoryBar[] = MONTH_ABBR.map((label, i) => ({
@@ -64,9 +69,6 @@ export function MonthlyPace() {
         active={activeIndex >= 0 ? activeIndex : null}
         onPick={(i) => pickWatches(model.byMonth[i], filters.selection, setSelection)}
       />
-      <p className="mt-1 max-w-[68ch] text-xs leading-snug" style={{ color: INK.muted }}>
-        {anovaCaption(model.test, "Month")}
-      </p>
     </div>
   );
 }

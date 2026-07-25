@@ -5,7 +5,7 @@ import { useExplorer } from "@/lib/store";
 import { GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
 import { watchKey } from "@/lib/brush";
 import { computeResiduals } from "@/lib/stats";
-import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
+import { BAR_H, GAP } from "@/lib/barChart";
 import { ChartTakeaway } from "./ChartTakeaway";
 
 const LABEL_W = 200;
@@ -167,27 +167,23 @@ export function KeywordBars() {
                 onClick={() => handleClick(bar)}
               />
 
-              {/* Value label — inside bar if wide enough, outside if narrow */}
-              {(() => {
-                const inside = barLen > 40;
-                const lx = inside
-                  ? (bar.avgResidual > 0 ? zeroX + 6 : zeroX - 6)
-                  : (bar.avgResidual > 0 ? zeroX + barLen + 6 : zeroX - barLen - 6);
-                return (
-                  <text
-                    x={lx}
-                    y={y + BAR_H / 2}
-                    fill={valueLabelFill(inside)}
-                    fontSize={11}
-                    fontWeight={700}
-                    textAnchor={bar.avgResidual > 0 ? "start" : "end"}
-                    dominantBaseline="middle"
-                  >
-                    {bar.avgResidual > 0 ? "+" : ""}
-                    {bar.avgResidual.toFixed(1)}
-                  </text>
-                );
-              })()}
+              {/* The value sits across the zero line from its own bar, hugging
+                  the line. Bar and number never share space, so the number
+                  always reads in primary ink instead of switching to pale
+                  whenever a bar got long enough to sit under it. The empty
+                  half of each row is where the eye already is. */}
+              <text
+                x={bar.avgResidual > 0 ? zeroX - 6 : zeroX + 6}
+                y={y + BAR_H / 2}
+                fill={INK.primary}
+                fontSize={11}
+                fontWeight={700}
+                textAnchor={bar.avgResidual > 0 ? "end" : "start"}
+                dominantBaseline="middle"
+              >
+                {bar.avgResidual > 0 ? "+" : ""}
+                {bar.avgResidual.toFixed(1)}
+              </text>
 
               {/* Tooltip */}
               {isHover && (

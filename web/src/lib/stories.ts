@@ -3,7 +3,7 @@ import type { Filters } from "./store";
 import type { Film, EnrichedWatch } from "./types";
 import { primaryGenre, type GenreKey } from "./palette";
 import { watchKey } from "./brush";
-import { chicagoParts, mean, quantile } from "./statsChart";
+import { ALPHA, anova, chicagoParts, mean } from "./statsChart";
 
 export type ChartId =
   | "spiral"
@@ -86,6 +86,17 @@ export type StoryConfig = {
    * under the click that caused it.
    */
   dismissOnFilter?: boolean;
+  /**
+   * Whether activating this story scrolls its primary chart into view.
+   * Defaults to true.
+   *
+   * That scroll exists because the other stories leave the page's eight charts
+   * exactly where they were: the reader needs taking to the one the story is
+   * about. The stats story replaces the whole set, so its first chart IS the
+   * top of the page, and scrolling anywhere would skip past charts the reader
+   * has never seen.
+   */
+  scrollToPrimary?: boolean;
 };
 
 function computeSpooktober(films: Film[], watches: EnrichedWatch[]): StoryResult {
@@ -399,31 +410,37 @@ function computeCollections(films: Film[], watches: EnrichedWatch[]): StoryResul
  * ones, rather than alongside them.
  *
  * The finding it is built around is a NULL result, deliberately. Month, weekday
- * and genre all fail to predict my rating (p = 0.40, p = 0.19, medians inside
- * half a star of each other), while the amount I watch swings by a factor of
- * three. Stated once, up front, that reads as a finding; left as three separate
- * captions saying a test failed, it reads as three failures.
+ * and genre all fail to predict my rating, while the amount I watch swings by a
+ * factor of three. Stated once, up front, that reads as a finding; left as three
+ * separate captions each saying a test failed, it read as three failures.
  *
- * So the headline pairs the two directly: the pace gap between the busiest and
- * quietest month against the rating gap between those same months. Both numbers
- * are measured here rather than written down, so the sentence cannot drift away
- * from the charts under it.
+ * The ANOVAs still run, but nothing prints an F or a p any more. They GATE the
+ * claim instead: the "nothing moves my rating" line is only shown when all three
+ * tests actually come back null, so the sentence cannot outlive the data that
+ * justified it.
+ *
+ * The headline pairs the two halves directly, and both numbers are measured
+ * here rather than written down, so it cannot drift from the charts under it.
  */
 function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
   const counts = Array(12).fill(0) as number[];
   const sums = Array(12).fill(0) as number[];
   const rated = Array(12).fill(0) as number[];
+  const byMonth: number[][] = Array.from({ length: 12 }, () => []);
+  const byDow: number[][] = Array.from({ length: 7 }, () => []);
   for (const w of watches) {
-    const { month } = chicagoParts(w.date);
+    const { month, dow } = chicagoParts(w.date);
     counts[month] += 1;
     if (w.rating != null) {
       sums[month] += w.rating;
       rated[month] += 1;
+      byMonth[month].push(w.rating);
+      byDow[dow].push(w.rating);
     }
   }
   const seen = counts.map((n, m) => ({ m, n })).filter((e) => e.n > 0);
   if (seen.length < 2) {
-    return { headline: "Not enough months logged to compare", chip: "The stats" };
+    return { headline: "Not enough months logged to compare", chip: "Dive deep" };
   }
   const busiest = seen.reduce((a, b) => (b.n > a.n ? b : a));
   const quietest = seen.reduce((a, b) => (b.n < a.n ? b : a));
@@ -433,17 +450,7 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
   const ratio = busiest.n / quietest.n;
   const gap = hi != null && lo != null ? Math.abs(hi - lo) : null;
 
-  // Rewatch concentration: how few films absorb every repeat viewing. A film
-  // seen three times is two returns, not three, which is why this subtracts the
-  // film count rather than reporting the raw viewing total.
-  const perFilm = new Map<number, number>();
-  for (const w of watches) perFilm.set(w.tmdb_id, (perFilm.get(w.tmdb_id) ?? 0) + 1);
-  const repeats = [...perFilm.values()].filter((n) => n > 1);
-  const returns = repeats.reduce((s, n) => s + n, 0) - repeats.length;
-  const repeatShare = perFilm.size ? Math.round((100 * repeats.length) / perFilm.size) : 0;
-
-  // Median rating per primary genre, for the spread the box plot is built to
-  // show. One value per FILM so a rewatched film cannot vote twice.
+  // One rating per FILM per genre, so a rewatched film cannot vote twice.
   const ratingsByFilm = new Map<number, { g: GenreKey; rs: number[] }>();
   for (const w of watches) {
     if (w.rating == null) continue;
@@ -455,12 +462,12 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
   for (const { g, rs } of ratingsByFilm.values()) {
     perGenre.set(g, [...(perGenre.get(g) ?? []), mean(rs)]);
   }
-  const medians = [...perGenre.values()]
-    .filter((vs) => vs.length > 0)
-    .map((vs) => quantile([...vs].sort((a, b) => a - b), 0.5));
-  const spreadStars = medians.length
-    ? (Math.max(...medians) - Math.min(...medians)) / 20
-    : 0;
+
+  // A missing test counts as null: too few groups to find an effect is not
+  // evidence of one.
+  const isNull = (a: ReturnType<typeof anova>) => a == null || a.p >= ALPHA;
+  const nothingPredicts =
+    isNull(anova(byMonth)) && isNull(anova(byDow)) && isNull(anova([...perGenre.values()]));
 
   const pts = gap == null ? 0 : Math.round(gap);
   const headline =
@@ -470,18 +477,16 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
 
   return {
     headline,
-    chip: "The stats",
-    subtext:
-      "What changes is how much I watch, not what I think of it. Month, weekday and genre all fail to predict my rating.",
+    chip: "Dive deep",
+    ...(nothingPredicts
+      ? { subtext: "What changes is how much I watch, not what I think of it." }
+      : {}),
+    // Two notes, not eight. A note earns its place only by saying something
+    // neither the chart nor its blurb already says. The rest were restating an
+    // axis, repeating the headline, or duplicating a blurb outright.
     notes: {
-      monthly: `${MONTHS[busiest.m]} runs ${busiest.n} watches against ${MONTHS[quietest.m]}'s ${quietest.n}. The bars are days between films, so a short bar is a busy month.`,
-      velocity: "Every bar is one calendar bucket, unsmoothed. The twin peaks are 2020 and 2021; nothing since has come close.",
-      cumulative: "The slope is the pace and the band thickness is the mix. The mix barely moves while the slope does all the work.",
-      ytd: "Each year restarts at zero in January, so the question is whether I am ahead of last year at this point. Drag across it: the lead changes hands mid-year.",
-      rewatched: `Returning is concentrated: ${repeatShare}% of films account for all ${returns} returns.`,
-      weekday: "The weekend lean is real and monotonic, but it is a fact about weekends rather than about me.",
-      genrebox: `Every genre's median lands within ${spreadStars.toFixed(2)} of a star of every other. The clumping is the finding.`,
-      pairing: "Shade is how many films back a pair, the number is how they rate. The grid is mostly empty, which is its own answer.",
+      velocity: "The twin peaks are 2020 and 2021. Nothing since has come close.",
+      ytd: "Drag across it: the lead changes hands mid-year.",
     },
   };
 }
@@ -539,6 +544,7 @@ export const STORIES: StoryConfig[] = [
     focus: { primary: "monthly", emphasize: ["monthly", "velocity", "genrebox"], dim: [] },
     compute: computeStats,
     dismissOnFilter: false,
+    scrollToPrimary: false,
   },
 ];
 

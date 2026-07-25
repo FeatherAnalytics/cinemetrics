@@ -1,6 +1,7 @@
 "use client";
 
 import { INK } from "@/lib/palette";
+import { valueLabelFill } from "@/lib/barChart";
 import { quantile } from "@/lib/statsChart";
 import { useWidth } from "@/lib/useWidth";
 
@@ -34,6 +35,7 @@ export function CategoryBars({
   active,
   onPick,
   fmt = (v: number) => String(Math.round(v)),
+  showDelta = false,
 }: {
   bars: CategoryBar[];
   /** Indices given a flat backdrop tint, e.g. the weekend. */
@@ -42,6 +44,15 @@ export function CategoryBars({
   active?: number | null;
   onPick?: (index: number) => void;
   fmt?: (v: number) => string;
+  /**
+   * Print each bar's signed distance from the median at the head of the bar.
+   *
+   * Only worth it where the reader's question is "how far from typical", and
+   * only where `fmt` is linear in the value: a reciprocal formatter like
+   * `paceLabel` would render the difference of two rates as if it were a
+   * duration, which is not a number that means anything.
+   */
+  showDelta?: boolean;
 }) {
   // Width tracks the column, height is fixed: there is no viewBox, so one user
   // unit is one pixel and the type stays the same size at every width.
@@ -117,6 +128,29 @@ export function CategoryBars({
             >
               <title>{b.title}</title>
             </rect>
+            {/* Distance from the median, at the head of the bar. Same position,
+                size, weight and inside/outside fill rule as the value labels on
+                the horizontal bar charts, so one convention covers both. */}
+            {showDelta &&
+              (() => {
+                const d = b.value - median;
+                const barH = H - MB - y(b.value);
+                const inside = barH > 24;
+                return (
+                  <text
+                    x={cx(i)}
+                    y={inside ? y(b.value) + 15 : y(b.value) - 6}
+                    textAnchor="middle"
+                    fontSize={11}
+                    fontWeight={700}
+                    fill={valueLabelFill(inside)}
+                    pointerEvents="none"
+                  >
+                    {d > 0 ? "+" : ""}
+                    {fmt(d)}
+                  </text>
+                );
+              })()}
           </g>
         ))}
 
