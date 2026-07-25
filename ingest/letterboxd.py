@@ -16,7 +16,7 @@ def fetch_new_watches(letterboxd_user: str, existing_log_path: Path) -> list[dic
     """Fetch RSS feed and return watches not already in film_log.csv.
 
     Each returned dict has keys: watched_date, tmdb_id, title, release_year,
-    my_rating, star_rating, is_rewatch.
+    my_rating, star_rating, is_rewatch, liked.
     """
     url = f"https://letterboxd.com/{letterboxd_user}/rss/"
     resp = requests.get(url, timeout=30)
@@ -68,6 +68,18 @@ def fetch_new_watches(letterboxd_user: str, existing_log_path: Path) -> list[dic
         rewatch_text = rewatch_el.text.strip() if has_rewatch else "No"
         is_rewatch = "true" if rewatch_text == "Yes" else "false"
 
+        # letterboxd:memberLike is the heart, which is independent of the star
+        # rating: ~59% of whether a film is liked is unexplained by its rating.
+        # Captured per watch, not per film, because the like can change between
+        # viewings — a film disliked on first watch may be liked on a rewatch.
+        # An absent element means UNKNOWN, not "not liked"; keep that distinction
+        # so affection-rate denominators stay honest.
+        like_el = item.find("letterboxd:memberLike", NS)
+        if like_el is None or not like_el.text:
+            liked = ""
+        else:
+            liked = "true" if like_el.text.strip() == "Yes" else "false"
+
         def _text(el: ET.Element | None) -> str:
             return el.text.strip() if el is not None and el.text else ""
 
@@ -80,6 +92,7 @@ def fetch_new_watches(letterboxd_user: str, existing_log_path: Path) -> list[dic
                 "my_rating": my_rating,
                 "star_rating": star_rating,
                 "is_rewatch": is_rewatch,
+                "liked": liked,
             }
         )
 

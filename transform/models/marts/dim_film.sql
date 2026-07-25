@@ -5,7 +5,13 @@ with films as (
         tmdb_id,
         any_value(imdb_id)      as imdb_id,
         any_value(title)        as title,
-        any_value(release_year) as release_year
+        any_value(release_year) as release_year,
+        -- Film-level like, for the recommender (per-watch state stays in
+        -- fct_watches). bool_or ignores NULLs and returns NULL when every watch is
+        -- unknown, which preserves the three-state semantics exactly: liked on any
+        -- watch -> true; watched on Letterboxd and never liked -> false;
+        -- pre-Letterboxd only -> null (unknown).
+        bool_or(liked)          as liked
     from {{ ref('stg_film_log') }}
     group by tmdb_id
 ),
@@ -43,6 +49,7 @@ select
     f.imdb_id,
     f.title,
     f.release_year,
+    f.liked,
     e.runtime_min,
     e.genres,
     e.keywords,

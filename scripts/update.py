@@ -35,6 +35,9 @@ LOG_COLUMNS = [
     "my_rating",
     "star_rating",
     "is_rewatch",
+    # Per-watch like state from letterboxd:memberLike. Empty means unknown
+    # (pre-Letterboxd rows), which is distinct from "false".
+    "liked",
 ]
 
 ENRICH_COLUMNS = [

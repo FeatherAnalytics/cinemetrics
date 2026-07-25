@@ -24,6 +24,13 @@ seeds:
         release_year: integer
         my_rating: double
         star_rating: double
+        # `liked` is deliberately NOT declared: DuckDB's sniffer already infers it as
+        # a nullable boolean, which is precisely the three-state semantics wanted
+        # (true / false / NULL=unknown). Declaring it varchar broke seed sniffing.
+    watchlist:
+      +column_types:
+        tmdb_id: bigint
+        release_year: integer
     film_enrichment:
       +column_types:
         tmdb_id: bigint

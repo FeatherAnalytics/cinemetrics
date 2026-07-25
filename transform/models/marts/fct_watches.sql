@@ -10,6 +10,7 @@ select
     rating_100,
     star_rating,
     is_rewatch,
+    liked,
     title       as film_title,
     release_year as film_year
 from {{ ref('stg_film_log') }}
