@@ -97,7 +97,10 @@ function Inner() {
   const isFiltered = filtered.length !== all.length;
 
   return (
-    <main className="mx-auto max-w-[820px] px-6 py-10">
+    // w-full is load-bearing: body is a column flex container, and mx-auto on a
+    // flex item makes its cross size shrink-to-fit. Without it, main sizes to
+    // the charts and the charts size to main.
+    <main className="mx-auto w-full max-w-[820px] px-6 py-10">
       <h1 className="mb-1 font-display text-2xl font-bold" style={{ color: INK.primary }}>
         The stats
       </h1>
@@ -118,7 +121,12 @@ function Inner() {
         )}
       </p>
 
-      <div className="grid gap-10">
+      {/* grid-cols-1, not a bare grid: an implicit auto track sizes to
+          max-content, which for a measured chart is the width it last drew at.
+          The column would then hold whatever the charts started as and never
+          grow. An explicit minmax(0, 1fr) track is definite, so measuring it
+          gives the column, not the content. */}
+      <div className="grid grid-cols-1 gap-10">
         {(filters.selection || filters.country) && <SelectionPanel />}
 
         {SECTIONS.map(({ id, title, blurb, Blurb, Chart }) => (

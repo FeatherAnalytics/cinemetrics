@@ -5,6 +5,7 @@ import { useExplorer } from "@/lib/store";
 import { ACCENT, INK } from "@/lib/palette";
 import { hasKnownRewatchState, insetRect, NO_DATA_STROKE, quantile } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
+import { useWidth } from "@/lib/useWidth";
 import { isPicked, pickWatches } from "./pick";
 import { Toggle } from "./Toggle";
 
@@ -13,7 +14,10 @@ type Kind = "all" | "first" | "rewatch";
 const GRAINS = ["week", "month", "year"] as const;
 const KINDS = ["all", "first", "rewatch"] as const;
 
-const W = 720;
+const W0 = 720;
+// Weekly grain draws one bar per week over eight years, so extra width buys
+// real resolution here rather than just air.
+const W_MIN = 320;
 const H = 170;
 const ML = 30;
 const MB = 16;
@@ -72,6 +76,7 @@ export function ViewingVelocity() {
   const { all, filtered, filters, setSelection } = useExplorer();
   const [grain, setGrain] = useState<Grain>("month");
   const [kind, setKind] = useState<Kind>("all");
+  const [ref, W] = useWidth(W0, W_MIN);
 
   const model = useMemo(() => {
     // The axis spans the FULL history so the chart keeps its shape under a
@@ -115,7 +120,7 @@ export function ViewingVelocity() {
   const y = (v: number) => base - h(v);
 
   return (
-    <div>
+    <div ref={ref}>
       <div className="mb-2 flex flex-wrap items-center gap-3">
         <Toggle options={GRAINS} value={grain} onChange={setGrain} label="Bucket size" />
         <Toggle options={KINDS} value={kind} onChange={setKind} label="Which watches" />

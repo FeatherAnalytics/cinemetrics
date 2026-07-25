@@ -5,11 +5,19 @@ import { useExplorer } from "@/lib/store";
 import { ACCENT, INK } from "@/lib/palette";
 import { insetRect, lerpHex, mean, NO_DATA_STROKE } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
+import { useWidth } from "@/lib/useWidth";
 import { isPicked, pickWatches } from "./pick";
 
 const FADE = "#b3b1a6";
 const MID = "#eceae3";
 const BASE_FONT = 9;
+
+// The matrix is square, so the cell size sets both dimensions: letting it run
+// free would trade a wide column for a tall one. CELL_MIN is where a two-digit
+// mean still fits; past CELL_MAX the grid is mostly gutter.
+const CELL_MIN = 34;
+const CELL_MAX = 52;
+const PAD = 96; // gutter for the genre labels, rotated on top and flush right
 
 const MIN_FILMS_PER_GENRE = 10;
 
@@ -36,6 +44,7 @@ function densityColor(share: number): string {
  */
 export function GenrePairing() {
   const { filtered, filters, setSelection } = useExplorer();
+  const [ref, W] = useWidth(720);
 
   const model = useMemo(() => {
     const byFilm = new Map<number, { ratings: number[]; watches: EnrichedWatch[]; genres: string[] }>();
@@ -90,8 +99,11 @@ export function GenrePairing() {
   const maxN = Math.max(...[...pairs.values()].map((v) => v.n), 1);
   const share = (r: number) => (hi > lo ? Math.max(0, Math.min(1, (r - lo) / (hi - lo))) : 1);
 
-  const cell = 34;
-  const pad = 96;
+  const pad = PAD;
+  const cell = Math.max(
+    CELL_MIN,
+    Math.min(CELL_MAX, (W - pad - 10) / Math.max(genres.length, 1)),
+  );
   const size = pad + genres.length * cell + 10;
 
   /**
@@ -115,13 +127,15 @@ export function GenrePairing() {
   };
 
   return (
-    <div>
+    <div ref={ref}>
       <div
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
         style={{ color: INK.muted }}
       >
         shade = film count · number = mean rating · MIN N = {MIN_FILMS_PER_GENRE}
       </div>
+      {/* Scrolls rather than shrinks below CELL_MIN: a matrix squeezed past the
+          point its numbers fit is not a smaller chart, it is an unreadable one. */}
       <div className="overflow-x-auto">
         <svg width={size} height={size} role="img">
           {genres.map((g, i) => (

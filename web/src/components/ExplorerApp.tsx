@@ -204,7 +204,10 @@ function Explorer() {
       : {};
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-10">
+    // w-full is load-bearing: body is a column flex container, so mx-auto alone
+    // leaves main shrink-to-fit. Any chart that measures its own column would
+    // then pin the page to the width it first drew at.
+    <main className="mx-auto w-full max-w-7xl px-6 py-10">
       <header className="mb-6">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-[#67655f]">
           a personal film log · {startYear}–{endYear}
@@ -301,7 +304,10 @@ function Explorer() {
         </aside>
 
         <div className="min-w-0 flex-1">
-          <div className="grid gap-8">
+          {/* grid-cols-1 keeps the track definite. A bare grid falls back to an
+              implicit max-content column, which any width-measuring chart would
+              then pin to whatever it first drew at. */}
+          <div className="grid grid-cols-1 gap-8">
             <SelectionPanel />
 
             {CHART_SECTIONS.map(({ id, title, blurbClass, blurb, Chart }) => (

@@ -14,9 +14,13 @@ import {
   YEAR_SLOTS,
 } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
+import { useWidth } from "@/lib/useWidth";
 import { isPicked, pickWatches } from "./pick";
 
-const W = 720;
+const W0 = 720;
+// Floored higher than the other plots: the right margin is a fixed-width table,
+// so the plot itself is what a narrow column eats into.
+const W_MIN = 380;
 const H = 250;
 const ML = 34;
 // Wide enough for "2020 146"; at 40 the labels clipped.
@@ -38,6 +42,7 @@ const FADE = "#b3b1a6";
 export function ViewingsToDate() {
   const { filtered, filters, setSelection } = useExplorer();
   const [hover, setHover] = useState<number | null>(null);
+  const [ref, W] = useWidth(W0, W_MIN);
 
   const years = useMemo(() => {
     const daily = new Map<number, number[]>();
@@ -131,7 +136,7 @@ export function ViewingsToDate() {
   })();
 
   return (
-    <div>
+    <div ref={ref}>
       <div
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
         style={{ color: INK.muted }}

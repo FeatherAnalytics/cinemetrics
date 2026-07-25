@@ -2,8 +2,10 @@
 
 import { INK } from "@/lib/palette";
 import { quantile } from "@/lib/statsChart";
+import { useWidth } from "@/lib/useWidth";
 
-const W = 720;
+const W0 = 720; // pre-measurement width, matching the usual desktop column
+const W_MIN = 300;
 const FADE = "#b3b1a6";
 const MID = "#eceae3";
 
@@ -41,6 +43,9 @@ export function CategoryBars({
   onPick?: (index: number) => void;
   fmt?: (v: number) => string;
 }) {
+  // Width tracks the column, height is fixed: there is no viewBox, so one user
+  // unit is one pixel and the type stays the same size at every width.
+  const [ref, W] = useWidth(W0, W_MIN);
   const H = 180;
   const MR = 12;
   const MB = 30;
@@ -66,102 +71,104 @@ export function CategoryBars({
   const hot = new Set(highlight ?? []);
 
   return (
-    <svg width={W} height={H} role="img" style={{ maxWidth: "100%" }}>
-      {/* Backdrop tint sits behind everything, at the lowest contrast that still
-          separates: one flat band, no border, no second color. */}
-      {[...hot].map((i) => (
-        <rect
-          key={`hl-${i}`}
-          x={cx(i) - colW / 2}
-          y={0}
-          width={colW}
-          height={H - MB + 4}
-          fill={MID}
-        />
-      ))}
-
-      {[0, peak].map((v, i) => (
-        <g key={`t-${i}`}>
-          <line x1={ML} y1={y(v)} x2={W - MR} y2={y(v)} stroke="#eee" />
-          <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill={INK.muted}>
-            {fmt(v)}
-          </text>
-        </g>
-      ))}
-
-      {bars.map((b, i) => (
-        <g key={`bar-${i}`}>
+    <div ref={ref}>
+      <svg width={W} height={H} role="img" style={{ maxWidth: "100%" }}>
+        {/* Backdrop tint sits behind everything, at the lowest contrast that still
+            separates: one flat band, no border, no second color. */}
+        {[...hot].map((i) => (
           <rect
-            x={cx(i) - barW / 2}
-            y={y(b.value)}
-            width={barW}
-            height={H - MB - y(b.value)}
-            fill={active === i ? "#c01023" : FADE}
-          />
-          {/* Full-height hit area: a short bar is a small target, and the reader
-              is aiming at the column, not the ink. */}
-          <rect
+            key={`hl-${i}`}
             x={cx(i) - colW / 2}
             y={0}
             width={colW}
-            height={H - MB}
-            fill="transparent"
-            style={{ cursor: onPick ? "pointer" : "default" }}
-            onClick={onPick ? () => onPick(i) : undefined}
-          >
-            <title>{b.title}</title>
-          </rect>
-        </g>
-      ))}
+            height={H - MB + 4}
+            fill={MID}
+          />
+        ))}
 
-      <line
-        x1={ML}
-        y1={y(median)}
-        x2={W - MR}
-        y2={y(median)}
-        stroke={INK.muted}
-        strokeWidth={1}
-        strokeDasharray="4 3"
-        pointerEvents="none"
-      />
-      <text
-        x={ML - 6}
-        y={y(median) + 3}
-        textAnchor="end"
-        fontSize={8}
-        fill={INK.muted}
-        pointerEvents="none"
-      >
-        median {fmt(median)}
-      </text>
+        {[0, peak].map((v, i) => (
+          <g key={`t-${i}`}>
+            <line x1={ML} y1={y(v)} x2={W - MR} y2={y(v)} stroke="#eee" />
+            <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill={INK.muted}>
+              {fmt(v)}
+            </text>
+          </g>
+        ))}
 
-      {bars.map((b, i) => (
-        <text
-          key={`lbl-${i}`}
-          x={cx(i)}
-          y={H - MB + 14}
-          textAnchor="middle"
-          fontSize={9}
-          fill={active === i ? "#c01023" : INK.primary}
-          fontWeight={active === i ? 700 : 400}
+        {bars.map((b, i) => (
+          <g key={`bar-${i}`}>
+            <rect
+              x={cx(i) - barW / 2}
+              y={y(b.value)}
+              width={barW}
+              height={H - MB - y(b.value)}
+              fill={active === i ? "#c01023" : FADE}
+            />
+            {/* Full-height hit area: a short bar is a small target, and the reader
+                is aiming at the column, not the ink. */}
+            <rect
+              x={cx(i) - colW / 2}
+              y={0}
+              width={colW}
+              height={H - MB}
+              fill="transparent"
+              style={{ cursor: onPick ? "pointer" : "default" }}
+              onClick={onPick ? () => onPick(i) : undefined}
+            >
+              <title>{b.title}</title>
+            </rect>
+          </g>
+        ))}
+
+        <line
+          x1={ML}
+          y1={y(median)}
+          x2={W - MR}
+          y2={y(median)}
+          stroke={INK.muted}
+          strokeWidth={1}
+          strokeDasharray="4 3"
           pointerEvents="none"
-        >
-          {b.label}
-        </text>
-      ))}
-      {bars.map((b, i) => (
+        />
         <text
-          key={`n-${i}`}
-          x={cx(i)}
-          y={H - MB + 25}
-          textAnchor="middle"
+          x={ML - 6}
+          y={y(median) + 3}
+          textAnchor="end"
           fontSize={8}
           fill={INK.muted}
           pointerEvents="none"
         >
-          {fmt(b.value)}
+          median {fmt(median)}
         </text>
-      ))}
-    </svg>
+
+        {bars.map((b, i) => (
+          <text
+            key={`lbl-${i}`}
+            x={cx(i)}
+            y={H - MB + 14}
+            textAnchor="middle"
+            fontSize={9}
+            fill={active === i ? "#c01023" : INK.primary}
+            fontWeight={active === i ? 700 : 400}
+            pointerEvents="none"
+          >
+            {b.label}
+          </text>
+        ))}
+        {bars.map((b, i) => (
+          <text
+            key={`n-${i}`}
+            x={cx(i)}
+            y={H - MB + 25}
+            textAnchor="middle"
+            fontSize={8}
+            fill={INK.muted}
+            pointerEvents="none"
+          >
+            {fmt(b.value)}
+          </text>
+        ))}
+      </svg>
+    </div>
   );
 }

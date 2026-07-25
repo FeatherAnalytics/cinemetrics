@@ -5,9 +5,11 @@ import { useExplorer } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
 import { GENRE_ALPHA, mean, tukey, type BoxBounds } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
+import { useWidth } from "@/lib/useWidth";
 import { isPicked, pickWatches } from "./pick";
 
-const W = 720;
+const W0 = 720;
+const W_MIN = 300;
 const H = 290;
 // Room above the 5-star tick for the n row, which sits at the TOP rather than
 // under the genre label: on a bottom row it was the fourth thing the eye hit and
@@ -39,6 +41,7 @@ type Row = BoxBounds & { genre: GenreKey; n: number; watches: EnrichedWatch[] };
  */
 export function RatingsByGenre() {
   const { filtered, filters, setSelection } = useExplorer();
+  const [ref, W] = useWidth(W0, W_MIN);
 
   const rows = useMemo(() => {
     const byFilm = new Map<
@@ -86,7 +89,7 @@ export function RatingsByGenre() {
   const y = (v: number) => MT + (1 - v / 100) * (H - MT - MB);
 
   return (
-    <div>
+    <div ref={ref}>
       <div
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
         style={{ color: INK.muted }}

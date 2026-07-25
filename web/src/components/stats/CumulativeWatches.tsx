@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
 import { ceilTo, GENRE_ALPHA, monthSpan, ticksEvery } from "@/lib/statsChart";
+import { useWidth } from "@/lib/useWidth";
 
-const W = 720;
+const W0 = 720;
+const W_MIN = 300;
 const H = 260;
 const ML = 44;
 const MB = 24;
@@ -30,6 +32,7 @@ type Band = { key: string; color: string; running: number[] };
 export function CumulativeWatches() {
   const { all, filtered, filters } = useExplorer();
   const [hover, setHover] = useState<number | null>(null);
+  const [ref, W] = useWidth(W0, W_MIN);
 
   const model = useMemo(() => {
     const months = monthSpan(all.map((w) => w.date));
@@ -120,7 +123,7 @@ export function CumulativeWatches() {
   };
 
   return (
-    <div>
+    <div ref={ref}>
       <div
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
         style={{ color: INK.muted }}

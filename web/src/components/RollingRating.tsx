@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { ACCENT, INK } from "@/lib/palette";
 import { useDragRect, watchKey } from "@/lib/brush";
+import { useWidth } from "@/lib/useWidth";
 import { trunc } from "@/lib/format";
 import { buildSeries, DIMENSIONS, type Dimension, type Series } from "@/lib/series";
 import { computeAvgRating } from "@/lib/stats";
@@ -35,23 +36,6 @@ type Domain = {
   // different moments in time at the same x — so it compared nothing real.
   overallAvg: number | null;
 };
-
-/** Track an element's rendered width via ResizeObserver (for the 1:1 viewBox). */
-function useWidth(): [React.RefObject<HTMLDivElement | null>, number] {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [w, setW] = useState(360);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const cw = entries[0].contentRect.width;
-      if (cw > 0) setW(cw);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return [ref, w];
-}
 
 // Module-scope so its identity is stable — a component defined inside the parent
 // would remount every panel on each hover.
