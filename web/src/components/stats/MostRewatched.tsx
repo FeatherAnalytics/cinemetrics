@@ -301,6 +301,12 @@ export function MostRewatched() {
 export function MostRewatchedBlurb() {
   const { repeatFilms, allFilms, returns } = useMostRewatched();
   if (!allFilms) return null;
+  // A filter can leave nothing that was ever watched twice, and the general
+  // sentence then degenerated into "0% of films (0 of 25) account for all 0
+  // returns", which is three zeros dressed up as a finding.
+  if (repeatFilms === 0) {
+    return <>Nothing under this filter has been watched more than once.</>;
+  }
   const pct = Math.round((100 * repeatFilms) / allFilms);
   return (
     <>

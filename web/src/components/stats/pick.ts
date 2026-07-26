@@ -20,6 +20,11 @@ import type { EnrichedWatch } from "@/lib/types";
 export function accentFor(genres: Set<GenreKey | string>): string {
   if (genres.size !== 1) return ACCENT;
   const only = [...genres][0] as GenreKey;
+  // "Other" is excluded on purpose. It is a catch-all rather than an identity,
+  // and its color is a chrome gray one step from the FADE used for everything
+  // unselected, so taking it as the accent painted the highlight in almost
+  // exactly the color of the things it was supposed to stand out from.
+  if (only === "Other") return ACCENT;
   return GENRE_COLORS[only] ?? ACCENT;
 }
 

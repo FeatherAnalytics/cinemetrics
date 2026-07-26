@@ -5,6 +5,7 @@ import { useExplorer } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
 import { ceilTo, GENRE_ALPHA, monthSpan, ticksEvery } from "@/lib/statsChart";
 import { useWidth } from "@/lib/useWidth";
+import { accentFor } from "./pick";
 
 const W0 = 720;
 const W_MIN = 300;
@@ -61,15 +62,23 @@ export function CumulativeWatches() {
     };
     if (isFiltered) {
       const keep = new Set(filtered);
+      // The complement is "rest", never "other". Filtering to the Other genre
+      // made both bands read "other 25 · other 780" and the strip say "other vs
+      // other", because Other is a real genre name here as well as the obvious
+      // word for everything else. "rest" cannot collide with a genre.
+      //
+      // Color goes through accentFor for the same reason the highlights do:
+      // Other's own gray sits one step from FADE, so the two bands were very
+      // nearly the same color and the stack read as one undivided mass.
       bands.push(
         {
           key: only ? only.toLowerCase() : "selected",
-          color: only ? GENRE_COLORS[only] : ACCENT,
+          color: only ? accentFor(new Set([only])) : ACCENT,
           running: blank(),
           sum: blank(),
           rated: blank(),
         },
-        { key: "other", color: FADE, running: blank(), sum: blank(), rated: blank() },
+        { key: "rest", color: FADE, running: blank(), sum: blank(), rated: blank() },
       );
       for (const w of all) {
         const i = idx.get(w.date.slice(0, 7));
@@ -170,7 +179,7 @@ export function CumulativeWatches() {
         style={{ color: INK.muted }}
       >
         <span className="uppercase tracking-wider">
-          {isFiltered ? `${bands[0].key} vs other` : "all films"}
+          {isFiltered ? `${bands[0].key} vs rest` : "all films"}
         </span>
         {polys.map((p) => (
           <span key={p.key} className="inline-flex items-center gap-1" style={{ color: p.color }}>

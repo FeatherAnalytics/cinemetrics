@@ -83,7 +83,12 @@ export function ViewingsToDate() {
   if (!years.length) return null;
 
   const peak = Math.max(...years.flatMap((y) => y.cum.map((v) => v ?? 0)), 1);
-  const TICK_STEP = 50;
+  // The tick step follows the data instead of being pinned at 50. Filtered to a
+  // 25-watch genre the busiest year reaches 8, and a fixed 50-step axis put the
+  // whole chart in the bottom sixth of its own plot with five empty gridlines
+  // above it. Steps stay round so the labels are still numbers a reader can do
+  // arithmetic with.
+  const TICK_STEP = peak <= 10 ? 2 : peak <= 25 ? 5 : peak <= 60 ? 10 : 50;
   const scaleMax = Math.max(ceilTo(peak, TICK_STEP), TICK_STEP);
   const x = (i: number) => ML + (i / (YEAR_SLOTS - 1)) * (W - ML - MR);
   const y = (v: number) => H - MB - (v / scaleMax) * (H - MB - 12);
