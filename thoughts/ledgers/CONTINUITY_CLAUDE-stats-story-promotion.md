@@ -175,8 +175,32 @@ matching watches, and #5c recolors to the active filter.
     - [x] Adaptive tick step on #12; empty states for no-rewatches and for a
           one-genre pairing grid
     - [x] Pushed to origin through 9853943
-- Now: [→] Next session is `liked`: rebuild `/lab` as the prototype surface.
-        See thoughts/HANDOFF-charts-and-export-ingest.md.
+  - [x] Phase 17: `liked` prototypes on a rebuilt `/lab`
+    - [x] FINDING: the heart is FILM-level, not per-watch. Identical across all
+          61 films with 2+ known watches, while the rating differs on 21.
+          Letterboxd stamps one toggle onto every diary entry. Comments in
+          letterboxd.py, types.ts and dim_film.sql claimed the opposite and are
+          corrected. Kills "is the heart more stable across a rewatch" as a
+          question, and confounds the rewatch/affection link (39% vs 63%)
+    - [x] FINDING: the heart is close to a threshold on the rating. 0% / 3% /
+          26% / 73% / 98% across <60 / 60s / 70s / 80s / 90+. Disagreement is
+          ONE-SIDED: 57 films rated 80+ unhearted, against 3 hearted at 65-
+    - [x] NON-FINDING, nearly shipped: affection climbs 30% to 60% across
+          runtime bands, but that gradient is the RATING climbing with runtime
+          (65.3 to 80.9). Inside 70-89 it is flat. Same for genre
+    - [x] `lib/likedChart.ts` + 24 tests; `components/lab/RateBars.tsx` (fixed
+          0-100% scale, n on the bar, ref line and its label always one number)
+    - [x] Four panels: by rating band, predictors held to 70-89, admired-not-
+          loved, affection by watch year
+    - [x] Narrow-filter defects found and fixed: genre dimension collapsing to
+          one column under a genre filter (dropped from the toggle); n<5 bars
+          at full strength (faded to 0.35); ref label landing on the last bar
+          (given its own margin); "0% of 0" in a blurb; two static blurbs
+          quoting full-library numbers under a filter
+    - [x] Verified: 80s bar selects 206 watches, second click clears
+    - [x] 191 tests, tsc / eslint / ruff / next build clean
+- Now: [→] Review the four `/lab` prototypes; decide which earn a place on the
+        main page. See thoughts/HANDOFF-charts-and-export-ingest.md.
 - Remaining:
   - [ ] `ChartTakeaway` per stats section, matching the narrative sections
   - [ ] Hover readouts on the stats charts that still lack them. Cumulative,
@@ -186,6 +210,14 @@ matching watches, and #5c recolors to the active filter.
 
 ## Open Questions
 
+- UNCONFIRMED: the film-level heart is inferred from 61 films plus how the
+  Letterboxd product works, not from Letterboxd's own documentation. The
+  innocent reading is that the heart genuinely never changed on those 61. A
+  Letterboxd export or API check would settle it.
+- UNCONFIRMED: the `liked` charts count WATCHES, matching the rest of the site
+  and cross-filtering cleanly. Since the heart is film-level this double-counts
+  a hearted film once per viewing: 46.3% watch-level against 41.2% film-level.
+  Chosen deliberately; revisit if a chart makes the gap misleading.
 - UNCONFIRMED: should #12's year lines be clickable too, or is click-select only
   for bar-shaped marks? Assuming bars first, lines later if wanted.
 - UNCONFIRMED: where #12 belongs long term, main page or stats story. It

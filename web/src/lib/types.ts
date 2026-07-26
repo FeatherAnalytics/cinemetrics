@@ -27,8 +27,11 @@ export type Watch = {
   stars: number | null;
   rewatch: boolean;
   /**
-   * The Letterboxd heart, per watch: a film can be disliked on first viewing
-   * and liked on a rewatch.
+   * The Letterboxd heart. Carried on the watch, but a property of the FILM:
+   * hearting is a single toggle per film, stamped onto every diary entry for
+   * it, so all of a film's watches always share one value. Grouping by film and
+   * expecting the heart to vary between viewings will always find that it does
+   * not.
    *
    * NULL means UNKNOWN, not "not liked": the 129 pre-Letterboxd watches have no
    * like data at all. Filter nulls out before computing any rate, or the

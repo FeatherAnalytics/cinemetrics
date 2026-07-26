@@ -6,11 +6,16 @@ with films as (
         any_value(imdb_id)      as imdb_id,
         any_value(title)        as title,
         any_value(release_year) as release_year,
-        -- Film-level like, for the recommender (per-watch state stays in
-        -- fct_watches). bool_or ignores NULLs and returns NULL when every watch is
-        -- unknown, which preserves the three-state semantics exactly: liked on any
-        -- watch -> true; watched on Letterboxd and never liked -> false;
-        -- pre-Letterboxd only -> null (unknown).
+        -- Film-level like, for the recommender. The heart is ALREADY film-level
+        -- upstream: Letterboxd stamps one toggle onto every diary entry for a
+        -- film, so every non-null row for a tmdb_id carries the same value and
+        -- this aggregate never actually has to choose between two of them.
+        --
+        -- bool_or stays because it handles the case that does vary, which is
+        -- whether the heart was recorded at all: it ignores NULLs and returns
+        -- NULL only when every watch is unknown. So a film with one Letterboxd
+        -- watch and three pre-Letterboxd ones takes the known value rather than
+        -- being dragged to unknown, and pre-Letterboxd-only -> null.
         bool_or(liked)          as liked
     from {{ ref('stg_film_log') }}
     group by tmdb_id

@@ -68,10 +68,18 @@ def fetch_new_watches(letterboxd_user: str, existing_log_path: Path) -> list[dic
         rewatch_text = rewatch_el.text.strip() if has_rewatch else "No"
         is_rewatch = "true" if rewatch_text == "Yes" else "false"
 
-        # letterboxd:memberLike is the heart, which is independent of the star
-        # rating: ~59% of whether a film is liked is unexplained by its rating.
-        # Captured per watch, not per film, because the like can change between
-        # viewings — a film disliked on first watch may be liked on a rewatch.
+        # letterboxd:memberLike is the heart. It is stored per row because the
+        # feed gives it per row, NOT because it varies between viewings: the
+        # heart is a film-level toggle on Letterboxd, and the feed stamps its
+        # current state onto every diary entry for that film. Across the 61
+        # films here with two or more Letterboxd watches, the value is identical
+        # on every entry, while the rating differs on 21 of them.
+        #
+        # Two things follow. A heart pressed today lands on a viewing from years
+        # ago, so early years are not a clean record of what was felt at the
+        # time. And "is the heart more stable across a rewatch than the rating"
+        # is not a question this column can answer.
+        #
         # An absent element means UNKNOWN, not "not liked"; keep that distinction
         # so affection-rate denominators stay honest.
         like_el = item.find("letterboxd:memberLike", NS)
