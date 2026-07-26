@@ -1,19 +1,21 @@
 import { describe, it, expect } from "vitest";
 import {
   admiredNotLoved,
-  byRatingBand,
   byRewatch,
   byRuntimeBand,
+  byStarBin,
+  CROSSOVER_STARS,
   crossoverWatches,
   hasKnownLike,
   knownWatches,
   likedByWatchYear,
   likedRate,
   lovedNotAdmired,
-  RATING_BANDS,
-  ratingBandIndex,
   RUNTIME_BANDS,
   runtimeBandIndex,
+  starBinIndex,
+  starLabel,
+  STAR_BINS,
 } from "../likedChart";
 import type { EnrichedWatch, Film } from "../types";
 
@@ -97,36 +99,59 @@ describe("knownWatches", () => {
   });
 });
 
-describe("ratingBandIndex", () => {
-  it("puts each band edge in the band that claims it", () => {
-    expect(RATING_BANDS[ratingBandIndex(59)].label).toBe("<60");
-    expect(RATING_BANDS[ratingBandIndex(60)].label).toBe("60s");
-    expect(RATING_BANDS[ratingBandIndex(69)].label).toBe("60s");
-    expect(RATING_BANDS[ratingBandIndex(70)].label).toBe("70s");
-    expect(RATING_BANDS[ratingBandIndex(89)].label).toBe("80s");
-    expect(RATING_BANDS[ratingBandIndex(90)].label).toBe("90+");
-    expect(RATING_BANDS[ratingBandIndex(100)].label).toBe("90+");
+describe("starBinIndex", () => {
+  it("maps each rating to its exact half star", () => {
+    expect(STAR_BINS[starBinIndex(20)]).toBe(1);
+    expect(STAR_BINS[starBinIndex(70)]).toBe(3.5);
+    expect(STAR_BINS[starBinIndex(80)]).toBe(4);
+    expect(STAR_BINS[starBinIndex(90)]).toBe(4.5);
+    expect(STAR_BINS[starBinIndex(100)]).toBe(5);
   });
 
-  it("collapses the thin low tail into one band", () => {
-    expect(ratingBandIndex(10)).toBe(ratingBandIndex(55));
+  it("keeps 4.5 and 5 stars apart", () => {
+    // The old "90+" band merged them. They are 97% and 100% hearted, and they
+    // are the two ends of the curve most worth telling apart.
+    expect(starBinIndex(90)).not.toBe(starBinIndex(100));
+  });
+
+  it("rounds an off-scale rating into its closest bin instead of dropping it", () => {
+    expect(STAR_BINS[starBinIndex(77)]).toBe(4);
+    expect(STAR_BINS[starBinIndex(73)]).toBe(3.5);
+  });
+
+  it("returns -1 below the scale rather than pinning to the first bin", () => {
+    expect(starBinIndex(0)).toBe(-1);
   });
 });
 
-describe("byRatingBand", () => {
-  it("returns one bucket per band even when a band is empty", () => {
-    const out = byRatingBand([watch({ rating: 85 })]);
-    expect(out).toHaveLength(RATING_BANDS.length);
-    expect(out.map((g) => g.length)).toEqual([0, 0, 0, 1, 0]);
+describe("starLabel", () => {
+  it("uses the house rating label, matching the RatingsByGenre axis", () => {
+    expect(starLabel(3.5)).toBe("3.5★");
+    expect(starLabel(4)).toBe("4★");
+  });
+});
+
+describe("byStarBin", () => {
+  it("returns one bucket per bin even when a bin is empty", () => {
+    const out = byStarBin([watch({ rating: 80 })]);
+    expect(out).toHaveLength(STAR_BINS.length);
+    expect(out.filter((g) => g.length).length).toBe(1);
+    expect(out[STAR_BINS.indexOf(4)]).toHaveLength(1);
   });
 
   it("drops unknown-like and unrated watches", () => {
-    const out = byRatingBand([
-      watch({ rating: 85, liked: null }),
+    const out = byStarBin([
+      watch({ rating: 80, liked: null }),
       watch({ rating: null }),
-      watch({ rating: 85 }),
+      watch({ rating: 80 }),
     ]);
     expect(out.reduce((s, g) => s + g.length, 0)).toBe(1);
+  });
+
+  it("puts the crossover stars in adjacent bins", () => {
+    const lo = STAR_BINS.indexOf(CROSSOVER_STARS[0]);
+    const hi = STAR_BINS.indexOf(CROSSOVER_STARS[1]);
+    expect(hi - lo).toBe(1);
   });
 });
 

@@ -45,48 +45,60 @@ export function likedRate(watches: EnrichedWatch[]): Rate {
   return { liked, n: known.length, rate: known.length ? liked / known.length : 0 };
 }
 
-/* ------------------------------------------------------------ rating bands */
+/* -------------------------------------------------------------- star bins */
 
 /**
- * Rating bands for the affection curve.
+ * Half-star bins, the rating axis every other chart here draws.
  *
- * Ten-point bands, with everything below 60 collapsed into one. The tail is
- * thin (59 watches across four decades of the scale) and every one of those
- * bands is either empty or unanimous, so drawing them separately spends four
- * columns to say the same thing once.
+ * Not an approximation of the 0-100 scale: it IS the scale. Letterboxd only
+ * accepts half stars, `my_rating` is `star_rating * 20` exactly, and every
+ * rating in the library is a clean multiple of ten. So a bin holds one rating
+ * value rather than a range, and ten-point "bands" were the same bins under
+ * labels that implied otherwise. "60s" contained nothing but 60, and "90+"
+ * quietly merged 4.5 stars with 5, which are 97% and 100% hearted and the two
+ * ends of the curve worth telling apart.
  *
- * The bands are deliberately NOT quantiles. The question is where the heart
- * flips as a function of the rating I gave, so the x axis has to be the rating
- * scale itself; equal-count bands would put the axis on my own distribution and
- * the crossover would move whenever the library grows.
+ * Half stars and not whole ones, because the flip happens between 3.5 and 4.
+ * Rounding to whole stars would put the entire finding inside one column.
+ *
+ * The low tail is kept rather than collapsed. One and 1.5 stars are two watches
+ * each, which `RateBars` already fades below its thin-n floor, and that reads
+ * more honestly than a "<2.5" bucket the axis has to explain.
  */
-export const RATING_BANDS = [
-  { label: "<60", lo: 0, hi: 59 },
-  { label: "60s", lo: 60, hi: 69 },
-  { label: "70s", lo: 70, hi: 79 },
-  { label: "80s", lo: 80, hi: 89 },
-  { label: "90+", lo: 90, hi: 100 },
-] as const;
+// Typed as numbers rather than a literal union: callers look bins up by value
+// (`STAR_BINS.indexOf(CROSSOVER_STARS[0])`), and a union would make every one of
+// those a cast for no safety worth having.
+export const STAR_BINS: readonly number[] = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
 
-export function ratingBandIndex(rating: number): number {
-  for (let i = 0; i < RATING_BANDS.length; i++) {
-    if (rating >= RATING_BANDS[i].lo && rating <= RATING_BANDS[i].hi) return i;
-  }
-  return -1;
+/** The house rating label: `{rating / 20}★`, matching RatingsByGenre's axis. */
+export function starLabel(stars: number): string {
+  return `${stars}★`;
 }
 
 /**
- * Known-like watches grouped into the rating bands.
+ * The bin a rating falls in, by rounding to the nearest half star.
  *
- * Unrated watches are dropped rather than bucketed: there is no band for "no
+ * Derived from `rating` rather than read off `stars` so there is one source of
+ * truth for the scale, and rounded rather than matched exactly so a rating that
+ * is somehow not a clean multiple of ten lands in its closest bin instead of
+ * vanishing from the chart.
+ */
+export function starBinIndex(rating: number): number {
+  return STAR_BINS.indexOf(Math.round(rating / 10) / 2);
+}
+
+/**
+ * Known-like watches grouped into the star bins.
+ *
+ * Unrated watches are dropped rather than bucketed: there is no bin for "no
  * rating" on a rating axis, and in this dataset the question never comes up
  * anyway, since all 665 known-like watches carry a rating.
  */
-export function byRatingBand(watches: EnrichedWatch[]): EnrichedWatch[][] {
-  const out: EnrichedWatch[][] = RATING_BANDS.map(() => []);
+export function byStarBin(watches: EnrichedWatch[]): EnrichedWatch[][] {
+  const out: EnrichedWatch[][] = STAR_BINS.map(() => []);
   for (const w of knownWatches(watches)) {
     if (w.rating == null) continue;
-    const i = ratingBandIndex(w.rating);
+    const i = starBinIndex(w.rating);
     if (i >= 0) out[i].push(w);
   }
   return out;
@@ -95,14 +107,20 @@ export function byRatingBand(watches: EnrichedWatch[]): EnrichedWatch[][] {
 /* ---------------------------------------------------------- the middle band */
 
 /**
- * The zone where the heart is actually in question.
+ * The zone where the heart is actually in question: 3.5 and 4 stars.
  *
- * Below 70 the heart is essentially never given and above 90 essentially always,
- * so a predictor tested across the whole scale is really just rediscovering the
- * rating. Anything claiming to move affection has to move it in HERE, where the
- * rate sits near a coin flip, or it has moved the rating instead.
+ * Below 3.5 the heart is essentially never given and at 4.5 and up essentially
+ * always, so a predictor tested across the whole scale is really just
+ * rediscovering the rating. Anything claiming to move affection has to move it
+ * in HERE, where the rate sits near a coin flip, or it has moved the rating
+ * instead.
+ *
+ * Held in rating points because that is what the column stores; 70 to 89 spans
+ * exactly the 70 and 80 values, which are 3.5 and 4 stars. `CROSSOVER_STARS` is
+ * the same band for anything that has to say it out loud.
  */
 export const CROSSOVER: [number, number] = [70, 89];
+export const CROSSOVER_STARS: [number, number] = [3.5, 4];
 
 export function inCrossover(w: EnrichedWatch): boolean {
   return w.rating != null && w.rating >= CROSSOVER[0] && w.rating <= CROSSOVER[1];

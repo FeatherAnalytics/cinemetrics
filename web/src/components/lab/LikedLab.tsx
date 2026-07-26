@@ -49,7 +49,7 @@ const SECTIONS: Section[] = [
     // where one Comedy watch draws a 100% column; a static sentence cannot make
     // a claim the rail is free to falsify.
     blurb:
-      "Only watches rated 70 to 89, so a dimension that merely predicts my rating cannot show up here as predicting the heart.",
+      "Only watches at 3.5★ and 4★, so a dimension that merely predicts my rating cannot show up here as predicting the heart.",
     Chart: WhatMovesTheHeart,
   },
   {

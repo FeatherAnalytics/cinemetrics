@@ -7,8 +7,9 @@ import { GENRE_ALPHA } from "@/lib/statsChart";
 import {
   byRewatch,
   byRuntimeBand,
-  CROSSOVER,
+  CROSSOVER_STARS,
   crossoverWatches,
+  starLabel,
   likedRate,
   REWATCH_LABELS,
   RUNTIME_BANDS,
@@ -92,7 +93,8 @@ export function WhatMovesTheHeart() {
   if (bandRate.n === 0) {
     return (
       <p className="text-sm" style={{ color: INK.muted }}>
-        No watches rated {CROSSOVER[0]} to {CROSSOVER[1]} under this filter.
+        No watches at {starLabel(CROSSOVER_STARS[0])} or {starLabel(CROSSOVER_STARS[1])}{" "}
+        under this filter.
       </p>
     );
   }
@@ -110,7 +112,7 @@ export function WhatMovesTheHeart() {
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
         style={{ color: INK.muted }}
       >
-        hearted, rated {CROSSOVER[0]}-{CROSSOVER[1]} only
+        hearted, {starLabel(CROSSOVER_STARS[0])} and {starLabel(CROSSOVER_STARS[1])} only
       </div>
       <RateBars
         bars={bars}
