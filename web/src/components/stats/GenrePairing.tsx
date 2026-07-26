@@ -110,7 +110,22 @@ export function GenrePairing() {
   }, [filtered]);
 
   const { genres, pairs } = model;
-  if (!genres.length) return null;
+  // Rendering nothing here read as "these films carry one genre each", which is
+  // never true. What actually happened is that no genre cleared the threshold:
+  // filtered to a nine-film collection, no genre can reach ten films no matter
+  // how the films are tagged. Say that, the way the keyword chart does.
+  if (!genres.length) {
+    return (
+      <div
+        className="rounded-md border border-dashed px-4 py-6 text-sm"
+        style={{ borderColor: "rgba(11,11,11,0.15)", color: INK.muted }}
+      >
+        No genre reaches {MIN_FILMS_PER_GENRE} rated films under this filter, which is the
+        threshold a pair needs before its mean rating means anything. Widen the filters to
+        bring more films in.
+      </div>
+    );
+  }
 
   const solid = [...pairs.values()].filter((v) => v.n >= MIN_FILMS_PER_PAIR);
   const ratings = solid.map((v) => v.rating);

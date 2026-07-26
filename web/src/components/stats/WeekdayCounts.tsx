@@ -15,11 +15,10 @@ import { accentFor, isPicked, pickWatches } from "./pick";
  * across seven years where months differ by up to three days each. A pace
  * version was built and dropped for redrawing the identical shape.
  *
- * Under the axis each day carries its distance from the median day as a
- * PERCENTAGE. An absolute gap was tried and cut: the bars are already drawn
- * against a median gridline, so "+47" was printing a distance the reader could
- * see. "+44%" is the part the eye cannot do, and it states the gap against the
- * level it departs from rather than against nothing.
+ * Each bar is labeled with its distance from the median day as a PERCENTAGE,
+ * not with its count. The y axis already runs 0 to the peak with the median
+ * marked, so a count on the bar as well was the same number printed twice.
+ * The percentage is the part the axis cannot give.
  */
 export function WeekdayCounts() {
   const { filtered, filters, setSelection } = useExplorer();
@@ -55,7 +54,7 @@ export function WeekdayCounts() {
       <CategoryBars
         bars={bars}
         highlight={WEEKEND}
-        showShare
+        barLabel="share"
         accent={accentFor(filters.genres)}
         active={activeIndex >= 0 ? activeIndex : null}
         onPick={(i) => pickWatches(model.byDay[i], filters.selection, setSelection)}

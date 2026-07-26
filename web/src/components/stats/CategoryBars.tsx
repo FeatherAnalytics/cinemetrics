@@ -33,7 +33,7 @@ export function CategoryBars({
   onPick,
   fmt = (v: number) => String(Math.round(v)),
   accent = "#c01023",
-  showShare = false,
+  barLabel = "value",
   onHover,
 }: {
   bars: CategoryBar[];
@@ -46,19 +46,22 @@ export function CategoryBars({
   /** Highlight color, so a genre filter recolors the chart. */
   accent?: string;
   /**
-   * Print each bar's distance from the median as a PERCENTAGE, under the axis
-   * label.
+   * What the label ON the bar says.
    *
-   * A raw difference is already in the picture: the bars are drawn against a
-   * median gridline, so "+47" is the gap the reader can see. A percentage is
-   * the part that cannot be eyeballed, and it is the honest way to compare a
-   * gap against the level it departs from.
+   * "value" prints `fmt(value)`. "share" prints the bar's distance from the
+   * median as a percentage instead.
    *
-   * Only meaningful where the value is a count on a ratio scale with a
-   * non-zero median. Not used on the pace chart, whose `fmt` is a reciprocal:
-   * a percentage of a rate rendered as a duration is not a number.
+   * Use "share" wherever the y axis already carries the value, which is the
+   * usual case: the ticks run 0 to the peak with the median marked, so a count
+   * on the bar as well is the same number twice. The percentage is the part
+   * the axis cannot give, and it states the gap against the level it departs
+   * from rather than against nothing.
+   *
+   * "share" needs a value on a ratio scale with a non-zero median. Not for the
+   * pace chart, whose `fmt` is a reciprocal: a percentage of a rate printed as
+   * a duration is not a number that means anything.
    */
-  showShare?: boolean;
+  barLabel?: "value" | "share";
   /**
    * Hovered column index, or null on leave. The PARENT renders the readout, in
    * its own strip above the chart, the way the cumulative chart does.
@@ -78,10 +81,18 @@ export function CategoryBars({
   const MB = 30;
 
   const peak = Math.max(...bars.map((b) => b.value), 0.0001);
-  const median = quantile(
-    bars.map((b) => b.value).sort((a, b) => a - b),
-    0.5,
-  );
+  /**
+   * Median over categories that actually had a watch.
+   *
+   * Including the empty ones describes the AXIS rather than the viewing, and
+   * under a small filter it goes properly wrong: filtered to a nine-watch
+   * collection, six of the twelve months are zero, so the median landed
+   * halfway into the empty half and the pace chart printed "median 496.0"
+   * days between films. With the full library every category is non-empty and
+   * this changes nothing.
+   */
+  const live = bars.map((b) => b.value).filter((v) => v > 0).sort((a, b) => a - b);
+  const median = quantile(live, 0.5);
 
   // The gutter sizes to its widest label rather than a fixed number: axis labels
   // are caller-formatted, so "median 64" and "median 3.7" differ enough that a
@@ -144,28 +155,35 @@ export function CategoryBars({
               onMouseEnter={onHover ? () => onHover(i) : undefined}
               onMouseLeave={onHover ? () => onHover(null) : undefined}
             />
-            {/* The value rides its own bar, inside when there is room, exactly
+            {/* The label rides its own bar, inside when there is room, exactly
                 as it does on every horizontal bar chart here: same 11px, same
-                bold, same INK.surface / INK.primary flip. It used to sit under
-                the axis in 8px muted type, which was a second convention for
-                the same job. */}
-            {(() => {
-              const barH = H - MB - y(b.value);
-              const inside = barH > 24;
-              return (
-                <text
-                  x={cx(i)}
-                  y={inside ? y(b.value) + 15 : y(b.value) - 6}
-                  textAnchor="middle"
-                  fontSize={11}
-                  fontWeight={700}
-                  fill={valueLabelFill(inside)}
-                  pointerEvents="none"
-                >
-                  {fmt(b.value)}
-                </text>
-              );
-            })()}
+                bold, same INK.surface / INK.primary flip.
+
+                An EMPTY category gets no label at all. There is no bar to label
+                and nothing happened to describe; under a small filter the
+                weekday chart was printing "0" and "-100%" on days that simply
+                had no watches, which is noise dressed as a finding. */}
+            {b.value > 0 &&
+              (() => {
+                const barH = H - MB - y(b.value);
+                const inside = barH > 24;
+                const pct = median > 0 ? Math.round((100 * (b.value - median)) / median) : 0;
+                return (
+                  <text
+                    x={cx(i)}
+                    y={inside ? y(b.value) + 15 : y(b.value) - 6}
+                    textAnchor="middle"
+                    fontSize={11}
+                    fontWeight={700}
+                    fill={valueLabelFill(inside)}
+                    pointerEvents="none"
+                  >
+                    {barLabel === "share"
+                      ? `${pct > 0 ? "+" : ""}${pct}%`
+                      : fmt(b.value)}
+                  </text>
+                );
+              })()}
           </g>
         ))}
 
@@ -204,27 +222,6 @@ export function CategoryBars({
             {b.label}
           </text>
         ))}
-        {showShare &&
-          bars.map((b, i) => {
-            // Against the median rather than the mean: with a spike the size of
-            // October a mean sits above most of the values it is baselining, so
-            // almost every bar would read negative.
-            const pct = median > 0 ? Math.round((100 * (b.value - median)) / median) : 0;
-            return (
-              <text
-                key={`pct-${i}`}
-                x={cx(i)}
-                y={H - MB + 25}
-                textAnchor="middle"
-                fontSize={8}
-                fill={INK.muted}
-                pointerEvents="none"
-              >
-                {pct > 0 ? "+" : ""}
-                {pct}%
-              </text>
-            );
-          })}
       </svg>
     </div>
   );

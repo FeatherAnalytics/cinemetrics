@@ -168,8 +168,8 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        Watches per calendar day, by month, so a taller bar is a busier month. The
-        number under each is the flip side: days between films.
+        Watches per calendar day, by month, so a taller bar is a busier month. Each
+        bar is labeled with the flip side: days between films.
       </>
     ),
     Chart: MonthlyPace,
@@ -181,8 +181,8 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        Watches by day, weekend tinted. Under each bar, its distance from the median
-        day as a percentage.
+        Watches by day, weekend tinted. Each bar is labeled with its distance from the
+        median day.
       </>
     ),
     Chart: WeekdayCounts,

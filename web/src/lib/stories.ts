@@ -452,7 +452,7 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
   }
   const seen = counts.map((n, m) => ({ m, n })).filter((e) => e.n > 0);
   if (seen.length < 2) {
-    return { headline: "Not enough months logged to compare", chip: "Dive deep" };
+    return { headline: "Not enough months logged to compare", chip: "Deep dive" };
   }
   const busiest = seen.reduce((a, b) => (b.n > a.n ? b : a));
   const quietest = seen.reduce((a, b) => (b.n < a.n ? b : a));
@@ -505,15 +505,7 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
   }
   const rewatchNote =
     firstRatings.length >= 10 && rewatchRatings.length >= 10
-      ? (() => {
-          const f = mean(firstRatings) / 20;
-          const r = mean(rewatchRatings) / 20;
-          const d = r - f;
-          const verb = Math.abs(d) < 0.05 ? "the same" : d > 0 ? "higher" : "lower";
-          return verb === "the same"
-            ? `Going back does not change the score: ${r.toFixed(1)}★ on rewatches against ${f.toFixed(1)}★ on first watches.`
-            : `I rate rewatches ${verb}, ${r.toFixed(1)}★ against ${f.toFixed(1)}★ on first watches.`;
-        })()
+      ? `I rate rewatches ${(mean(rewatchRatings) / 20).toFixed(1)}★ and first watches ${(mean(firstRatings) / 20).toFixed(1)}★.`
       : null;
 
   // A missing test counts as null: too few groups to find an effect is not
