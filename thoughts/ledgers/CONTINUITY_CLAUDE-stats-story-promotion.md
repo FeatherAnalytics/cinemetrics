@@ -152,7 +152,31 @@ matching watches, and #5c recolors to the active filter.
     - [x] Pace by month and pace by weekday adjacent
     - [x] Headline dropped the rating clause (now a pace-chart hover); the
           "drag across it" note deleted as an interactivity announcement
-- Now: [→] Ready for the four story beats in STATS-STORY-NARRATIVE.md.
+  - [x] Phase 16: Hover parity, filter-aware annotation, low-n defects
+    - [x] Every data `<title>` removed. SVG `<title>` renders the BROWSER's
+          native tooltip, which matches nothing on this site. Pace by month
+          reads out in its own strip (avg rating only); weekday, velocity and
+          genrebox have no hover at all; pairing reads out in its strip
+    - [x] Cumulative shows ALL genre averages in one colored legend above the
+          chart; in-band labels only fit 4 of 6 and silently dropped two genres
+    - [x] `recomputeOnFilter` on StoryConfig: the annotation follows the rail.
+          Comedy moves the headline to "2.3x more in October than September"
+    - [x] `+ N more films at 2–3 viewings` tail row; yes, n=2 rewatches exist
+          (70 of them). New note: "I rate rewatches 3.9★ and first watches 3.5★"
+    - [x] Pairing axis titles run ALONG their axes, no arrows
+    - [x] Weekday bar label is the % vs median; counts live only on the y axis
+    - [x] Medians skip empty categories (pace printed "median 496.0" filtered)
+    - [x] Empty bars get no label (weekday printed "0" and "-100%")
+    - [x] VERIFIED NOT A BUG: pace by month already divides by TOTAL calendar
+          days. April = 8 years x 30 = 240, Miyazaki has 3 April watches,
+          240/3 = 80.0, and every month sums to the 9 in the filter
+    - [x] "other vs other": the complement band is now "rest", and `accentFor`
+          excludes Other, whose gray is one step from FADE
+    - [x] Adaptive tick step on #12; empty states for no-rewatches and for a
+          one-genre pairing grid
+    - [x] Pushed to origin through 9853943
+- Now: [→] Next session is `liked`: rebuild `/lab` as the prototype surface.
+        See thoughts/HANDOFF-charts-and-export-ingest.md.
 - Remaining:
   - [ ] `ChartTakeaway` per stats section, matching the narrative sections
   - [ ] Hover readouts on the stats charts that still lack them. Cumulative,
@@ -187,9 +211,19 @@ tallest bar is the busiest month and carries the SMALLEST printed number.
 **3. Match the existing components, do not reinvent them.** New charts must fit
 the site's behaviors, aesthetics and visuals. `CountryBars.tsx` is the reference
 for horizontal bars and hover (0.72 to 0.9 on hover, 0.35 for non-selected,
-value labels on the bar via `valueLabelFill`); `RollingRating.tsx` for measured
-plots and lifted hover state; `barChart.ts` for the shared vocabulary. Read the
-closest existing chart BEFORE writing a new one.
+value labels on the bar via `valueLabelFill`, the `+ N more` tail row);
+`RollingRating.tsx` for measured plots and lifted hover state; `barChart.ts` for
+the shared vocabulary. Read the closest existing chart BEFORE writing a new one.
+
+**4. Never use SVG `<title>` for a data readout.** It renders the browser's
+native tooltip, which matches nothing here. Hover readouts go in the chart's own
+strip, in the site's type.
+
+**5. Test every chart under a NARROW filter before calling it done.** Four
+defects shipped because everything was only checked against the full 794
+watches. Filter to Miyazaki (9) and to the Other genre (25) and look at all
+eight charts: medians over empty categories, labels on zero bars, fixed axis
+steps, degenerate grids and name collisions all only appear there.
 
 ## Working Set
 
