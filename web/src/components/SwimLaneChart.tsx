@@ -40,6 +40,7 @@ export function SwimLaneChart() {
     setSelection,
     storyResult,
     heartLens,
+    activeStory,
   } = useExplorer();
   const [hover, setHover] = useState<{ x: number; y: number; w: EnrichedWatch } | null>(null);
   const monthFocus = storyResult?.monthFocus ?? null;
@@ -386,7 +387,12 @@ export function SwimLaneChart() {
         </div>
       )}
 
-      {octoberHorror != null && (
+      {/* Only with no story running. Under a story the annotation above the chart
+          is already making that story's point, and a second, unrelated fact
+          underneath competes with it: reading "October is 73% horror" beneath a
+          story about my ratings rising over time tells the reader nothing about
+          either. */}
+      {!activeStory && octoberHorror != null && (
         <ChartTakeaway>October is {octoberHorror}% horror</ChartTakeaway>
       )}
     </figure>

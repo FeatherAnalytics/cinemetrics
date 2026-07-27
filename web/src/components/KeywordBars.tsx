@@ -6,7 +6,6 @@ import { GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
 import { watchKey } from "@/lib/brush";
 import { computeResiduals } from "@/lib/stats";
 import { BAR_H, GAP } from "@/lib/barChart";
-import { ChartTakeaway } from "./ChartTakeaway";
 import { heartByFilm, heartDeltaPP, ppLabel } from "@/lib/heartLens";
 
 const LABEL_W = 200;
@@ -243,7 +242,6 @@ export function KeywordBars() {
           );
         })}
       </svg>
-      <ChartTakeaway>keywords on {MIN_FILMS}+ films whose heart was recorded</ChartTakeaway>
     </figure>
   );
 }

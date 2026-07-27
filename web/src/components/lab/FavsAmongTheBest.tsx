@@ -205,8 +205,12 @@ export function FavsAmongTheBest() {
 }
 
 /**
- * The blurb counts the tie live, so a filter cannot leave a sentence describing
- * films that are no longer on screen.
+ * States the size of the tie and nothing else.
+ *
+ * It used to go on to name the most-rewatched film and the least, to prove the
+ * rating cannot single the four out. Both rows are on screen with their counts and
+ * their stars, so the reader gets there without being walked through it, and one of
+ * the two sentences was wrong anyway.
  */
 export function FavsAmongTheBestBlurb() {
   const { filtered } = useExplorer();
@@ -214,23 +218,10 @@ export function FavsAmongTheBestBlurb() {
   if (rating == null || films.length === 0) return null;
 
   const favs = films.filter((f) => f.fav).length;
-  const topNonFav = films.find((f) => !f.fav);
-  const leastFav = films.filter((f) => f.fav).sort((a, b) => a.watches.length - b.watches.length)[0];
-
   return (
     <p className="text-sm" style={{ color: INK.secondary }}>
-      {films.length} {films.length === 1 ? "film is" : "films are"} tied at {rating},
-      my highest rating in view, and {favs} of them{" "}
-      {favs === 1 ? "is a favorite" : "are favorites"}. So the rating cannot pick the
-      four out.
-      {topNonFav && leastFav && topNonFav.watches.length > leastFav.watches.length && (
-        <>
-          {" "}
-          Neither can returning to them: {clipTitle(topNonFav.label)} is{" "}
-          {topNonFav.watches.length} watches and is not a favorite, while{" "}
-          {clipTitle(leastFav.label)} is {leastFav.watches.length} and is.
-        </>
-      )}
+      {films.length} {films.length === 1 ? "film shares" : "films share"} my highest rating
+      in view. {favs} {favs === 1 ? "is" : "are"} on the profile.
     </p>
   );
 }

@@ -73,7 +73,7 @@ export function likedOnly(watches: EnrichedWatch[]): EnrichedWatch[] {
 
 
 /** The film-level twin of `heartDim`, for charts whose marks are films. */
-export function heartDimForFilm(heart: boolean | undefined): number {
+function heartDimForFilm(heart: boolean | undefined): number {
   return heart === true ? 1 : HEART_DIM;
 }
 

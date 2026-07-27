@@ -10,12 +10,7 @@ import {
   RUNTIME_ORDER,
   type Dimension as SeriesDimension,
 } from "@/lib/series";
-import {
-  CROSSOVER_STARS,
-  crossoverWatches,
-  likedRate,
-  starLabel,
-} from "@/lib/likedChart";
+import { knownWatches, likedRate } from "@/lib/likedChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { Toggle } from "@/components/stats/Toggle";
 import { accentFor, isPicked, pickWatches } from "@/components/stats/pick";
@@ -75,24 +70,27 @@ function bucketOf(w: EnrichedWatch, dim: Dimension): string | null {
 }
 
 /**
- * What predicts the heart, once the rating is held still.
+ * What predicts the heart, across every rating.
  *
- * Restricted to the crossover band, and that restriction is the entire method.
- * Tested across the FULL rating scale, runtime looks like a strong predictor:
- * affection climbs from 30% under ninety minutes to 60% past two hours twenty.
- * It is not. Long films get higher ratings from me (65.3 average under ninety,
- * 80.9 past 140), and the affection is following the rating. Inside the band the
- * gradient is gone.
+ * Built to report a NULL result honestly, which is what it keeps finding: the bars
+ * hold a fixed 0-100% scale instead of zooming to a range where noise would look
+ * like structure, and thin categories are dropped rather than drawn.
  *
- * So this panel is built to report a NULL result honestly. The bars keep the
- * fixed 0-100% scale instead of zooming to a range where noise would look like
- * structure, and thin categories are dropped rather than drawn.
+ * Read the runtime view with care. Affection climbs from 30% under ninety minutes
+ * to 60% past two hours twenty, and that gradient is mostly the RATING: long films
+ * score higher from me and the heart follows the score. This chart no longer holds
+ * the rating still, so a gradient here is not evidence that the dimension moves the
+ * heart on its own.
  */
 export function WhatMovesTheHeart() {
   const { filtered, filters, setSelection } = useExplorer();
   const [dim, setDim] = useState<Dimension>("genre");
 
-  const band = useMemo(() => crossoverWatches(filtered), [filtered]);
+  // EVERY watch with a recorded heart, not just the crossover band. Restricting to
+  // 3.5 and 4 stars held the rating still, which is the cleaner experiment, and it
+  // also answered a question narrower than the one a reader arrives with: they want
+  // to know what I heart, not what I heart within one slice of my own scale.
+  const band = useMemo(() => knownWatches(filtered), [filtered]);
 
   /**
    * A dimension is offered only if it can actually draw a comparison.
@@ -154,8 +152,7 @@ export function WhatMovesTheHeart() {
   if (bandRate.n === 0) {
     return (
       <p className="text-sm" style={{ color: INK.muted }}>
-        No watches at {starLabel(CROSSOVER_STARS[0])} or {starLabel(CROSSOVER_STARS[1])}{" "}
-        under this filter.
+        Nothing in view recorded a heart.
       </p>
     );
   }
@@ -183,21 +180,17 @@ export function WhatMovesTheHeart() {
 
       {bars.length === 0 ? (
         <p className="text-sm" style={{ color: INK.muted }}>
-          No category here has {MIN_N} watches at {starLabel(CROSSOVER_STARS[0])} or{" "}
-          {starLabel(CROSSOVER_STARS[1])} under this filter.
+          No category here has {MIN_N} watches with a recorded heart.
         </p>
       ) : (
         <>
           <RateBars
             bars={bars}
-            caption={`${starLabel(CROSSOVER_STARS[0])} and ${starLabel(
-              CROSSOVER_STARS[1],
-            )} only`}
             accent={accentFor(filters.genres)}
             active={activeIndex >= 0 ? activeIndex : null}
             onPick={(i) => pickWatches(model.groups[i], filters.selection, setSelection)}
             refAt={bandRate.rate}
-            refLabel={`band average ${Math.round(bandRate.rate * 100)}%`}
+            refLabel={`my rate ${Math.round(bandRate.rate * 100)}%`}
           />
           {/* Says what is missing rather than letting the axis imply the
               dimension has only these categories. */}

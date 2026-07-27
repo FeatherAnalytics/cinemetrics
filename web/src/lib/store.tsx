@@ -18,6 +18,7 @@ import { watchKey } from "./brush";
 import { filmHearts } from "./likedChart";
 import {
   STORIES,
+  LANDING_STORY,
   chartSetFor,
   computeStoryHeadlines,
   type StoryResult,
@@ -360,9 +361,15 @@ export function ExplorerProvider({
    * statement about what the reader is actually looking at rather than about
    * the whole library. `computeStoryHeadlines` is untouched by this: the chips
    * stay stable invitations computed from everything.
+   *
+   * With NO story selected this falls through to the landing story, which is how
+   * the landing page keeps a headline without pretending to be a story the reader
+   * chose. It always recomputes, because the rail is live there.
    */
   const activeResult = useMemo(() => {
-    if (!activeStory) return null;
+    if (!activeStory) {
+      return LANDING_STORY ? LANDING_STORY.compute(derived.films, filtered) : null;
+    }
     const cfg = getStoryById(activeStory);
     if (!cfg?.recomputeOnFilter) return storyResult;
     return cfg.compute(derived.films, filtered);
@@ -460,7 +467,10 @@ export function ExplorerProvider({
       },
       activeStory,
       storyResult: activeResult,
-      storyFocus: activeStory ? (getStoryById(activeStory)?.focus ?? null) : null,
+      // The landing page focuses too: its primary chart is where the annotation
+      // renders. `dim` is empty on it, so nothing is faded by having no story.
+      storyFocus:
+        (activeStory ? getStoryById(activeStory)?.focus : LANDING_STORY?.focus) ?? null,
       storyHeadlines,
       heartLens: chartSetFor(activeStory) === "heart",
       setStory,

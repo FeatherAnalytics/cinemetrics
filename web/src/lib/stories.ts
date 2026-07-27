@@ -5,16 +5,15 @@ import { primaryGenre, type GenreKey } from "./palette";
 import { watchKey } from "./brush";
 import { ALPHA, anova, chicagoParts, hasKnownRewatchState, mean } from "./statsChart";
 import {
-  byStarBin,
   CROSSOVER_STARS,
   crossoverWatches,
   likedRate,
-  STAR_BINS,
   type Rate,
 } from "./likedChart";
-import { ceilingFilms } from "./fourFavs";
 
 export type ChartId =
+  // Shown at the top of every set: the shape of the scale everything else uses.
+  | "ratings"
   | "spiral"
   | "contrarian"
   | "countries"
@@ -44,46 +43,24 @@ export type ChartId =
 /**
  * Which group of charts a story puts on the page.
  *
- * "narrative" is the default page and what every filter-driven story works on.
- * The others REPLACE it, because their charts answer a different question with a
- * different vocabulary and the two sets side by side read as sixteen charts
- * rather than one view (docs/CHART-IDEAS.md X1c).
+ * "landing" is the page with no story running: the statistical charts, plus the
+ * three narrative charts that carry a finding of their own. It is a READ rather
+ * than an invitation, which is why it is a chart set and not a story with a chip.
+ *
+ * "narrative" is what every filter-driven story shows, and "heart" what the
+ * favorites story shows. Both REPLACE the landing set, because their charts answer
+ * a different question with a different vocabulary and two sets side by side read
+ * as sixteen charts rather than one view.
  *
  * Declared on the story rather than hardcoded at the render site, so adding a set
  * is a story field instead of another branch in ExplorerApp.
  */
-export type ChartSet = "narrative" | "stats" | "heart";
+export type ChartSet = "landing" | "narrative" | "heart";
 
 export type StoryFocus = {
   primary: ChartId;
   emphasize: ChartId[];
   dim: ChartId[];
-};
-
-// Display titles per chart — kept in sync with CHART_SECTIONS in ExplorerApp.tsx.
-// Used to label story notes in the story panel.
-export const CHART_TITLES: Record<ChartId, string> = {
-  spiral: "When I watch",
-  contrarian: "Me versus the critics",
-  keywords: "The keywords that give me away",
-  countries: "What travels well",
-  stripes: "Streaks and slumps",
-  rolling: "Warming up or wearing out",
-  rewatch: "Second thoughts",
-  franchise: "Franchise runs",
-  velocity: "Viewing velocity",
-  cumulative: "Cumulative watches",
-  ytd: "Viewings to date",
-  rewatched: "What I go back to",
-  monthly: "Pace by month",
-  weekday: "Pace by weekday",
-  genrebox: "Ratings by primary genre",
-  pairing: "Genre pairing",
-  favposters: "The four favorites",
-  likedcurve: "The heart follows the rating",
-  heartpredictors: "Nothing decides the ones in between",
-  favtie: "Four of nineteen",
-  favdirectors: "A favorite brings company",
 };
 
 export type StoryResult = {
@@ -105,6 +82,28 @@ export type StoryConfig = {
   id: string;
   label: string;
   focus: StoryFocus;
+  /**
+   * Charts this story does not show at all.
+   *
+   * A story that only makes sense for a handful of charts should REMOVE the rest
+   * rather than dim them. Dimming says "this is here but not for you", which is a
+   * worse answer than not being there: it keeps the scroll length of a page the
+   * reader has no reason to read, and a dimmed chart still invites a click that
+   * then fights the story's own filters.
+   *
+   * Prefer this over `focus.dim` for anything a story genuinely has nothing to say
+   * about. `dim` is for de-emphasis WITHIN a set the reader should still see.
+   */
+  hide?: ChartId[];
+  /**
+   * Whether this is the page a reader lands on rather than a story they choose.
+   *
+   * The landing story gets no chip: it is not an invitation, it is the default
+   * view. Its annotation still renders, which is the whole reason it stays a story
+   * rather than becoming loose config, because the October finding is the best
+   * single line on the page and it has to be computed from the filtered watches.
+   */
+  landing?: boolean;
   /**
    * The chart set this story shows. Defaults to "narrative".
    *
@@ -162,23 +161,31 @@ function computeSpooktober(films: Film[], watches: EnrichedWatch[]): StoryResult
   if (!octoberHorror) {
     return { headline: "No horror films watched in October yet" };
   }
+  // Filters to horror watched IN OCTOBER, not merely to horror. The story is the
+  // intersection, and a genre filter alone left every chart describing my horror
+  // habit year-round while the copy talked about a month. Done as a `selection` of
+  // watch keys because the rail has no month control: it is the one filter that
+  // reaches every chart without inventing a dimension nobody can then clear.
+  const octoberHorrorWatches = watches.filter(
+    (w) => w.d.getUTCMonth() === 9 && primaryGenre(w.film) === "Horror",
+  );
+
   return {
     headline: "October is spooky season",
     chip: "Spooktober",
     filters: { genres: new Set(["Horror"]) },
+    selection: new Set(octoberHorrorWatches.map(watchKey)),
     rollingDimension: "genre",
     monthFocus: 9,
-    notes: {
-      spiral:
-        "The tenth column lights up. Horror packs into October year after year. And the lone crimson sun in June 2024? Midsommar, watched on the summer solstice.",
-      rolling: "Horror rates just below my overall average, yet it's still what I watch most.",
-      keywords:
-        "Remake floats to the top. But I avoid remakes unless word of mouth clears them, so the few I watch are pre-screened. Self-selection bias, in one bar.",
-      stripes:
-        "The coldest run in the whole barcode is October 2020: a film a day for Spooktober, and the daily grind shows in the scores.",
-    },
   };
 }
+
+/**
+ * What makes a film a hidden gem. Exported so the barcode can color by the same
+ * rule rather than inventing a second definition of the term the story defines.
+ */
+export const GEM_MIN_RATING = 80;
+export const GEM_MAX_VOTES = 10_000;
 
 function computeHiddenGems(films: Film[], watches: EnrichedWatch[]): StoryResult {
   const filmMap = new Map(films.map((f) => [f.tmdb_id, f]));
@@ -197,7 +204,7 @@ function computeHiddenGems(films: Film[], watches: EnrichedWatch[]): StoryResult
     if (latest?.rating == null) continue;
     const film = filmMap.get(tmdb_id);
     if (!film) continue;
-    if (latest.rating >= 80 && (film.imdb_votes ?? 0) < 10000) {
+    if (latest.rating >= GEM_MIN_RATING && (film.imdb_votes ?? 0) < GEM_MAX_VOTES) {
       gems.push({ film, rating: latest.rating, watches: ws });
     }
   }
@@ -230,6 +237,10 @@ function computeHiddenGems(films: Film[], watches: EnrichedWatch[]): StoryResult
   return {
     headline: `Hidden gem: ${gems[0].film.title}`,
     chip: "Hidden gems",
+    // Matches the rule at the top of this function exactly: 80 or above, under ten
+    // thousand IMDB votes. A definition that rounds off the threshold is a
+    // definition the chart can be caught contradicting.
+    subtext: `A hidden gem is a film I rated ${GEM_MIN_RATING} or above that fewer than ${GEM_MAX_VOTES.toLocaleString()} people have rated on IMDB.`,
     selection,
     notes: {
       contrarian: `The highlighted films sit far right: I rate them well above the small crowd that saw them.${coverageNote}`,
@@ -238,50 +249,51 @@ function computeHiddenGems(films: Film[], watches: EnrichedWatch[]): StoryResult
   };
 }
 
-function computeGenreContrarian(films: Film[], watches: EnrichedWatch[]): StoryResult {
-  const byGenre = new Map<GenreKey, { myRatings: number[]; metascores: number[] }>();
+/**
+ * The keyword whose heart rate sits furthest from my overall one, among a set.
+ *
+ * Mirrors what `KeywordBars` draws, including its evidence floor, so a note about
+ * that chart cannot describe a row the chart declined to plot. Measured rather than
+ * asserted because the story's own filter decides which films are in scope, and a
+ * hardcoded keyword would be a claim the rail could falsify.
+ */
+const KEYWORD_MIN_FILMS = 10;
 
-  for (const w of watches) {
-    if (!w.film) continue;
-    if (w.rating != null && w.film.metascore != null) {
-      const genre = primaryGenre(w.film);
-      const data = byGenre.get(genre) || { myRatings: [], metascores: [] };
-      data.myRatings.push(w.rating);
-      data.metascores.push(w.film.metascore);
-      byGenre.set(genre, data);
+function topKeywordHeartGap(
+  watches: EnrichedWatch[],
+): { keyword: string; pp: number } | null {
+  const hearts = new Map<number, boolean>();
+  for (const w of watches) if (w.heart != null) hearts.set(w.tmdb_id, w.heart);
+  if (hearts.size === 0) return null;
+
+  const films = new Map<number, Film>();
+  for (const w of watches) if (w.film) films.set(w.tmdb_id, w.film);
+
+  let baseLiked = 0;
+  for (const v of hearts.values()) if (v) baseLiked += 1;
+  const base = baseLiked / hearts.size;
+
+  const byKeyword = new Map<string, { liked: number; n: number }>();
+  for (const [id, heart] of hearts) {
+    for (const kw of films.get(id)?.keywords ?? []) {
+      const e = byKeyword.get(kw) ?? { liked: 0, n: 0 };
+      e.n += 1;
+      if (heart) e.liked += 1;
+      byKeyword.set(kw, e);
     }
   }
 
-  const deltas: Array<{ genre: GenreKey; delta: number }> = [];
-  for (const [genre, data] of byGenre) {
-    if (data.myRatings.length < 2) continue;
-    const avgMy = data.myRatings.reduce((a, b) => a + b, 0) / data.myRatings.length;
-    const avgMeta = data.metascores.reduce((a, b) => a + b, 0) / data.metascores.length;
-    const delta = avgMy - avgMeta;
-    deltas.push({ genre, delta });
+  let best: { keyword: string; pp: number } | null = null;
+  for (const [keyword, e] of byKeyword) {
+    if (e.n < KEYWORD_MIN_FILMS) continue;
+    const pp = (e.liked / e.n - base) * 100;
+    if (best == null || Math.abs(pp) > Math.abs(best.pp)) best = { keyword, pp };
   }
-
-  deltas.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
-  if (deltas.length === 0) {
-    return { headline: "Not enough data to find genre contrarian patterns" };
-  }
-  const top = deltas[0];
-  const direction = top.delta > 0 ? "above" : "below";
-  const absDelta = Math.abs(top.delta).toFixed(0);
-
-  return {
-    headline: `I rate ${top.genre} ${absDelta} points ${direction} the critics`,
-    chip: top.genre === "Comedy" ? "Laugh to live" : top.genre,
-    filters: { genres: new Set([top.genre]) },
-    rollingDimension: "genre",
-    notes: {
-      contrarian: `${top.genre} sits furthest from the critics' line, ${absDelta} points ${direction} it.`,
-      rolling: `Watch ${top.genre}'s line ride ${direction} my overall baseline.`,
-    },
-  };
+  return best;
 }
 
-const LONG_MIN = 150; // minutes
+/** Exported for the same reason as the gem thresholds. */
+export const LONG_MIN = 150; // minutes
 const SHORT_MAX = 90;
 
 function computeRuntime(films: Film[], watches: EnrichedWatch[]): StoryResult {
@@ -305,13 +317,30 @@ function computeRuntime(films: Film[], watches: EnrichedWatch[]): StoryResult {
     return { headline: "Not enough films to compare runtimes" };
   }
   const delta = Math.round(longSum / longN - shortSum / shortN);
+  // Scoped to the LONG films, because that is what the keyword chart is drawing
+  // once this story's filter lands. Measured over every watch instead, the note
+  // reported a keyword from the whole library and then described it as a fact about
+  // long films.
+  const topKeyword = topKeywordHeartGap(
+    watches.filter((w) => (w.film?.runtime ?? 0) >= LONG_MIN),
+  );
+
   return {
     headline: `I rate ${LONG_MIN}-min+ films ${delta} points above sub-90s`,
     chip: "The longer, the better",
     selection: new Set(longWatches.map(watchKey)),
     notes: {
-      spiral: "The highlighted films all run 150 minutes or more. They sit high in every single year band.",
+      spiral: `The highlighted films all run ${LONG_MIN} minutes or more. They sit high in every single year band.`,
       contrarian: "Critics barely reward length. I do: the long films skew right of the model here.",
+      ...(topKeyword
+        ? {
+            // Names the keyword and the direction, never the number. The bar prints
+            // the number, and the two disagreed by a point: this helper counts every
+            // long film while the chart's film set comes from the critics model, which
+            // drops films with no critic scores.
+            keywords: `One keyword clears the evidence floor among these long films: ${topKeyword.keyword} draws the heart ${topKeyword.pp < 0 ? "less" : "more"} often than my library average. Length is not the only thing moving here.`,
+          }
+        : {}),
     },
   };
 }
@@ -500,21 +529,8 @@ function computeHeart(films: Film[], watches: EnrichedWatch[]): StoryResult {
     };
   }
 
-  const bins = byStarBin(watches);
-  const firstBand = STAR_BINS.findIndex((v) => v >= CROSSOVER_STARS[0]);
-  const afterBand = STAR_BINS.findIndex((v) => v > CROSSOVER_STARS[1]);
-  const low = likedRate(bins.slice(0, firstBand).flat());
   const band = likedRate(crossoverWatches(watches));
-  const high = likedRate(bins.slice(afterBand).flat());
   const pct = (r: Rate) => Math.round(r.rate * 100);
-
-  // The recovery is worth stating because it CHANGES the denominator the rest of
-  // the story divides by, and a reader comparing this rate to the rewatch share
-  // beside it would otherwise be comparing two different populations.
-  const recovered = watches.filter((w) => w.liked == null && w.heart != null).length;
-
-  const { rating: ceiling, films: tied } = ceilingFilms(watches);
-  const favsTied = tied.filter((f) => f.fav).length;
 
   const headline =
     band.n > 0
@@ -523,29 +539,17 @@ function computeHeart(films: Film[], watches: EnrichedWatch[]): StoryResult {
         `in between it is ${pct(band)}%`
       : `${pct(overall)}% of the ${overall.n} watches in view got the heart`;
 
-  const subtext =
-    ceiling != null && tied.length > 1 && favsTied > 0
-      ? `And nothing in the data picks out the four favorites: ${tied.length} films are ` +
-        `tied at ${ceiling}, my highest rating in view, and ${favsTied} of them ` +
-        `${favsTied === 1 ? "is one" : "are"}.`
-      : undefined;
-
   return {
     headline,
     chip: "Favs and likes",
-    subtext,
     notes: {
-      favposters: `Curated by hand, in the profile's order. No ordering the data can produce puts these four together, which is the finding the charts below measure.`,
-      likedcurve:
-        (low.n > 0 && high.n > 0
-          ? `${pct(low)}% below ${CROSSOVER_STARS[0]}★ against ${pct(high)}% above ${CROSSOVER_STARS[1]}★. The heart and the star agree at both ends, so only the middle carries information.`
-          : `The heart against my own rating, one column per half star.`) +
-        (recovered > 0
-          ? ` ${recovered} of these watches recorded no heart and had it recovered from another viewing of the same film, since the heart is one toggle per film rather than per viewing.`
-          : ``),
-      heartpredictors: `Held to ${CROSSOVER_STARS[0]}★ and ${CROSSOVER_STARS[1]}★ so a dimension that merely predicts my rating cannot pass for predicting the heart. Every bar sitting on the band average is the result, not a missing one.`,
-      favtie: `Rating cannot separate the four, and neither can returning to them: the most-rewatched film at this rating is not a favorite.`,
-      favdirectors: `Each favorite came with company. None of those companions reached the film it arrived with, and none of the four directors got a third watch.`,
+      // One note per chart at most, and only where the chart cannot say it. The
+      // curve, the tie and the cohorts all restated percentages the bars already
+      // print, which put one finding on screen three times over.
+      favposters:
+        "Curated by hand. No ordering the data can produce puts these four together.",
+      heartpredictors:
+        "Nothing here separates from my overall rate by much, which is the result rather than a missing one.",
     },
   };
 }
@@ -662,62 +666,8 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
 }
 
 export const STORIES: StoryConfig[] = [
-  {
-    id: "spooktober",
-    label: "Spooktober",
-    focus: { primary: "spiral", emphasize: ["spiral", "rolling"], dim: ["countries"] },
-    compute: computeSpooktober,
-  },
-  {
-    id: "hidden-gems",
-    label: "Hidden Gems",
-    // keywords is dimmed because gems are too few (and too critic-sparse) to
-    // ever clear the keyword chart's 10-film threshold.
-    focus: { primary: "contrarian", emphasize: ["contrarian", "spiral"], dim: ["rewatch", "rolling", "keywords"] },
-    compute: computeHiddenGems,
-  },
-  {
-    id: "critics-and-me",
-    label: "Genre Contrarian",
-    focus: { primary: "contrarian", emphasize: ["contrarian", "rolling"], dim: ["rewatch"] },
-    compute: computeGenreContrarian,
-  },
-  {
-    id: "runtime",
-    label: "The longer, the better",
-    focus: { primary: "spiral", emphasize: ["spiral", "contrarian"], dim: ["countries", "keywords"] },
-    compute: computeRuntime,
-  },
-  {
-    id: "getting-pickier",
-    label: "Getting pickier",
-    focus: { primary: "stripes", emphasize: ["stripes", "spiral", "rolling"], dim: ["countries", "keywords"] },
-    compute: computePickier,
-  },
-  {
-    id: "binges",
-    label: "Double features",
-    focus: { primary: "spiral", emphasize: ["spiral", "stripes"], dim: ["countries", "keywords", "rolling"] },
-    compute: computeBinges,
-  },
-  {
-    id: "franchises",
-    label: "Franchise runs",
-    focus: { primary: "franchise", emphasize: ["franchise", "spiral", "rewatch"], dim: ["countries", "keywords"] },
-    compute: computeCollections,
-  },
-  {
-    id: "stats",
-    label: "The stats",
-    // `dim` is empty by design. The narrative charts are ABSENT while this story
-    // runs, not faded, so there is nothing left on screen to dim.
-    focus: { primary: "monthly", emphasize: ["monthly", "velocity", "genrebox"], dim: [] },
-    chartSet: "stats",
-    compute: computeStats,
-    dismissOnFilter: false,
-    scrollToPrimary: false,
-    recomputeOnFilter: true,
-  },
+  // Chip order is this array's order, most inviting first. `stats` is the landing
+  // story and is filtered out of the strip, so it sits last.
   {
     id: "heart",
     label: "Favs and likes",
@@ -736,6 +686,65 @@ export const STORIES: StoryConfig[] = [
     scrollToPrimary: false,
     recomputeOnFilter: true,
   },
+  {
+    id: "spooktober",
+    label: "Spooktober",
+    focus: { primary: "spiral", emphasize: ["spiral", "rolling"], dim: [] },
+    compute: computeSpooktober,
+  },
+  {
+    id: "hidden-gems",
+    label: "Hidden Gems",
+    // Primary is the chart at the top of every set, so the definition of a hidden
+    // gem lands before the reader meets a chart that assumes it. The critics chart
+    // was primary before, which put the annotation two screens down and left the
+    // term undefined until then.
+    focus: { primary: "ratings", emphasize: ["contrarian", "spiral"], dim: [] },
+    hide: ["pairing", "franchise"],
+    compute: computeHiddenGems,
+  },
+  {
+    id: "runtime",
+    label: "The longer, the better",
+    focus: { primary: "spiral", emphasize: ["spiral", "contrarian"], dim: [] },
+    hide: ["pairing"],
+    compute: computeRuntime,
+  },
+  {
+    id: "getting-pickier",
+    label: "Getting pickier",
+    focus: { primary: "spiral", emphasize: ["spiral", "stripes", "rolling"], dim: [] },
+    compute: computePickier,
+  },
+  {
+    id: "binges",
+    label: "Double features",
+    focus: { primary: "spiral", emphasize: ["spiral", "stripes"], dim: [] },
+    // A double feature is a fact about DAYS. Nothing about rewatching, critics,
+    // genre pairs, keywords, countries or a rolling average speaks to it.
+    hide: ["rewatch", "contrarian", "pairing", "keywords", "countries", "rolling"],
+    compute: computeBinges,
+  },
+  {
+    id: "franchises",
+    label: "Franchise runs",
+    focus: { primary: "franchise", emphasize: ["franchise", "spiral", "rewatch"], dim: [] },
+    hide: ["pairing"],
+    compute: computeCollections,
+  },
+  {
+    id: "stats",
+    label: "The shape of it",
+    landing: true,
+    // `dim` is empty by design. The narrative charts are ABSENT while this story
+    // runs, not faded, so there is nothing left on screen to dim.
+    focus: { primary: "monthly", emphasize: ["monthly", "velocity", "genrebox"], dim: [] },
+    chartSet: "landing",
+    compute: computeStats,
+    dismissOnFilter: false,
+    scrollToPrimary: false,
+    recomputeOnFilter: true,
+  },
 ];
 
 /**
@@ -745,12 +754,35 @@ export const STORIES: StoryConfig[] = [
  * branch at a render site to be added.
  */
 export function chartSetFor(activeStory: string | null): ChartSet {
-  if (!activeStory) return "narrative";
+  if (!activeStory) return LANDING_STORY?.chartSet ?? "landing";
   return STORIES.find((s) => s.id === activeStory)?.chartSet ?? "narrative";
 }
 
-/** Whether this story replaces the page's charts rather than highlighting them. */
+/**
+ * The story that renders with nothing selected. There is exactly one.
+ *
+ * Held as a lookup rather than an id constant so removing the `landing` flag is
+ * enough to turn it back into an ordinary story.
+ */
+export const LANDING_STORY: StoryConfig | undefined = STORIES.find((s) => s.landing);
+
+/** The charts an active story suppresses entirely. */
+export function hiddenCharts(activeStory: string | null): ChartId[] {
+  if (!activeStory) return [];
+  return STORIES.find((s) => s.id === activeStory)?.hide ?? [];
+}
+
+/**
+ * Whether an ACTIVE story replaces the page's charts rather than highlighting them.
+ *
+ * False with no story, and that is the point: the landing set is not something a
+ * story swapped in. Its two callers both want "did a story just change the page
+ * under the reader" - one collapses the rail, the other scrolls to the top - and on
+ * first load neither should fire. Scrolling there would also fight the `#chart-`
+ * deep links the copy-link buttons hand out.
+ */
 export function swapsChartSet(activeStory: string | null): boolean {
+  if (!activeStory) return false;
   return chartSetFor(activeStory) !== "narrative";
 }
 
@@ -759,7 +791,7 @@ export function computeStoryHeadlines(
   films: Film[],
   watches: EnrichedWatch[],
 ): { id: string; label: string; headline: string; chip: string }[] {
-  return STORIES.map((s) => {
+  return STORIES.filter((s) => !s.landing).map((s) => {
     const r = s.compute(films, watches);
     return { id: s.id, label: s.label, headline: r.headline, chip: r.chip ?? s.label };
   });

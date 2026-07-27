@@ -21,6 +21,7 @@ import { MonthlyPace } from "@/components/stats/MonthlyPace";
 import { WeekdayCounts } from "@/components/stats/WeekdayCounts";
 import { RatingsByGenre } from "@/components/stats/RatingsByGenre";
 import { GenrePairing } from "@/components/stats/GenrePairing";
+import { RatingDistribution } from "@/components/stats/RatingDistribution";
 import { FavPosters } from "@/components/lab/FavPosters";
 import { LikedByRating, LikedByRatingBlurb } from "@/components/lab/LikedByRating";
 import { WhatMovesTheHeart } from "@/components/lab/WhatMovesTheHeart";
@@ -36,7 +37,13 @@ import { StoryChartNote } from "@/components/StoryChartNote";
 import { StoryChips } from "@/components/StoryChips";
 import { CopyChartLink } from "@/components/CopyChartLink";
 import { Footer } from "@/components/Footer";
-import { chartSetFor, swapsChartSet, type ChartId, type ChartSet } from "@/lib/stories";
+import {
+  chartSetFor,
+  hiddenCharts,
+  swapsChartSet,
+  type ChartId,
+  type ChartSet,
+} from "@/lib/stories";
 import type { Dataset } from "@/lib/types";
 import type { ReactNode } from "react";
 
@@ -58,40 +65,40 @@ type ChartSection = {
   // Several stats charts return null when a filter empties them out.
   Chart: () => React.JSX.Element | null;
   /**
-   * Which sets this chart appears in. Omitted means `DEFAULT_SETS`.
+   * Which sets this chart appears in. Required, so no chart's placement is implied.
    *
-   * A LIST rather than one value, because the favorites story is not a clean
-   * swap: it adds five charts of its own AND keeps the narrative eight, which it
-   * recolors through the heart lens. The stats story is still a clean swap, so its
-   * charts name only their own set (docs/CHART-IDEAS.md X1c).
+   * A LIST rather than one value, because most charts appear in more than one set:
+   * the favorites story keeps the narrative charts and recolors them, and three of
+   * those charts also earn a place on the landing page. Order within a set comes
+   * from this array's order, which is why it reads as the landing arc first and the
+   * story-only charts after.
    */
-  sets?: ChartSet[];
+  sets: ChartSet[];
 };
-
-/**
- * What a section belongs to when it says nothing: the default page, and the
- * favorites story, which keeps the narrative charts and recolors them rather than
- * replacing them. All eight narrative charts want exactly that, so none of them
- * carries a `sets` field.
- */
-const DEFAULT_SETS: ChartSet[] = ["narrative", "heart"];
 
 // Section order and copy are load-bearing — the story chips dim charts by id and
 // the narrative reads top to bottom. Keep this array in sync with StoryAnnotation
 // targets and the ChartId union.
 const CHART_SECTIONS: ChartSection[] = [
-  // --- The heart set. Rendered only while the heart story is active. ---
-  // Posters lead, because the four favorites are the concrete thing the rest of
-  // the set is abstract about, and the reader should meet the films before the
-  // charts that fail to explain them.
+  // --- Shown at the top of EVERY set. ---
+  // The shape of the scale every other chart is expressed in, so it comes before
+  // the reader is asked to care when, where or against whom I watched.
+  {
+    id: "ratings",
+    sets: ["landing", "narrative", "heart"],
+    title: "How I rate",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: <>Every rated watch, one column per half star.</>,
+    Chart: RatingDistribution,
+  },
+  // --- The heart set. Only the favorites story shows these. ---
   {
     id: "favposters",
     title: "The four favorites",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        The four films on my Letterboxd profile, in the order they sit there. Click one to
-        trace it across the charts below.
+        The four films on my Letterboxd profile, in the order they sit there.
       </>
     ),
     Chart: FavPosters,
@@ -111,8 +118,7 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        Only watches at 3.5★ and 4★, so a dimension that merely predicts my rating cannot
-        show up here as predicting the heart. Switch how the films are grouped.
+        Every watch with a recorded heart, grouped.
       </>
     ),
     Chart: WhatMovesTheHeart,
@@ -134,219 +140,30 @@ const CHART_SECTIONS: ChartSection[] = [
     Chart: FavDirectors,
     sets: ["heart"],
   },
-
+  // --- The landing arc, in reading order. ---
+  // Time first and at three zoom levels (the year as texture, the year against
+  // other years, the whole run), then pace, then what I thought of it, then
+  // whether I went back.
   {
     id: "spiral",
+    sets: ["landing", "narrative", "heart"],
     title: "When I watch",
     blurbClass: "mb-2 text-xs text-[#67655f]",
     blurb: (
       <>
-        One row per year, January to December. Height within a row is my rating.
-        Dots above the upper guide line scored 75+, dots below the lower one under 25.
+        One row per year, January to December. Height is my rating.
       </>
     ),
     heartBlurb: (
       <>
-        One row per year, January to December. Height within a row is my rating and the dot
-        keeps its genre color; films I hearted stay at full strength and everything else
-        fades back, including 2019, which predates Letterboxd and recorded no hearts at all.
-        Stars are the four favorites.
+        Films I hearted hold their color. Everything else fades, 2019 included: it predates the heart entirely.
       </>
     ),
     Chart: SwimLaneChart,
   },
   {
-    id: "contrarian",
-    title: "Me versus the critics",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        Each dot is a film, stacked by how far my rating sits from a prediction from a
-        regression fit on Metacritic, Rotten Tomatoes, and IMDB scores. Dots right of
-        zero are films I liked more than the critics suggest; left, less. Click a dot to
-        trace that film; drag to select a range.
-      </>
-    ),
-    heartBlurb: (
-      <>
-        Each dot is a film, stacked by how far my rating sits from a prediction fit on
-        Metacritic, Rotten Tomatoes, and IMDB scores. Films I hearted stay at full strength
-        and everything else fades back. Dots right of zero are films I rated above the
-        critics.
-      </>
-    ),
-    Chart: ResidualDotStack,
-  },
-  {
-    id: "keywords",
-    title: "The keywords that give me away",
-    blurbClass: "mb-3 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        Keywords whose Letterboxd heart rate sits furthest from my overall one, in
-        percentage points. A keyword at +20pp is one I heart twenty points more often than I
-        heart anything at all, so the bars read from what wins me over down to what does
-        not. Only keywords carrying enough films with a recorded heart appear. Click a bar
-        to see those films.
-      </>
-    ),
-    Chart: KeywordBars,
-  },
-  {
-    id: "countries",
-    title: "What travels well",
-    blurbClass: "mb-2 text-xs text-[#67655f]",
-    blurb: (
-      <>
-        Countries ranked by how many of my films they helped produce, colored by the genre I
-        watch most from each. The right column is the Letterboxd heart: how much more or less
-        often I heart a film from that country than I heart anything at all. Click a row to
-        filter the other charts.
-      </>
-    ),
-    Chart: CountryBars,
-  },
-  {
-    id: "stripes",
-    title: "Streaks and slumps",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        The whole log as a barcode: one stripe per rated watch, in order.
-        Crimson when I scored it above my median, blue below, pale at par.
-      </>
-    ),
-    heartBlurb: (
-      <>
-        The whole log as a barcode: one stripe per rated watch, in order. The ramp stops
-        showing my rating and shows the heart instead: crimson where I hearted the film, blue
-        where I did not, gray where no heart was recorded, which is every watch before
-        Letterboxd I never went back to.
-      </>
-    ),
-    Chart: StreakStripes,
-  },
-  {
-    id: "rolling",
-    title: "Warming up or wearing out",
-    blurbClass: "mb-3 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        One panel per group: the colored line is my rolling {10}-watch average rating as
-        I work through that group; the dashed gray line is my overall average, so stretches
-        above it are runs where that group was beating my baseline. Switch how the films are
-        grouped: genre, language, country, runtime, release decade, or content rating.
-      </>
-    ),
-    heartBlurb: (
-      <>
-        The same panels, restricted to films I hearted: the colored line is my rolling{" "}
-        {10}-watch average rating across the hearted films in that group, and the dashed line
-        my average across every hearted watch currently in view, so it moves with the filters.
-        Switch how the films are grouped.
-      </>
-    ),
-    Chart: RollingRating,
-  },
-  {
-    id: "rewatch",
-    title: "Second thoughts",
-    blurbClass: "mb-4 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        Films I&rsquo;ve returned to, grouped by whether coming back changed my mind.
-        Biggest rating swings first. Every dot is a watch, placed left-to-right by date and
-        up-or-down by my rating; the numbers at the right of a row are my first and latest
-        scores.
-      </>
-    ),
-    heartBlurb: (
-      <>
-        Films I hearted AND returned to, grouped by whether coming back changed my mind. A
-        film still needs two viewings to appear, so this is about second thoughts on things
-        I already loved. Biggest rating swings first.
-      </>
-    ),
-    Chart: RewatchCadence,
-  },
-  {
-    id: "franchise",
-    title: "Franchise runs",
-    blurbClass: "mb-4 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        One row per franchise I&rsquo;ve watched at least two entries of, most-watched
-        first; the count after each name is how many entries I&rsquo;ve seen. Dots are
-        watches over time, height is my rating; the number at the right is my average
-        for that franchise.
-      </>
-    ),
-    heartBlurb: (
-      <>
-        One row per franchise holding at least one film I hearted; runs I never loved an
-        entry of drop out entirely. Dots are watches over time and height is my rating, in
-        the franchise&rsquo;s genre color: hearted entries at full strength, everything else
-        faded.
-      </>
-    ),
-    Chart: FranchiseRuns,
-  },
-
-  // --- The stats set. Rendered only while the stats story is active. ---
-  // Pace by month leads because it is the story's PRIMARY chart, and the
-  // headline bar renders on the primary. The stats story lands the reader at the
-  // top of the page rather than scrolling to its primary the way the narrative
-  // stories do, so the primary has to already be there.
-  {
-    id: "monthly",
-    sets: ["stats"],
-    title: "Pace by month",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        Watches per calendar day, by month, so a taller bar is a busier month. Each
-        bar is labeled with the flip side: days between films.
-      </>
-    ),
-    Chart: MonthlyPace,
-  },
-  {
-    id: "weekday",
-    sets: ["stats"],
-    title: "Pace by weekday",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        Watches by day, weekend tinted. Each bar is labeled with its distance from the
-        median day.
-      </>
-    ),
-    Chart: WeekdayCounts,
-  },
-  {
-    id: "velocity",
-    sets: ["stats"],
-    title: "Viewing velocity",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: <>Every bucket since the first logged watch. No smoothing.</>,
-    Chart: ViewingVelocity,
-  },
-  {
-    id: "cumulative",
-    sets: ["stats"],
-    title: "Cumulative watches",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        The running total, stacked by genre. Filter, and it collapses to the matching
-        watches against everything else.
-      </>
-    ),
-    Chart: CumulativeWatches,
-  },
-  {
     id: "ytd",
-    sets: ["stats"],
+    sets: ["landing"],
     title: "Viewings to date",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
@@ -358,33 +175,188 @@ const CHART_SECTIONS: ChartSection[] = [
     Chart: ViewingsToDate,
   },
   {
-    id: "rewatched",
-    sets: ["stats"],
-    title: "What I go back to",
+    id: "cumulative",
+    sets: ["landing"],
+    title: "Cumulative watches",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: <MostRewatchedBlurb />,
-    Chart: MostRewatched,
+    blurb: (
+      <>
+        The running total, stacked by genre.
+      </>
+    ),
+    Chart: CumulativeWatches,
+  },
+  {
+    id: "velocity",
+    sets: ["landing"],
+    title: "Viewing velocity",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: <>Every bucket since the first logged watch. No smoothing.</>,
+    Chart: ViewingVelocity,
+  },
+  {
+    id: "monthly",
+    sets: ["landing"],
+    title: "Pace by month",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Watches per calendar day, so a taller bar is a busier month.
+      </>
+    ),
+    Chart: MonthlyPace,
+  },
+  {
+    id: "weekday",
+    sets: ["landing"],
+    title: "Pace by weekday",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Watches by day, weekend tinted.
+      </>
+    ),
+    Chart: WeekdayCounts,
   },
   {
     id: "genrebox",
-    sets: ["stats"],
+    sets: ["landing"],
     title: "Ratings by primary genre",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: <>Tukey box plots, one value per film, each film in exactly one genre.</>,
     Chart: RatingsByGenre,
   },
   {
+    id: "rewatched",
+    sets: ["landing"],
+    title: "What I go back to",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: <MostRewatchedBlurb />,
+    Chart: MostRewatched,
+  },
+  {
+    id: "rewatch",
+    sets: ["landing", "narrative", "heart"],
+    title: "Second thoughts",
+    blurbClass: "mb-4 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Films I returned to, grouped by whether coming back changed my mind. Biggest swings first.
+      </>
+    ),
+    heartBlurb: (
+      <>
+        Second thoughts on films I already loved: hearted, and returned to at least once.
+      </>
+    ),
+    Chart: RewatchCadence,
+  },
+  // --- Story-only. These earn their place inside a story and nowhere else. ---
+  {
+    id: "contrarian",
+    sets: ["narrative", "heart"],
+    title: "Me versus the critics",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Each film, placed by how far my rating sits from the critics&rsquo; prediction.
+      </>
+    ),
+    heartBlurb: (
+      <>
+        Only the films I hearted, still placed against the full critics model.
+      </>
+    ),
+    Chart: ResidualDotStack,
+  },
+  {
     id: "pairing",
-    sets: ["stats"],
+    sets: ["narrative"],
     title: "Genre pairing",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        Which genre combinations show up and how they rate. Pale cells are backed by
-        a single film.
+        Which genre combinations I actually watch, and how they rate.
       </>
     ),
     Chart: GenrePairing,
+  },
+  {
+    id: "keywords",
+    sets: ["narrative", "heart"],
+    title: "The keywords that give me away",
+    blurbClass: "mb-3 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Keywords I heart more often than I heart anything, and less. Distance from my overall rate, in points.
+      </>
+    ),
+    Chart: KeywordBars,
+  },
+  {
+    id: "countries",
+    sets: ["narrative", "heart"],
+    title: "What travels well",
+    blurbClass: "mb-2 text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Countries by how many of my films they made. The right column is the heart, against
+        my overall rate.
+      </>
+    ),
+    Chart: CountryBars,
+  },
+  {
+    id: "stripes",
+    sets: ["narrative", "heart"],
+    title: "Streaks and slumps",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        The whole log as a barcode, one stripe per rated watch, in order.
+      </>
+    ),
+    heartBlurb: (
+      <>
+        The same barcode, colored by the heart instead of my rating.
+      </>
+    ),
+    Chart: StreakStripes,
+  },
+  {
+    id: "rolling",
+    sets: ["narrative", "heart"],
+    title: "Warming up or wearing out",
+    blurbClass: "mb-3 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        My rolling {10}-watch average within each group, against my overall average.
+      </>
+    ),
+    heartBlurb: (
+      <>
+        The same panels, hearted films only, against my average across everything hearted in
+        view.
+      </>
+    ),
+    Chart: RollingRating,
+  },
+  {
+    id: "franchise",
+    sets: ["narrative", "heart"],
+    title: "Franchise runs",
+    blurbClass: "mb-4 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        One row per franchise I have seen at least two entries of. Height is my rating.
+      </>
+    ),
+    heartBlurb: (
+      <>
+        Only franchises holding a film I hearted. Runs I never loved an entry of drop out.
+      </>
+    ),
+    Chart: FranchiseRuns,
   },
 ];
 
@@ -399,7 +371,7 @@ function spanWord(n: number): string {
 }
 
 function Explorer() {
-  const { storyFocus, activeStory, films, all, yearBounds, heartLens } = useExplorer();
+  const { storyFocus, activeStory, films, yearBounds, heartLens } = useExplorer();
   const { state: recState } = useRecommend();
   const [drawerOpenRaw, setDrawerOpen] = useState(false);
   const drawerOpen = drawerOpenRaw && !recState.open;
@@ -458,7 +430,10 @@ function Explorer() {
   // A chart-set story swaps the page rather than dimming it. Which set it wants
   // is declared on the story, so a new set needs no branch here.
   const wanted = chartSetFor(activeStory);
-  const sections = CHART_SECTIONS.filter((s) => (s.sets ?? DEFAULT_SETS).includes(wanted));
+  const hidden = hiddenCharts(activeStory);
+  const sections = CHART_SECTIONS.filter(
+    (s) => s.sets.includes(wanted) && !hidden.includes(s.id),
+  );
 
   const chartStyle = (id: ChartId): React.CSSProperties =>
     storyFocus?.dim.includes(id)
@@ -477,18 +452,16 @@ function Explorer() {
         <h1 className="font-display text-4xl font-bold tracking-tight text-[#0b0b0b]">
           cinemetrics<span style={{ color: "#c01023" }}>.</span>
         </h1>
+        {/* No instruction, and no counts: the stat bar prints the watch total a few
+            inches below, and telling a reader to tap a chip spends a line on
+            something the chip's own arrow already says. */}
         <p className="mt-2 max-w-2xl text-sm text-[#3d3c38]">
-          {spanWord(years)} {years === 1 ? "year" : "years"}, {films.length} films, and{" "}
-          {all.length} watches, scored on my own scale and lined up against the critics.
-          A few things the numbers turned up. Tap one to see it on the charts:
+          {spanWord(years)} {years === 1 ? "year" : "years"} and {films.length} films, scored
+          on my own scale and lined up against the critics.
         </p>
         <div className="mt-3">
           <StoryChips />
         </div>
-        <p className="mt-3 max-w-2xl text-xs text-[#67655f]">
-          Or explore freely: every control cross-filters all the charts, and clicking a film
-          traces it across them.
-        </p>
       </header>
 
       {/* Mobile-only trigger: opens the filter drawer. */}

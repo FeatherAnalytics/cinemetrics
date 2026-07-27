@@ -135,6 +135,27 @@ export function byStarBin(watches: EnrichedWatch[]): EnrichedWatch[][] {
   return out;
 }
 
+/**
+ * EVERY rated watch grouped into the star bins, whatever its heart state.
+ *
+ * The all-ratings twin of `byStarBin`, which filters to known-heart watches
+ * because the rates built on it divide by that subset. A distribution of my
+ * ratings must not: dropping the 98 unknown-heart rows would redraw the shape of
+ * the library to suit a column the chart is not about.
+ *
+ * Counts WATCHES rather than films, matching the stat bar's 794 and every other
+ * count on the page. A rewatched film contributed each of those ratings.
+ */
+export function ratingsByStarBin(watches: EnrichedWatch[]): EnrichedWatch[][] {
+  const out: EnrichedWatch[][] = STAR_BINS.map(() => []);
+  for (const w of watches) {
+    if (w.rating == null) continue;
+    const i = starBinIndex(w.rating);
+    if (i >= 0) out[i].push(w);
+  }
+  return out;
+}
+
 /* ---------------------------------------------------------- the middle band */
 
 /**
@@ -150,10 +171,10 @@ export function byStarBin(watches: EnrichedWatch[]): EnrichedWatch[][] {
  * exactly the 70 and 80 values, which are 3.5 and 4 stars. `CROSSOVER_STARS` is
  * the same band for anything that has to say it out loud.
  */
-export const CROSSOVER: [number, number] = [70, 89];
+const CROSSOVER: [number, number] = [70, 89];
 export const CROSSOVER_STARS: [number, number] = [3.5, 4];
 
-export function inCrossover(w: EnrichedWatch): boolean {
+function inCrossover(w: EnrichedWatch): boolean {
   return w.rating != null && w.rating >= CROSSOVER[0] && w.rating <= CROSSOVER[1];
 }
 

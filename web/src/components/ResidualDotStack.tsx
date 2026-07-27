@@ -8,7 +8,6 @@ import { computeResiduals, type FilmResidual } from "@/lib/stats";
 import { ChartTakeaway } from "./ChartTakeaway";
 import { isFav } from "@/lib/fourFavs";
 import { StarMarker } from "@/lib/favMarker";
-import { heartByFilm, heartDimForFilm } from "@/lib/heartLens";
 
 const W = 900;
 const ML = 16;
@@ -30,13 +29,29 @@ type Dot = FilmResidual & {
 };
 
 export function ResidualDotStack() {
-  const { all, filtered, byId, selectedId, setSelected, setSelection, heartLens } =
+  const { filtered, byId, selectedId, setSelected, setSelection, heartLens } =
     useExplorer();
-  const hearts = useMemo(() => heartByFilm(all), [all]);
+  // Under the lens this chart DROPS everything unhearted rather than fading it: the
+  // dots are one per film in a dense stack, so a faded dot still occupies a column
+  // and still shifts the shape.
+  //
+  // The MODEL is not narrowed with them. `computeResiduals` fits an OLS regression
+  // on whatever it is handed, so passing only the hearted films refit the critics
+  // model on a smaller, higher-rated subsample: every dot moved, R² changed, and the
+  // two views of "me versus the critics" were no longer the same chart with fewer
+  // dots but two different regressions. The fit stays on the full filtered set and
+  // only the DISPLAY drops rows.
+  const hearted = useMemo(
+    () => new Set(filtered.filter((w) => w.heart === true).map((w) => w.tmdb_id)),
+    [filtered],
+  );
   const [hover, setHover] = useState<Dot | null>(null);
 
   const { dots, r2, rMax, axisMax, H, baseline, dotR } = useMemo(() => {
-    const { films, r2 } = computeResiduals(filtered, byId);
+    const { films: allFilms, r2 } = computeResiduals(filtered, byId);
+    // Display-only narrowing, applied AFTER the fit so every surviving dot keeps the
+    // residual the full model gave it.
+    const films = heartLens ? allFilms.filter((f) => hearted.has(f.tmdb_id)) : allFilms;
     if (films.length === 0)
       return {
         dots: [] as Dot[], r2: 0, rMax: 25, axisMax: 30, H: 240, baseline: 200, dotR: 3,
@@ -106,7 +121,7 @@ export function ResidualDotStack() {
       });
     });
     return { dots, r2, rMax, axisMax, H, baseline, dotR: r };
-  }, [filtered, byId]);
+  }, [filtered, byId, heartLens, hearted]);
 
   const { rect, handlers } = useDragRect(
     () => ({ w: W, h: H }),
@@ -170,11 +185,10 @@ export function ResidualDotStack() {
 
         {dots.map((d) => {
           const sel = d.tmdb_id === selectedId;
-          // Under the lens the dot keeps its genre color and everything that is not
-          // hearted fades. Films with no recorded heart fade with the rest rather
-          // than taking a gray of their own: the whole 2019 cohort has none, and a
-          // gray for it wiped the genre colors off a fifth of the chart.
-          const fade = heartLens ? heartDimForFilm(hearts.get(d.tmdb_id)) : 1;
+          // No fade here: under the lens the unhearted films are already gone, so
+          // every dot on screen is one I hearted and dimming would be dimming the
+          // subject.
+          const fade = 1;
           const fill = GENRE_COLORS[d.genre];
           const handlers = {
             onMouseEnter: () => setHover(d),

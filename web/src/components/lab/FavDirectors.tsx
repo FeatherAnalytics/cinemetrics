@@ -219,46 +219,22 @@ export function FavDirectors() {
   );
 }
 
-/** Counts the companions live, so a filter cannot leave the sentence stale. */
+/**
+ * One sentence. The bars carry every rating and the dashed line carries my average,
+ * so the blurb's job is the count and the direction, nothing else.
+ */
 export function FavDirectorsBlurb() {
   const { filtered } = useExplorer();
   const cohorts = useMemo(() => favDirectorCohorts(filtered), [filtered]);
   if (cohorts.length === 0) return null;
 
-  const companions = cohorts.flatMap((c) => c.others);
-  const rated = companions.map((f) => f.rating).filter((r): r is number => r != null);
-  const alone = cohorts.filter((c) => c.others.length === 0).length;
-  // Checked rather than asserted. "None reaches its favorite" is true of the full
-  // library, where every favorite is rated 100, and the rail is free to filter to
-  // a slice where a favorite's best watch is not its best ever.
-  const noneReaches = cohorts.every((c) =>
-    c.others.every((o) => (o.rating ?? 0) < (c.fav.rating ?? 0)),
-  );
+  const companions = cohorts.flatMap((c) => c.others).length;
+  if (companions === 0) return null;
 
   return (
     <p className="text-sm" style={{ color: INK.secondary }}>
-      {cohorts.length === 1
-        ? "One favorite is in view"
-        : `${cohorts.length} favorites are in view`}
-      , between them {companions.length}{" "}
-      {companions.length === 1 ? "other film" : "other films"} by the same directors.
-      {rated.length > 0 && (
-        <>
-          {" "}
-          Those average {Math.round(mean(rated))}
-          {noneReaches && companions.length > 0
-            ? ", and none of them reaches the favorite it came with"
-            : ""}
-          .
-        </>
-      )}
-      {alone > 0 && (
-        <>
-          {" "}
-          {alone} {alone === 1 ? "favorite has" : "favorites have"} no other film by that
-          director in view.
-        </>
-      )}
+      Each favorite arrived with {companions === cohorts.length ? "one other film" : "company"} by
+      the same director.
     </p>
   );
 }

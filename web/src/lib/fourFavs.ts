@@ -11,7 +11,7 @@ import type { EnrichedWatch } from "./types";
  * page (`ingest/letterboxd_film_page.py`), which is exact rather than a title
  * search, and all four came back `content_type: "movie"`.
  */
-export type Fav = {
+type Fav = {
   tmdb_id: number;
   /** boxd.it short id, kept so the mapping can be re-verified. */
   letterboxd: string;
@@ -92,7 +92,7 @@ export function isFav(tmdb_id: number): boolean {
 
 /* ------------------------------------------------------ films at the ceiling */
 
-export type CeilingFilm = {
+type CeilingFilm = {
   tmdb_id: number;
   /** Title, carrying its year only when another film on the chart shares it. */
   label: string;

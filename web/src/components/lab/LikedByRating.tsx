@@ -5,7 +5,6 @@ import { useExplorer } from "@/lib/store";
 import { INK } from "@/lib/palette";
 import {
   byStarBin,
-  CROSSOVER_STARS,
   likedRate,
   starLabel,
   STAR_BINS,
@@ -53,52 +52,15 @@ export function LikedByRating() {
 }
 
 /**
- * The blurb quotes live numbers, so it recomputes with the chart rather than
- * asserting a figure the filter has already moved.
+ * Says what the columns are and stops.
+ *
+ * It used to quote both end rates and name the crossover, which the annotation
+ * above it already states and the bars already print. Three copies of one finding.
  */
 export function LikedByRatingBlurb() {
-  const { filtered } = useExplorer();
-  const { low, high, all } = useMemo(() => {
-    const groups = byStarBin(filtered);
-    // Everything under the crossover, and everything over it. The two bins in
-    // between are named rather than quoted: 3.5 and 4 stars are 27% and 72%, so
-    // one number for the pair would describe a level neither of them sits at.
-    const below = STAR_BINS.findIndex((s) => s >= CROSSOVER_STARS[0]);
-    const above = STAR_BINS.findIndex((s) => s > CROSSOVER_STARS[1]);
-    return {
-      low: likedRate(groups.slice(0, below).flat()),
-      high: likedRate(groups.slice(above).flat()),
-      all: likedRate(filtered),
-    };
-  }, [filtered]);
-
-  if (all.n === 0) return null;
-
-  // Each end is quoted only if it HAS watches. Filtered to the Miyazaki
-  // collection nothing is rated under 3.5 stars, and the sentence read "almost
-  // never given (0% of 0)", which is a rate computed from an empty set stated
-  // as a fact about my taste.
-  const ends = [
-    low.n > 0 &&
-      `below ${starLabel(CROSSOVER_STARS[0])} it is almost never given (${Math.round(
-        low.rate * 100,
-      )}% of ${low.n})`,
-    high.n > 0 &&
-      `past ${starLabel(CROSSOVER_STARS[1])} it is close to automatic (${Math.round(
-        high.rate * 100,
-      )}% of ${high.n})`,
-  ].filter(Boolean) as string[];
-
   return (
     <p className="text-sm" style={{ color: INK.secondary }}>
-      {ends.length > 0 && (
-        <>
-          The heart tracks the rating almost everywhere: {ends.join(", and ")}.{" "}
-        </>
-      )}
-      The flip happens between {starLabel(CROSSOVER_STARS[0])} and{" "}
-      {starLabel(CROSSOVER_STARS[1])}, and those two bins are the only place the measures
-      can disagree.
+      The share of each rating that got a heart.
     </p>
   );
 }

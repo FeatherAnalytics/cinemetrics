@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   byStarBin,
   filmHearts,
+  ratingsByStarBin,
   CROSSOVER_STARS,
   crossoverWatches,
   hasKnownLike,
@@ -218,5 +219,34 @@ describe("likedRate reads the recovered heart", () => {
       n: 0,
       rate: 0,
     });
+  });
+});
+
+describe("ratingsByStarBin", () => {
+  it("keeps watches whose heart was never recorded, unlike byStarBin", () => {
+    // The distribution is about my ratings, so an unknown heart is irrelevant to
+    // it. byStarBin drops these because the rates built on it cannot use them.
+    const ws = [watch({ rating: 80, liked: null, heart: null })];
+    expect(ratingsByStarBin(ws).flat()).toHaveLength(1);
+    expect(byStarBin(ws).flat()).toHaveLength(0);
+  });
+
+  it("returns one bucket per bin, in scale order", () => {
+    const out = ratingsByStarBin([watch({ rating: 20 }), watch({ rating: 100 })]);
+    expect(out).toHaveLength(STAR_BINS.length);
+    expect(out[STAR_BINS.indexOf(1)]).toHaveLength(1);
+    expect(out[STAR_BINS.indexOf(5)]).toHaveLength(1);
+  });
+
+  it("counts watches, not films, so a rewatch votes twice", () => {
+    const out = ratingsByStarBin([
+      watch({ tmdb_id: 7, rating: 80, date: "2021-01-01" }),
+      watch({ tmdb_id: 7, rating: 80, date: "2023-01-01" }),
+    ]);
+    expect(out[STAR_BINS.indexOf(4)]).toHaveLength(2);
+  });
+
+  it("drops unrated watches rather than bucketing them at one star", () => {
+    expect(ratingsByStarBin([watch({ rating: null })]).flat()).toHaveLength(0);
   });
 });

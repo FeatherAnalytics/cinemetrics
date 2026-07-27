@@ -32,6 +32,8 @@ type Card = {
   tmdb_id: number;
   title: string;
   src: string | null;
+  /** boxd.it short link to the film's Letterboxd page. */
+  href: string;
   watches: EnrichedWatch[];
 };
 
@@ -53,6 +55,9 @@ export function FavPosters() {
       return {
         tmdb_id: f.tmdb_id,
         title: watches[0]?.film?.title ?? f.title,
+        // The short link the id was resolved FROM, so it cannot drift from the film
+        // this card is about the way a rebuilt slug could.
+        href: `https://boxd.it/${f.letterboxd}`,
         // `poster_path` is not in the exported dataset yet, so the fallback
         // resolves to null for anything without a curated entry. Passing it
         // anyway means the day it lands, this reads it without a change here.
@@ -78,12 +83,13 @@ export function FavPosters() {
           const out = c.watches.length > 0 && !inView.has(c.tmdb_id);
           const broken = c.src == null || failed[c.tmdb_id];
           return (
-            <li key={c.tmdb_id}>
-              <button
-                type="button"
-                className="block w-full cursor-pointer border-0 bg-transparent p-0 text-left"
-                style={{ opacity: out ? 0.35 : 1 }}
-                onClick={() => pickWatches(c.watches, filters.selection, setSelection)}
+            <li key={c.tmdb_id} style={{ opacity: out ? 0.35 : 1 }}>
+              <a
+                href={c.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+                aria-label={`${c.title} on Letterboxd`}
               >
                 <div
                   className="relative w-full overflow-hidden rounded"
@@ -118,7 +124,13 @@ export function FavPosters() {
                     />
                   )}
                 </div>
-                <div className="mt-1.5 flex items-start gap-1.5">
+              </a>
+              <button
+                type="button"
+                className="mt-1.5 block w-full cursor-pointer border-0 bg-transparent p-0 text-left"
+                onClick={() => pickWatches(c.watches, filters.selection, setSelection)}
+              >
+                <div className="flex items-start gap-1.5">
                   <svg width={13} height={13} className="mt-0.5 shrink-0" aria-hidden>
                     <StarMarker x={6.5} y={6.5} r={6} fill={favColor(film)} />
                   </svg>
