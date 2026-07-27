@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { interpolateRgb } from "d3";
 import { useExplorer } from "@/lib/store";
-import { heartColor } from "@/lib/heartLens";
+import { HEART_COOL, HEART_LIKED, HEART_UNKNOWN, heartColor } from "@/lib/heartLens";
 import { DIVERGE_COOL, DIVERGE_MID, DIVERGE_WARM, INK } from "@/lib/palette";
 import { computeMedianRating } from "@/lib/stats";
 import type { EnrichedWatch } from "@/lib/types";
@@ -85,7 +85,11 @@ export function StreakStripes() {
         viewBox={`0 0 ${W} ${H}`}
         className="w-full"
         role="img"
-        aria-label="One stripe per rated watch in order, colored by how far the rating sat above or below my median"
+        aria-label={
+          heartLens
+            ? "One stripe per rated watch in order, colored by the Letterboxd heart: crimson where I hearted the film, blue where I did not, gray where no heart was recorded"
+            : "One stripe per rated watch in order, colored by how far the rating sat above or below my median"
+        }
       >
         {rated.map((w, i) => {
           const sel = hasSel && w.tmdb_id === selectedId;
@@ -120,16 +124,34 @@ export function StreakStripes() {
         ))}
       </svg>
 
+      {/* The legend has to switch with the fill. Under the heart lens the ramp is
+          gone, so a swatch for "at par" names a color the chart is not drawing and
+          a median the chart is no longer about. */}
       <figcaption className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" style={{ color: INK.muted }}>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-4" style={{ background: WARM }} /> above my median ({Math.round(med)})
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-4" style={{ background: MID, outline: `1px solid ${INK.grid}` }} /> at par
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-4" style={{ background: COOL }} /> below
-        </span>
+        {(heartLens
+          ? [
+              { color: HEART_LIKED, label: "hearted" },
+              { color: HEART_COOL, label: "not hearted" },
+              { color: HEART_UNKNOWN, label: "no heart recorded" },
+            ]
+          : [
+              { color: WARM, label: `above my median (${Math.round(med)})` },
+              { color: MID, label: "at par", outlined: true },
+              { color: COOL, label: "below" },
+            ]
+        ).map((k) => (
+          <span key={k.label} className="inline-flex items-center gap-1.5">
+            <span
+              className="inline-block h-2.5 w-4"
+              style={{
+                background: k.color,
+                // Only the pale tint needs an outline to be visible at all.
+                outline: "outlined" in k && k.outlined ? `1px solid ${INK.grid}` : undefined,
+              }}
+            />{" "}
+            {k.label}
+          </span>
+        ))}
       </figcaption>
 
       {hover && (

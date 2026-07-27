@@ -242,7 +242,8 @@ const CHART_SECTIONS: ChartSection[] = [
       <>
         The same panels, restricted to films I hearted: the colored line is my rolling{" "}
         {10}-watch average rating across the hearted films in that group, and the dashed line
-        my average across everything hearted. Switch how the films are grouped.
+        my average across every hearted watch currently in view, so it moves with the filters.
+        Switch how the films are grouped.
       </>
     ),
     Chart: RollingRating,

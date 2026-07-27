@@ -46,7 +46,7 @@ export function ResidualDotStack() {
     for (const f of films) rMax = Math.max(rMax, Math.abs(f.residual));
     rMax = Math.ceil(rMax / BIN) * BIN;
 
-    // Bin index counts half-stars from the centre, so bin 0 is "agreed with the
+    // Bin index counts half-stars from the center, so bin 0 is "agreed with the
     // critics" and bin +1 is "half a star above". nBins is odd: a zero column
     // plus a symmetric fan either side.
     const half = rMax / BIN;
@@ -84,13 +84,13 @@ export function ResidualDotStack() {
 
     const dots: Dot[] = [];
     bins.forEach((b, i) => {
-      // Column centre derived from its VALUE, using the same mapping as the axis
+      // Column center derived from its VALUE, using the same mapping as the axis
       // ticks, so a column can never drift from the label beneath it.
       const value = (i - half) * BIN;
-      const centre = ML + ((value + axisMax) / (2 * axisMax)) * (W - ML - MR);
+      const center = ML + ((value + axisMax) / (2 * axisMax)) * (W - ML - MR);
       // Grid is centered on the column, so the stack stays visually anchored to
       // its tick even when the top row is partly filled.
-      const gridLeft = centre - (Math.min(b.length, perRow) * cell) / 2;
+      const gridLeft = center - (Math.min(b.length, perRow) * cell) / 2;
       b.forEach((f, k) => {
         const film = byId.get(f.tmdb_id);
         const row = Math.floor(k / perRow);

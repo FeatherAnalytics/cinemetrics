@@ -61,7 +61,7 @@ export function LikedByRatingBlurb() {
   const { low, high, all } = useMemo(() => {
     const groups = byStarBin(filtered);
     // Everything under the crossover, and everything over it. The two bins in
-    // between are named rather than quoted: 3.5 and 4 stars are 26% and 73%, so
+    // between are named rather than quoted: 3.5 and 4 stars are 27% and 72%, so
     // one number for the pair would describe a level neither of them sits at.
     const below = STAR_BINS.findIndex((s) => s >= CROSSOVER_STARS[0]);
     const above = STAR_BINS.findIndex((s) => s > CROSSOVER_STARS[1]);

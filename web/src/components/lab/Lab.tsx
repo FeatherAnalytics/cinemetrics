@@ -64,8 +64,14 @@ const GROUPS: Group[] = [
             hearting is one toggle per film rather than per viewing
           </>
         )}
-        . The remaining {unknown} pre-Letterboxd rows belong to films never watched again,
-        so they stay unknown and are excluded from every rate here.
+        {unknown > 0 && (
+          <>
+            . The remaining {unknown} pre-Letterboxd{" "}
+            {unknown === 1 ? "row belongs" : "rows belong"} to films never watched again, so
+            they stay unknown and are excluded from every rate here
+          </>
+        )}
+        .
       </>
     ),
     sections: [
@@ -116,12 +122,15 @@ const GROUPS: Group[] = [
 ];
 
 function Body() {
-  const { filtered, all } = useExplorer();
+  const { filtered } = useExplorer();
+  // All three counted IN VIEW, so the sentence describes the charts beside it
+  // instead of films the filter has already removed. `unknown` in particular is
+  // "the remaining" of `inView`, so taking it from the whole library made the note
+  // claim more watches than the charts hold: filtered to 2023 it read "100 of 100
+  // have a known heart, the remaining 98 stay unknown".
   const known = filtered.filter((w) => w.heart != null).length;
-  // Counted in view rather than over the whole library, so the sentence describes
-  // the charts beside it instead of films the filter has already removed.
   const recovered = filtered.filter((w) => w.liked == null && w.heart != null).length;
-  const unknown = all.filter((w) => w.heart == null).length;
+  const unknown = filtered.length - known;
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-10">

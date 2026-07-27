@@ -41,7 +41,7 @@ export const FAV_IDS: ReadonlySet<number> = new Set(FOUR_FAVS.map((f) => f.tmdb_
  * A film with no entry here falls back to whatever `poster_path` the pipeline
  * carries, which is TMDB's default pick for it.
  */
-export const FAV_POSTERS: Record<number, string> = {
+const FAV_POSTERS: Record<number, string> = {
   // Alternates, chosen over TMDB's default pick. Verified present in TMDB's image
   // set for each film, so they carry no license the project has not already
   // accepted: Suspiria's is the Japanese release art (1200x1692), Raw's an English
@@ -56,15 +56,18 @@ export const FAV_POSTERS: Record<number, string> = {
 };
 
 /**
- * Poster widths TMDB actually serves. Anything else is resized on request, and
- * `original` is frequently a 2000px, multi-megabyte file: correct for a print
- * reference and wrong for four thumbnails on a static page.
+ * The width TMDB is asked for.
+ *
+ * `original` is frequently a 2000px, multi-megabyte file: right for a print
+ * reference and wrong for four thumbnails on a static page. Fixed rather than a
+ * parameter, because one caller wants one size and a parameter nobody varies is
+ * just a wider signature.
  */
-export type PosterWidth = "w185" | "w342" | "w500";
+const POSTER_WIDTH = "w342";
 
-export function posterUrl(path: string | null | undefined, width: PosterWidth = "w342"): string | null {
+export function posterUrl(path: string | null | undefined): string | null {
   if (!path) return null;
-  return `https://image.tmdb.org/t/p/${width}${path}`;
+  return `https://image.tmdb.org/t/p/${POSTER_WIDTH}${path}`;
 }
 
 /** The path to draw for a film: the curated choice first, the pipeline's second. */
@@ -98,7 +101,7 @@ export type CeilingFilm = {
   fav: boolean;
 };
 
-export type Ceiling = {
+type Ceiling = {
   /** The top rating actually present, or null when nothing here is rated. */
   rating: number | null;
   films: CeilingFilm[];
@@ -130,9 +133,9 @@ export function ceilingFilms(watches: EnrichedWatch[]): Ceiling {
   let top: number | null = null;
   const filmTop = new Map<number, number>();
   for (const [id, ws] of byFilm) {
-    // Highest rating across the film's watches, matching how `admiredNotLoved`
-    // and the rewatch charts collapse a film: the heart does not vary between
-    // viewings, and neither should the film's place on a rating axis.
+    // Highest rating across the film's watches, matching how the rewatch charts
+    // collapse a film: the heart does not vary between viewings, and neither should
+    // the film's place on a rating axis.
     const best = Math.max(...ws.map((w) => w.rating as number));
     filmTop.set(id, best);
     if (top == null || best > top) top = best;
@@ -175,7 +178,7 @@ export type CohortFilm = {
   watches: EnrichedWatch[];
 };
 
-export type FavCohort = {
+type FavCohort = {
   director: string;
   fav: CohortFilm;
   /** Everything else by that director that I watched. */

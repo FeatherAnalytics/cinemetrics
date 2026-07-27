@@ -86,7 +86,7 @@ export function likedRate(watches: EnrichedWatch[]): Rate {
  * rating in the library is a clean multiple of ten. So a bin holds one rating
  * value rather than a range, and ten-point "bands" were the same bins under
  * labels that implied otherwise. "60s" contained nothing but 60, and "90+"
- * quietly merged 4.5 stars with 5, which are 97% and 100% hearted and the two
+ * quietly merged 4.5 stars with 5, which are 94% and 100% hearted and the two
  * ends of the curve worth telling apart.
  *
  * Half stars and not whole ones, because the flip happens between 3.5 and 4.
@@ -123,7 +123,7 @@ export function starBinIndex(rating: number): number {
  *
  * Unrated watches are dropped rather than bucketed: there is no bin for "no
  * rating" on a rating axis, and in this dataset the question never comes up
- * anyway, since all 665 known-like watches carry a rating.
+ * anyway, since all 696 known-heart watches carry a rating.
  */
 export function byStarBin(watches: EnrichedWatch[]): EnrichedWatch[][] {
   const out: EnrichedWatch[][] = STAR_BINS.map(() => []);

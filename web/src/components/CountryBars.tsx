@@ -77,7 +77,7 @@ export function CountryBars() {
   );
 
   // Scaled against its own maximum, so the longest deviation fills the track.
-  const mirrorMax = Math.max(0.1, ...[...(heartRates?.values() ?? [])].map(Math.abs));
+  const devMax = Math.max(0.1, ...[...(heartRates?.values() ?? [])].map(Math.abs));
 
   const HEIGHT = (agg.rows.length + (tailRow ? 1 : 0)) * (BAR_H + GAP) + 40;
 
@@ -97,7 +97,7 @@ export function CountryBars() {
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
         role="img"
-        aria-label="Top production countries ranked by film count, colored by dominant genre. Films bars grow rightward from the country name. The right-hand track diverges from a zero line: bars grow right where I heart that country\u2019s films more often than average and left where less often."
+        aria-label="Top production countries ranked by film count, colored by dominant genre. Films bars grow rightward from the country name. The right-hand track diverges from a zero line: bars grow right where I heart films from that country more often than average and left where less often."
       >
         {/* Column headers */}
         <text
@@ -141,7 +141,7 @@ export function CountryBars() {
           const isHover = hover === row.iso;
           const countInside = barLen > INSIDE_MIN;
           const dev = heartRates?.get(row.iso) ?? null;
-          const devLen = dev == null ? 0 : (Math.abs(dev) / mirrorMax) * DEV_HALF;
+          const devLen = dev == null ? 0 : (Math.abs(dev) / devMax) * DEV_HALF;
           // Grows right when I heart that country more often than average, left when
           // less, from a shared zero.
           const devX = dev != null && dev > 0 ? DEV_ZERO : DEV_ZERO - devLen;

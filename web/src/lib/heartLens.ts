@@ -30,9 +30,9 @@ export const HEART_COOL = GENRE_COLORS.Drama;
  */
 export const HEART_UNKNOWN = "#b3b1a6";
 
-export type HeartState = "liked" | "not" | "unknown";
+type HeartState = "liked" | "not" | "unknown";
 
-export function heartState(w: EnrichedWatch): HeartState {
+function heartState(w: EnrichedWatch): HeartState {
   if (w.heart == null) return "unknown";
   return w.heart ? "liked" : "not";
 }
@@ -60,22 +60,10 @@ export function heartColor(w: EnrichedWatch): string {
  * answer, and it is not load-bearing in a highlight, where the question is only
  * whether this mark is one of the hearted ones.
  */
-export const HEART_DIM = 0.6;
+const HEART_DIM = 0.6;
 
 export function heartDim(w: EnrichedWatch): number {
-  return heartState(w) === "liked" ? 1 : HEART_DIM;
-}
-
-/**
- * The fill for a mark under the lens.
- *
- * Its own color, always. Kept as a named function rather than inlined because the
- * barcode does the opposite on purpose (see `StreakStripes`), and having both
- * behaviors reachable from here is what stops a third chart from inventing a
- * fourth answer.
- */
-export function heartFill(_w: EnrichedWatch, own: string): string {
-  return own;
+  return heartDimForFilm(w.heart ?? undefined);
 }
 
 /** Watches carrying the heart. The subset the story's filtered charts work on. */
@@ -83,17 +71,6 @@ export function likedOnly(watches: EnrichedWatch[]): EnrichedWatch[] {
   return watches.filter((w) => w.heart === true);
 }
 
-/**
- * The legend, in the order the colors are worth reading.
- *
- * Exported as data so the charts that need to caption themselves cannot drift
- * from the colors they draw.
- */
-export const HEART_LEGEND: { label: string; color: string }[] = [
-  { label: "hearted", color: HEART_LIKED },
-  { label: "not", color: HEART_COOL },
-  { label: "no heart recorded", color: HEART_UNKNOWN },
-];
 
 /** The film-level twin of `heartDim`, for charts whose marks are films. */
 export function heartDimForFilm(heart: boolean | undefined): number {
@@ -117,13 +94,8 @@ export function heartByFilm(watches: EnrichedWatch[]): Map<number, boolean> {
   return out;
 }
 
-/** The color for a film-level heart, where absent means unknown rather than not. */
-export function heartColorForFilm(heart: boolean | undefined): string {
-  if (heart == null) return HEART_UNKNOWN;
-  return heart ? HEART_LIKED : HEART_COOL;
-}
 
-export type HeartShare = { liked: number; n: number; rate: number };
+type HeartShare = { liked: number; n: number; rate: number };
 
 /**
  * The share of a group of watches that carry the heart, over the known ones only.
@@ -149,10 +121,6 @@ export function heartShare(
   }
   if (n < minKnown) return null;
   return { liked, n, rate: liked / n };
-}
-
-export function pctLabel(rate: number): string {
-  return `${Math.round(rate * 100)}%`;
 }
 
 /**

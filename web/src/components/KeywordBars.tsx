@@ -20,7 +20,6 @@ type KeywordBar = {
   keyword: string;
   /** Heart rate minus my overall rate, in points. Null below the evidence floor. */
   heartDelta: number | null;
-  count: number;
   /** Films under this keyword whose heart is known. The heart denominator. */
   heartCount: number;
   genre: GenreKey;
@@ -51,7 +50,7 @@ export function KeywordBars() {
 
     const kwMap = new Map<
       string,
-      { residuals: number[]; genres: GenreKey[]; ids: Set<number>; hearts: boolean[] }
+      { films: number; genres: GenreKey[]; ids: Set<number>; hearts: boolean[] }
     >();
 
     for (const f of films) {
@@ -63,9 +62,9 @@ export function KeywordBars() {
 
       for (const kw of kws) {
         if (!kwMap.has(kw))
-          kwMap.set(kw, { residuals: [], genres: [], ids: new Set(), hearts: [] });
+          kwMap.set(kw, { films: 0, genres: [], ids: new Set(), hearts: [] });
         const entry = kwMap.get(kw)!;
-        entry.residuals.push(f.residual);
+        entry.films += 1;
         entry.genres.push(genre);
         entry.ids.add(f.tmdb_id);
         const h = hearts.get(f.tmdb_id);
@@ -75,7 +74,7 @@ export function KeywordBars() {
 
     const candidates: KeywordBar[] = [];
     for (const [kw, data] of kwMap) {
-      if (data.residuals.length < MIN_FILMS) continue;
+      if (data.films < MIN_FILMS) continue;
 
       // Dominant genre: most common
       const genreCounts = new Map<GenreKey, number>();
@@ -103,7 +102,6 @@ export function KeywordBars() {
       candidates.push({
         keyword: kw,
         heartDelta,
-        count: data.residuals.length,
         heartCount: data.hearts.length,
         genre: dominantGenre,
         filmIds: data.ids,
