@@ -2,21 +2,52 @@
 // rates can be tested directly: an affection rate with the wrong denominator
 // renders perfectly and simply states a false number.
 
-import type { EnrichedWatch } from "./types";
+import type { EnrichedWatch, Watch } from "./types";
+
+/* ------------------------------------------------ recovering the sheet era */
+
+/**
+ * The heart per FILM, taken from whichever of its watches recorded one.
+ *
+ * Hearting is a single toggle per film that Letterboxd stamps onto every diary
+ * entry for it, so all of a film's watches carry the same value. That makes a
+ * sheet-era row recoverable whenever the same film was watched again later: the
+ * value is not missing, it is sitting on another row.
+ *
+ * 31 of the 129 unknown rows come back this way, across 27 films, and the
+ * affection rate moves from 46.3% to 47.3%. The remaining 98 belong to 96 films
+ * never watched again, and stay unknown.
+ *
+ * MUST be built from the FULL watch list, never a filtered one. Filtered to 2019
+ * the Letterboxd-era rows are not in view, so a map built there would recover
+ * nothing and the heart would blink back to unknown because of a filter, which is
+ * not something a filter is allowed to change.
+ */
+export function filmHearts(watches: Watch[]): Map<number, boolean> {
+  const out = new Map<number, boolean>();
+  for (const w of watches) {
+    if (w.liked == null) continue;
+    out.set(w.tmdb_id, w.liked);
+  }
+  return out;
+}
 
 /* --------------------------------------------------------- the known subset */
 
 /**
- * Whether this watch recorded the Letterboxd heart at all.
+ * Whether the heart is known for this watch, recorded or recovered.
  *
- * `liked` is THREE-STATE: true / false / NULL, where NULL is UNKNOWN. The 129
- * pre-Letterboxd rows have no like data, because the Google Sheet they came from
- * had no such field. Counting them as "not liked" understates the affection rate
- * by about 7.5 points, so every rate in here divides by `known` and never by the
- * full watch list.
+ * The heart is THREE-STATE: true / false / NULL, where NULL is UNKNOWN. The 129
+ * pre-Letterboxd rows recorded no like data, because the Google Sheet they came
+ * from had no such field. Counting them as "not liked" understates the affection
+ * rate by about 7.5 points, so every rate in here divides by `known` and never by
+ * the full watch list.
+ *
+ * Reads `heart` rather than raw `liked`, so the 31 rows recoverable from a later
+ * watch of the same film count as the evidence they are.
  */
 export function hasKnownLike(w: EnrichedWatch): boolean {
-  return w.liked != null;
+  return w.heart != null;
 }
 
 export function knownWatches(watches: EnrichedWatch[]): EnrichedWatch[] {
@@ -41,7 +72,7 @@ export type Rate = {
  */
 export function likedRate(watches: EnrichedWatch[]): Rate {
   const known = knownWatches(watches);
-  const liked = known.filter((w) => w.liked === true).length;
+  const liked = known.filter((w) => w.heart === true).length;
   return { liked, n: known.length, rate: known.length ? liked / known.length : 0 };
 }
 
@@ -128,72 +159,4 @@ export function inCrossover(w: EnrichedWatch): boolean {
 
 export function crossoverWatches(watches: EnrichedWatch[]): EnrichedWatch[] {
   return knownWatches(watches).filter(inCrossover);
-}
-
-/* -------------------------------------------------------- admired not loved */
-
-export type AdmiredFilm = {
-  tmdb_id: number;
-  title: string;
-  /** Highest rating given across this film's watches. */
-  rating: number;
-  watches: EnrichedWatch[];
-};
-
-/**
- * Films rated at or above `minRating` that never got the heart.
- *
- * Grouped by FILM rather than listed per watch. The heart does not vary between
- * a film's viewings (see the note on the three-state column), so a rewatched
- * title would otherwise appear two or three times in a list whose whole content
- * is one bit per film.
- *
- * The reverse set, hearted films rated LOW, is not worth a chart: there are
- * three of them.
- */
-export function admiredNotLoved(
-  watches: EnrichedWatch[],
-  minRating = 80,
-): AdmiredFilm[] {
-  const byFilm = new Map<number, AdmiredFilm>();
-  for (const w of knownWatches(watches)) {
-    if (w.liked !== false || w.rating == null || w.rating < minRating) continue;
-    const prev = byFilm.get(w.tmdb_id);
-    if (prev) {
-      prev.rating = Math.max(prev.rating, w.rating);
-      prev.watches.push(w);
-      continue;
-    }
-    byFilm.set(w.tmdb_id, {
-      tmdb_id: w.tmdb_id,
-      title: w.film?.title ?? "Unknown",
-      rating: w.rating,
-      watches: [w],
-    });
-  }
-  return [...byFilm.values()].sort(
-    (a, b) => b.rating - a.rating || a.title.localeCompare(b.title),
-  );
-}
-
-/**
- * The mirror set: films that got the heart despite a low rating.
- *
- * Counted rather than charted, because across the whole library there are three
- * of them. The count is what makes "admired, not loved" a one-sided finding
- * instead of half of a symmetry, so it has to be computed against the CURRENT
- * filter rather than quoted from the full dataset. Under a Horror filter the
- * full-library figure would be a sentence about films not on screen.
- */
-export function lovedNotAdmired(
-  watches: EnrichedWatch[],
-  maxRating = 65,
-): number {
-  const films = new Set<number>();
-  for (const w of knownWatches(watches)) {
-    if (w.liked === true && w.rating != null && w.rating <= maxRating) {
-      films.add(w.tmdb_id);
-    }
-  }
-  return films.size;
 }

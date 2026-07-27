@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { STORIES } from "../stories";
+import { chartSetFor, STORIES, swapsChartSet } from "../stories";
+import { FOUR_FAVS } from "../fourFavs";
 import type { EnrichedWatch, Film } from "../types";
 
 function makeFilm(overrides: Partial<Film> = {}): Film {
@@ -19,6 +20,7 @@ function makeWatch(film: Film, overrides: Partial<EnrichedWatch> = {}): Enriched
   return {
     date, tmdb_id: film.tmdb_id, rating: 70, stars: 3.5,
     rewatch: false, liked: null, film, d, yearFrac: 0.45, ...overrides,
+    heart: overrides.heart ?? overrides.liked ?? null,
   };
 }
 
@@ -29,6 +31,7 @@ const hiddenGems = STORIES.find((s) => s.id === "hidden-gems")!;
 const genreContrarian = STORIES.find((s) => s.id === "critics-and-me")!;
 const runtime = STORIES.find((s) => s.id === "runtime")!;
 const pickier = STORIES.find((s) => s.id === "getting-pickier")!;
+const heart = STORIES.find((s) => s.id === "heart")!;
 
 describe("runtime", () => {
   it("reports how much higher long films score and highlights them", () => {
@@ -230,5 +233,100 @@ describe("critics-and-me", () => {
     expect(result.headline).toContain("Horror");
     expect(result.headline).toMatch(/above/);
     expect(result.filters?.genres).toBeDefined();
+  });
+});
+
+describe("chart sets", () => {
+  it("defaults to narrative with no story and for an unknown id", () => {
+    expect(chartSetFor(null)).toBe("narrative");
+    expect(chartSetFor("no-such-story")).toBe("narrative");
+    expect(swapsChartSet(null)).toBe(false);
+  });
+
+  it("reads the set off the story rather than off its id", () => {
+    expect(chartSetFor("stats")).toBe("stats");
+    expect(chartSetFor("heart")).toBe("heart");
+    expect(swapsChartSet("heart")).toBe(true);
+  });
+
+  it("leaves the filter-driven stories on the narrative page", () => {
+    for (const id of ["spooktober", "binges", "franchises", "runtime"]) {
+      expect(chartSetFor(id)).toBe("narrative");
+      expect(swapsChartSet(id)).toBe(false);
+    }
+  });
+
+  it("gives every set-swapping story the three flags that make a swap work", () => {
+    // A swap with the defaults would collapse the rail it depends on, scroll past
+    // charts the reader has not seen, and freeze its headline while the rail moves.
+    for (const s of STORIES.filter((s) => s.chartSet && s.chartSet !== "narrative")) {
+      expect(s.dismissOnFilter, s.id).toBe(false);
+      expect(s.scrollToPrimary, s.id).toBe(false);
+      expect(s.recomputeOnFilter, s.id).toBe(true);
+      expect(s.focus.dim, s.id).toEqual([]);
+    }
+  });
+});
+
+describe("heart", () => {
+  const rated = (tmdb_id: number, rating: number, liked: boolean | null, date = "2023-06-15") =>
+    makeWatch(makeFilm({ tmdb_id }), { tmdb_id, rating, liked, date });
+
+  it("measures the crossover band rather than quoting it", () => {
+    const watches = [
+      rated(1, 60, false),
+      rated(2, 70, true),
+      rated(3, 70, false),
+      rated(4, 80, true),
+      rated(5, 100, true),
+    ];
+    const r = heart.compute([], watches);
+    // The band is 70 to 89, so 60 and 100 are outside it: three watches in, two
+    // hearted. 67%, and the 60 and the 100 must not reach the numerator.
+    expect(r.headline).toContain("67%");
+    expect(r.headline).toContain("3 watches");
+  });
+
+  it("says so plainly when nothing in view recorded a heart", () => {
+    const r = heart.compute([], [rated(1, 80, null)]);
+    expect(r.headline).toMatch(/No watch in view/);
+    expect(r.subtext).toBeUndefined();
+  });
+
+  it("counts the tie at the top rating, and how many favorites sit in it", () => {
+    const fav = FOUR_FAVS[0].tmdb_id;
+    const watches = [
+      rated(fav, 100, true),
+      rated(2, 100, true),
+      rated(3, 100, false),
+      rated(4, 80, true),
+    ];
+    const r = heart.compute([], watches);
+    expect(r.subtext).toContain("3 films");
+    expect(r.subtext).toContain("tied at 100");
+  });
+
+  it("credits the recovered hearts in the curve note, since they change the denominator", () => {
+    const watches = [
+      // One film, two watches: the earlier recorded nothing, the later a heart.
+      makeWatch(makeFilm({ tmdb_id: 9 }), {
+        tmdb_id: 9, rating: 80, liked: null, heart: true, date: "2019-03-01",
+      }),
+      makeWatch(makeFilm({ tmdb_id: 9 }), {
+        tmdb_id: 9, rating: 80, liked: true, date: "2021-03-01",
+      }),
+      rated(1, 60, false),
+      rated(2, 100, true),
+    ];
+    const r = heart.compute([], watches);
+    expect(r.notes?.likedcurve).toContain("1 of these watches recorded no heart");
+  });
+
+  it("writes a note for every chart in its own set", () => {
+    const watches = [rated(1, 60, false), rated(2, 80, true), rated(3, 100, true)];
+    const r = heart.compute([], watches);
+    for (const id of ["favposters", "likedcurve", "heartpredictors", "favtie", "favdirectors"]) {
+      expect(r.notes?.[id as keyof typeof r.notes], id).toBeTruthy();
+    }
   });
 });

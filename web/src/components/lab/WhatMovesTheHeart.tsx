@@ -145,7 +145,7 @@ export function WhatMovesTheHeart() {
 
   const bars: RateBar[] = model.groups.map((ws, i) => {
     const r = likedRate(ws);
-    return { label: model.labels[i], rate: r.rate, n: r.n };
+    return { label: model.labels[i], liked: r.liked, n: r.n };
   });
 
   const activeIndex = model.groups.findIndex((ws) => isPicked(ws, filters.selection));
@@ -188,15 +188,11 @@ export function WhatMovesTheHeart() {
         </p>
       ) : (
         <>
-          <div
-            className="mb-1 font-mono text-[10px] uppercase tracking-wider"
-            style={{ color: INK.muted }}
-          >
-            hearted, {starLabel(CROSSOVER_STARS[0])} and {starLabel(CROSSOVER_STARS[1])}{" "}
-            only
-          </div>
           <RateBars
             bars={bars}
+            caption={`${starLabel(CROSSOVER_STARS[0])} and ${starLabel(
+              CROSSOVER_STARS[1],
+            )} only`}
             accent={accentFor(filters.genres)}
             active={activeIndex >= 0 ? activeIndex : null}
             onPick={(i) => pickWatches(model.groups[i], filters.selection, setSelection)}

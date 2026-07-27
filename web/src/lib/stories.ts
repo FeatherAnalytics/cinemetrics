@@ -4,6 +4,15 @@ import type { Film, EnrichedWatch } from "./types";
 import { primaryGenre, type GenreKey } from "./palette";
 import { watchKey } from "./brush";
 import { ALPHA, anova, chicagoParts, hasKnownRewatchState, mean } from "./statsChart";
+import {
+  byStarBin,
+  CROSSOVER_STARS,
+  crossoverWatches,
+  likedRate,
+  STAR_BINS,
+  type Rate,
+} from "./likedChart";
+import { ceilingFilms } from "./fourFavs";
 
 export type ChartId =
   | "spiral"
@@ -23,7 +32,27 @@ export type ChartId =
   | "monthly"
   | "weekday"
   | "genrebox"
-  | "pairing";
+  | "pairing"
+  // The heart set. Same arrangement as the stats set: these render only while the
+  // heart story is active, and the narrative eight do not.
+  | "favposters"
+  | "likedcurve"
+  | "heartpredictors"
+  | "favtie"
+  | "favdirectors";
+
+/**
+ * Which group of charts a story puts on the page.
+ *
+ * "narrative" is the default page and what every filter-driven story works on.
+ * The others REPLACE it, because their charts answer a different question with a
+ * different vocabulary and the two sets side by side read as sixteen charts
+ * rather than one view (docs/CHART-IDEAS.md X1c).
+ *
+ * Declared on the story rather than hardcoded at the render site, so adding a set
+ * is a story field instead of another branch in ExplorerApp.
+ */
+export type ChartSet = "narrative" | "stats" | "heart";
 
 export type StoryFocus = {
   primary: ChartId;
@@ -50,6 +79,11 @@ export const CHART_TITLES: Record<ChartId, string> = {
   weekday: "Pace by weekday",
   genrebox: "Ratings by primary genre",
   pairing: "Genre pairing",
+  favposters: "The four favorites",
+  likedcurve: "The heart follows the rating",
+  heartpredictors: "Nothing decides the ones in between",
+  favtie: "Four of nineteen",
+  favdirectors: "A favorite brings company",
 };
 
 export type StoryResult = {
@@ -71,6 +105,16 @@ export type StoryConfig = {
   id: string;
   label: string;
   focus: StoryFocus;
+  /**
+   * The chart set this story shows. Defaults to "narrative".
+   *
+   * A story that names a set other than "narrative" also wants
+   * `dismissOnFilter: false`, `scrollToPrimary: false` and
+   * `recomputeOnFilter: true`, for the reasons documented on each: the rail stays
+   * live, the whole page is the story's first chart, and the headline has to
+   * follow the rail.
+   */
+  chartSet?: ChartSet;
   compute: (films: Film[], watches: EnrichedWatch[]) => StoryResult;
   /**
    * Whether filtering by hand drops out of this story. Defaults to true.
@@ -434,6 +478,78 @@ function computeCollections(films: Film[], watches: EnrichedWatch[]): StoryResul
  * The headline pairs the two halves directly, and both numbers are measured
  * here rather than written down, so it cannot drift from the charts under it.
  */
+/**
+ * The heart and the four favorites, as one story.
+ *
+ * They belong together because they are the same question at two resolutions.
+ * `liked` is the only column that measures affection rather than judgment, and it
+ * turns out to agree with the rating everywhere except one narrow band. The four
+ * favorites are the extreme case of that same gap: they are the films affection
+ * singles out, and NOTHING in the data reproduces the list.
+ *
+ * Every figure is measured off the watches passed in, never quoted, because this
+ * story leaves the rail live and recomputes on every filter change. A hardcoded
+ * "46%" would be a sentence about films the reader has just filtered away.
+ */
+function computeHeart(films: Film[], watches: EnrichedWatch[]): StoryResult {
+  const overall = likedRate(watches);
+  if (overall.n === 0) {
+    return {
+      headline: "No watch in view recorded the Letterboxd heart",
+      chip: "The heart",
+    };
+  }
+
+  const bins = byStarBin(watches);
+  const firstBand = STAR_BINS.findIndex((v) => v >= CROSSOVER_STARS[0]);
+  const afterBand = STAR_BINS.findIndex((v) => v > CROSSOVER_STARS[1]);
+  const low = likedRate(bins.slice(0, firstBand).flat());
+  const band = likedRate(crossoverWatches(watches));
+  const high = likedRate(bins.slice(afterBand).flat());
+  const pct = (r: Rate) => Math.round(r.rate * 100);
+
+  // The recovery is worth stating because it CHANGES the denominator the rest of
+  // the story divides by, and a reader comparing this rate to the rewatch share
+  // beside it would otherwise be comparing two different populations.
+  const recovered = watches.filter((w) => w.liked == null && w.heart != null).length;
+
+  const { rating: ceiling, films: tied } = ceilingFilms(watches);
+  const favsTied = tied.filter((f) => f.fav).length;
+
+  const headline =
+    band.n > 0
+      ? `Above ${CROSSOVER_STARS[1]}★ the heart is close to automatic and below ` +
+        `${CROSSOVER_STARS[0]}★ it is almost never given; across the ${band.n} watches ` +
+        `in between it is ${pct(band)}%`
+      : `${pct(overall)}% of the ${overall.n} watches in view got the heart`;
+
+  const subtext =
+    ceiling != null && tied.length > 1 && favsTied > 0
+      ? `And nothing in the data picks out the four favorites: ${tied.length} films are ` +
+        `tied at ${ceiling}, my highest rating in view, and ${favsTied} of them ` +
+        `${favsTied === 1 ? "is one" : "are"}.`
+      : undefined;
+
+  return {
+    headline,
+    chip: "Favs and likes",
+    subtext,
+    notes: {
+      favposters: `Curated by hand, in the profile's order. No ordering the data can produce puts these four together, which is the finding the charts below measure.`,
+      likedcurve:
+        (low.n > 0 && high.n > 0
+          ? `${pct(low)}% below ${CROSSOVER_STARS[0]}★ against ${pct(high)}% above ${CROSSOVER_STARS[1]}★. The heart and the star agree at both ends, so only the middle carries information.`
+          : `The heart against my own rating, one column per half star.`) +
+        (recovered > 0
+          ? ` ${recovered} of these watches recorded no heart and had it recovered from another viewing of the same film, since the heart is one toggle per film rather than per viewing.`
+          : ``),
+      heartpredictors: `Held to ${CROSSOVER_STARS[0]}★ and ${CROSSOVER_STARS[1]}★ so a dimension that merely predicts my rating cannot pass for predicting the heart. Every bar sitting on the band average is the result, not a missing one.`,
+      favtie: `Rating cannot separate the four, and neither can returning to them: the most-rewatched film at this rating is not a favorite.`,
+      favdirectors: `Each favorite came with company. None of those companions reached the film it arrived with, and none of the four directors got a third watch.`,
+    },
+  };
+}
+
 function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
   const counts = Array(12).fill(0) as number[];
   const sums = Array(12).fill(0) as number[];
@@ -596,12 +712,47 @@ export const STORIES: StoryConfig[] = [
     // `dim` is empty by design. The narrative charts are ABSENT while this story
     // runs, not faded, so there is nothing left on screen to dim.
     focus: { primary: "monthly", emphasize: ["monthly", "velocity", "genrebox"], dim: [] },
+    chartSet: "stats",
     compute: computeStats,
     dismissOnFilter: false,
     scrollToPrimary: false,
     recomputeOnFilter: true,
   },
+  {
+    id: "heart",
+    label: "Favs and likes",
+    // `dim` is empty, but for a different reason than on the stats story. This one
+    // does NOT replace the narrative charts: it adds five of its own and recolors
+    // the eight through the heart lens. A dimmed chart would be one the story
+    // reached into and then told the reader to ignore.
+    focus: {
+      primary: "likedcurve",
+      emphasize: ["likedcurve", "heartpredictors", "favtie"],
+      dim: [],
+    },
+    chartSet: "heart",
+    compute: computeHeart,
+    dismissOnFilter: false,
+    scrollToPrimary: false,
+    recomputeOnFilter: true,
+  },
 ];
+
+/**
+ * The chart set an active story asks for, or "narrative" when none is active.
+ *
+ * The single place that answers the question, so a new set never needs a second
+ * branch at a render site to be added.
+ */
+export function chartSetFor(activeStory: string | null): ChartSet {
+  if (!activeStory) return "narrative";
+  return STORIES.find((s) => s.id === activeStory)?.chartSet ?? "narrative";
+}
+
+/** Whether this story replaces the page's charts rather than highlighting them. */
+export function swapsChartSet(activeStory: string | null): boolean {
+  return chartSetFor(activeStory) !== "narrative";
+}
 
 // All story headlines computed once from the full dataset, for the chip strip.
 export function computeStoryHeadlines(

@@ -24,6 +24,7 @@ function makeWatch(film: Film, overrides: Partial<EnrichedWatch> = {}): Enriched
   return {
     date: "2023-06-15", tmdb_id: film.tmdb_id, rating: 70, stars: 3.5,
     rewatch: false, liked: null, film, d, yearFrac: 0.45, ...overrides,
+    heart: overrides.heart ?? overrides.liked ?? null,
   };
 }
 

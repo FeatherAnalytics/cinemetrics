@@ -30,19 +30,13 @@ export function LikedByRating() {
 
   const bars: RateBar[] = groups.map((ws, i) => {
     const r = likedRate(ws);
-    return { label: starLabel(STAR_BINS[i]), rate: r.rate, n: r.n };
+    return { label: starLabel(STAR_BINS[i]), liked: r.liked, n: r.n };
   });
 
   const activeIndex = groups.findIndex((ws) => isPicked(ws, filters.selection));
 
   return (
     <div>
-      <div
-        className="mb-1 font-mono text-[10px] uppercase tracking-wider"
-        style={{ color: INK.muted }}
-      >
-        hearted
-      </div>
       <RateBars
         bars={bars}
         accent={accentFor(filters.genres)}

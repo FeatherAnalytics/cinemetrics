@@ -202,6 +202,12 @@ export function monthSpan(dates: string[]): string[] {
  * flagged, against 31.0% across the Letterboxd rows. So `false` there means
  * UNKNOWN, exactly like three-state `liked`, which is the marker used here per
  * the project invariant in CLAUDE.md.
+ *
+ * ⚠️ RAW `liked`, never the recovered `heart`. The heart is recoverable for a
+ * sheet-era row whose film was watched again later, and 31 rows come back that
+ * way, but those rows are still sheet-era and still recorded no rewatch flag.
+ * Reading `heart` here would add all 31 to the denominator as if they had, which
+ * is the same understatement D5 already cost this project once.
  */
 export function hasKnownRewatchState(w: EnrichedWatch): boolean {
   return w.liked != null;

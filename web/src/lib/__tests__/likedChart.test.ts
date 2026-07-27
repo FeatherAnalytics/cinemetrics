@@ -1,13 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
-  admiredNotLoved,
   byStarBin,
+  filmHearts,
   CROSSOVER_STARS,
   crossoverWatches,
   hasKnownLike,
   knownWatches,
   likedRate,
-  lovedNotAdmired,
   starBinIndex,
   starLabel,
   STAR_BINS,
@@ -41,7 +40,7 @@ function film(over: Partial<Film> = {}): Film {
 
 function watch(over: Partial<EnrichedWatch> = {}): EnrichedWatch {
   const date = over.date ?? "2024-05-01";
-  return {
+  const w = {
     date,
     tmdb_id: over.tmdb_id ?? 1,
     rating: 80,
@@ -53,6 +52,10 @@ function watch(over: Partial<EnrichedWatch> = {}): EnrichedWatch {
     yearFrac: 0.5,
     ...over,
   };
+  // Mirrors the RESOLVED liked, not the override: these fixtures default liked to
+  // true, and reading `over.liked` alone left heart null on every case that did not
+  // name it. A case can still set heart explicitly to test the recovery.
+  return { ...w, heart: over.heart !== undefined ? over.heart : w.liked };
 }
 
 describe("hasKnownLike", () => {
@@ -166,60 +169,54 @@ describe("crossoverWatches", () => {
   });
 });
 
-describe("admiredNotLoved", () => {
-  it("finds high ratings without the heart, and nothing else", () => {
-    const out = admiredNotLoved([
-      watch({ tmdb_id: 1, rating: 90, liked: false, film: film({ title: "Cold" }) }),
-      watch({ tmdb_id: 2, rating: 90, liked: true, film: film({ title: "Loved" }) }),
-      watch({ tmdb_id: 3, rating: 60, liked: false, film: film({ title: "Low" }) }),
+describe("filmHearts", () => {
+  it("carries a recorded heart to the film's other watches", () => {
+    const hearts = filmHearts([
+      { date: "2019-03-01", tmdb_id: 7, rating: 100, stars: 5, rewatch: false, liked: null },
+      { date: "2021-03-01", tmdb_id: 7, rating: 100, stars: 5, rewatch: true, liked: true },
     ]);
-    expect(out.map((f) => f.title)).toEqual(["Cold"]);
+    expect(hearts.get(7)).toBe(true);
   });
 
-  it("collapses a rewatched film to one row, keeping its highest rating", () => {
-    const out = admiredNotLoved([
-      watch({ tmdb_id: 7, rating: 80, liked: false, date: "2021-01-01" }),
-      watch({ tmdb_id: 7, rating: 90, liked: false, date: "2023-01-01" }),
+  it("carries a false heart too, which is evidence and not an absence", () => {
+    const hearts = filmHearts([
+      { date: "2019-03-01", tmdb_id: 8, rating: 90, stars: 4.5, rewatch: false, liked: null },
+      { date: "2021-03-01", tmdb_id: 8, rating: 90, stars: 4.5, rewatch: true, liked: false },
     ]);
-    expect(out).toHaveLength(1);
-    expect(out[0].rating).toBe(90);
-    expect(out[0].watches).toHaveLength(2);
+    expect(hearts.get(8)).toBe(false);
   });
 
-  it("sorts by rating, then by title so the order is stable", () => {
-    const out = admiredNotLoved([
-      watch({ tmdb_id: 1, rating: 80, liked: false, film: film({ title: "Beta" }) }),
-      watch({ tmdb_id: 2, rating: 90, liked: false, film: film({ title: "Zed" }) }),
-      watch({ tmdb_id: 3, rating: 80, liked: false, film: film({ title: "Alpha" }) }),
+  it("leaves a film with no recorded heart out of the map entirely", () => {
+    const hearts = filmHearts([
+      { date: "2019-03-01", tmdb_id: 9, rating: 70, stars: 3.5, rewatch: false, liked: null },
     ]);
-    expect(out.map((f) => f.title)).toEqual(["Zed", "Alpha", "Beta"]);
+    expect(hearts.has(9)).toBe(false);
   });
 
-  it("excludes unknown-like rows, which are not evidence of not loving it", () => {
-    expect(admiredNotLoved([watch({ rating: 95, liked: null })])).toHaveLength(0);
+  it("keys on tmdb_id, so two films sharing a title do not share a heart", () => {
+    // The library holds a hearted Suspiria (2018) and an unhearted one (1977).
+    const hearts = filmHearts([
+      { date: "2020-08-15", tmdb_id: 361292, rating: 100, stars: 5, rewatch: false, liked: true },
+      { date: "2020-10-31", tmdb_id: 555, rating: 90, stars: 4.5, rewatch: false, liked: false },
+    ]);
+    expect(hearts.get(361292)).toBe(true);
+    expect(hearts.get(555)).toBe(false);
   });
 });
 
-describe("lovedNotAdmired", () => {
-  it("counts films, not watches, so a rewatched favorite counts once", () => {
-    const ws = [
-      watch({ tmdb_id: 5, rating: 60, liked: true, date: "2021-01-01" }),
-      watch({ tmdb_id: 5, rating: 60, liked: true, date: "2023-01-01" }),
-    ];
-    expect(lovedNotAdmired(ws)).toBe(1);
+describe("likedRate reads the recovered heart", () => {
+  it("counts a row whose heart came from another watch of the same film", () => {
+    // The whole point of the recovery: this row recorded nothing, and is still
+    // known, so it belongs in the denominator AND the numerator.
+    const r = likedRate([watch({ tmdb_id: 7, liked: null, heart: true })]);
+    expect(r).toEqual({ liked: 1, n: 1, rate: 1 });
   });
 
-  it("is the mirror of admiredNotLoved, not a second copy of it", () => {
-    const ws = [
-      watch({ tmdb_id: 1, rating: 90, liked: false }),
-      watch({ tmdb_id: 2, rating: 60, liked: true }),
-    ];
-    expect(admiredNotLoved(ws)).toHaveLength(1);
-    expect(lovedNotAdmired(ws)).toBe(1);
-  });
-
-  it("ignores unknown-like rows", () => {
-    expect(lovedNotAdmired([watch({ rating: 50, liked: null })])).toBe(0);
+  it("still excludes a row whose film was never watched again", () => {
+    expect(likedRate([watch({ liked: null, heart: null })])).toEqual({
+      liked: 0,
+      n: 0,
+      rate: 0,
+    });
   });
 });
-
