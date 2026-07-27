@@ -13,7 +13,7 @@ export type RateBar = {
   label: string;
   /** 0..1. */
   rate: number;
-  /** Denominator, printed on the bar. */
+  /** Denominator. Printed in its own labeled row, never on the bar. */
   n: number;
 };
 
@@ -45,9 +45,18 @@ const THIN_OPACITY = 0.35;
  *   the categories. The median of five bands is a property of how the bands were
  *   cut; 50% is the point where the heart stops being the likely answer.
  *
- * The bar carries its N, never its rate. The axis already gives the rate, and a
- * share is unreadable without the denominator behind it: 100% of two watches and
- * 73% of two hundred are not the same claim.
+ * TWO NUMBERS, TWO PLACES. The bar is labeled with its rate; the denominator
+ * sits in its own row under the axis, captioned "watches". They were both on the
+ * bar at first, with only the count printed, on the reasoning that the axis
+ * already carried the rate. That failed the first reader it met: at 1 star the
+ * rate is 0%, so there is no bar to see, and the floating "2" read as the value.
+ * "Does that mean I liked 2 films I rated 1 star?" It means two watches were
+ * rated 1 star and none were hearted.
+ *
+ * A share is also unreadable without its denominator (100% of two watches and
+ * 73% of two hundred are not the same claim), so the count cannot simply be
+ * dropped. It has to be somewhere it cannot be mistaken for the bar's value, and
+ * a captioned row is that somewhere.
  */
 export function RateBars({
   bars,
@@ -72,9 +81,10 @@ export function RateBars({
   refLabel?: string;
 }) {
   const [ref, W] = useWidth(W0, W_MIN);
-  const H = 180;
+  // MB carries two rows now: the category label, then the count row under it.
+  const H = 196;
   const ML = 40;
-  const MB = 30;
+  const MB = 46;
   // The reference label gets its own margin rather than floating over the plot.
   // Parked inside, it landed on top of the last bar as soon as a bar reached
   // that height: "all years 46%" sat across the 2026 column. Reserving the room
@@ -151,7 +161,7 @@ export function RateBars({
                     fill={valueLabelFill(inside)}
                     pointerEvents="none"
                   >
-                    {b.n}
+                    {pct(b.rate)}
                   </text>
                 );
               })()}
@@ -191,6 +201,33 @@ export function RateBars({
             pointerEvents="none"
           >
             {b.label}
+          </text>
+        ))}
+
+        {/* The denominator row. Captioned in the gutter where the axis labels
+            live, because an uncaptioned row of numbers under a chart is exactly
+            the ambiguity this is here to remove. */}
+        <text
+          x={ML - 6}
+          y={H - MB + 30}
+          textAnchor="end"
+          fontSize={8}
+          fill={INK.muted}
+          pointerEvents="none"
+        >
+          watches
+        </text>
+        {bars.map((b, i) => (
+          <text
+            key={`n-${i}`}
+            x={cx(i)}
+            y={H - MB + 30}
+            textAnchor="middle"
+            fontSize={9}
+            fill={INK.muted}
+            pointerEvents="none"
+          >
+            {b.n > 0 ? b.n : "-"}
           </text>
         ))}
       </svg>

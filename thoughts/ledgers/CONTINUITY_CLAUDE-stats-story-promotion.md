@@ -199,8 +199,33 @@ matching watches, and #5c recolors to the active filter.
           quoting full-library numbers under a filter
     - [x] Verified: 80s bar selects 206 watches, second click clears
     - [x] 191 tests, tsc / eslint / ruff / next build clean
-- Now: [→] Review the four `/lab` prototypes; decide which earn a place on the
-        main page. See thoughts/HANDOFF-charts-and-export-ingest.md.
+  - [x] Phase 18: review round one on the `liked` prototypes
+    - [x] READER CONFUSION, and the most useful defect so far: the bar carried
+          its N and the axis carried the rate, so at 1 star (0%, no bar drawn)
+          a floating "2" read as the value. "Does that mean I liked 2 films I
+          rated 1 star?" Bar now carries the RATE; the count moved to its own
+          row under the axis, captioned "watches". Empty bins print "-"
+    - [x] Star bins, nine of them, replacing the ten-point bands. Every rating
+          is an exact half-star multiple, so "60s" held only 60 and "90+"
+          merged 4.5 with 5 (97% and 100%)
+    - [x] Chart 2 takes RollingRating's dimensions: genre, language, country,
+          runtime, decade, MPAA, plus a local rewatch. `categoryOf` and
+          `RUNTIME_ORDER` come from `series.ts`, which retired a SECOND runtime
+          binning this chart had invented (<90/90-104 against <95/95-114)
+    - [x] MPAA relabeled from series.ts's "rating", which is unusable on a page
+          whose whole subject is my rating
+    - [x] Ordered dimensions keep their order, categorical ones rank by count,
+          capped at 9 with "N smaller categories not shown"
+    - [x] The dimension switcher now renders even when the active dimension has
+          nothing to draw. It sat below an early return, so an empty dimension
+          took the control with it and stranded the reader
+    - [x] "A habit of pressing it" DELETED, with `likedByWatchYear`,
+          `RUNTIME_BANDS` and `byRewatch` removed as dead
+    - [x] Within the band, rewatch is 49% against 57%, far weaker than the raw
+          39/63. The confound is visible in the chart now
+    - [x] 189 tests, tsc / eslint / next build clean
+- Now: [→] Review the three remaining `/lab` prototypes; decide which earn a
+        place on the main page. See thoughts/HANDOFF-charts-and-export-ingest.md.
 - Remaining:
   - [ ] `ChartTakeaway` per stats section, matching the narrative sections
   - [ ] Hover readouts on the stats charts that still lack them. Cumulative,

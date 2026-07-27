@@ -9,7 +9,6 @@ import type { Dataset } from "@/lib/types";
 import { LikedByRating, LikedByRatingBlurb } from "./LikedByRating";
 import { WhatMovesTheHeart } from "./WhatMovesTheHeart";
 import { AdmiredNotLoved, AdmiredNotLovedBlurb } from "./AdmiredNotLoved";
-import { AffectionOverTime } from "./AffectionOverTime";
 
 /**
  * Prototype surface for the `liked` charts. Not linked from anywhere.
@@ -58,13 +57,6 @@ const SECTIONS: Section[] = [
     blurb: "",
     Blurb: AdmiredNotLovedBlurb,
     Chart: AdmiredNotLoved,
-  },
-  {
-    id: "over-time",
-    title: "A habit of pressing it",
-    blurb:
-      "The heart is film-level on Letterboxd and stamps onto every entry for that film, so an early year reflects hearts given since as much as hearts given then.",
-    Chart: AffectionOverTime,
   },
 ];
 

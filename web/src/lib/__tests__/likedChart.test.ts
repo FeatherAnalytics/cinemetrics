@@ -1,18 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
   admiredNotLoved,
-  byRewatch,
-  byRuntimeBand,
   byStarBin,
   CROSSOVER_STARS,
   crossoverWatches,
   hasKnownLike,
   knownWatches,
-  likedByWatchYear,
   likedRate,
   lovedNotAdmired,
-  RUNTIME_BANDS,
-  runtimeBandIndex,
   starBinIndex,
   starLabel,
   STAR_BINS,
@@ -171,40 +166,6 @@ describe("crossoverWatches", () => {
   });
 });
 
-describe("runtimeBandIndex", () => {
-  it("has no gap between bands and an open top", () => {
-    expect(RUNTIME_BANDS[runtimeBandIndex(89)].label).toBe("<90");
-    expect(RUNTIME_BANDS[runtimeBandIndex(90)].label).toBe("90-104");
-    expect(RUNTIME_BANDS[runtimeBandIndex(139)].label).toBe("120-139");
-    expect(RUNTIME_BANDS[runtimeBandIndex(240)].label).toBe("140+");
-  });
-});
-
-describe("byRuntimeBand", () => {
-  it("skips films with no runtime rather than bucketing them at zero", () => {
-    const out = byRuntimeBand([
-      watch({ film: film({ runtime: null }) }),
-      watch({ film: film({ runtime: 95 }) }),
-    ]);
-    expect(out.reduce((s, g) => s + g.length, 0)).toBe(1);
-    expect(out[1]).toHaveLength(1);
-  });
-});
-
-describe("byRewatch", () => {
-  it("splits first from rewatch, having already dropped the sheet era", () => {
-    // The 129 sheet-era rows carry rewatch:false because the sheet had no such
-    // column. They must not land in the "first" bucket and inflate it.
-    const [first, again] = byRewatch([
-      watch({ rewatch: false }),
-      watch({ rewatch: true }),
-      watch({ rewatch: false, liked: null }),
-    ]);
-    expect(first).toHaveLength(1);
-    expect(again).toHaveLength(1);
-  });
-});
-
 describe("admiredNotLoved", () => {
   it("finds high ratings without the heart, and nothing else", () => {
     const out = admiredNotLoved([
@@ -262,25 +223,3 @@ describe("lovedNotAdmired", () => {
   });
 });
 
-describe("likedByWatchYear", () => {
-  it("takes the year off the string, so January 1 stays in its own year", () => {
-    const out = likedByWatchYear([watch({ date: "2024-01-01" })], 1);
-    expect(out.map((r) => r.year)).toEqual([2024]);
-  });
-
-  it("drops years too thin to rate", () => {
-    const ws = [
-      ...Array.from({ length: 12 }, () => watch({ date: "2023-05-01" })),
-      watch({ date: "2019-05-01" }),
-    ];
-    expect(likedByWatchYear(ws).map((r) => r.year)).toEqual([2023]);
-  });
-
-  it("returns years in chronological order", () => {
-    const ws = [
-      ...Array.from({ length: 10 }, () => watch({ date: "2025-05-01" })),
-      ...Array.from({ length: 10 }, () => watch({ date: "2021-05-01" })),
-    ];
-    expect(likedByWatchYear(ws).map((r) => r.year)).toEqual([2021, 2025]);
-  });
-});
