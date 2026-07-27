@@ -17,6 +17,12 @@ dependencies = [
     # HTML is brittle here — attribute order in the anchor tags is not guaranteed.
     "beautifulsoup4>=4.12",
     "lxml>=5.0",
+    # Verify TLS against the OS trust store, not just certifi's bundled roots.
+    # requests uses certifi, which does not contain the private CA a
+    # TLS-intercepting corporate proxy signs with, so every TMDB and OMDb call
+    # fails verification on such a machine. Injected lazily in ingest/http.py, so
+    # it is inert wherever the bundled roots already work.
+    "truststore>=0.9",
 ]
 
 [tool.setuptools.packages.find]
