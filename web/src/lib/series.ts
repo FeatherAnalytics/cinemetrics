@@ -30,14 +30,17 @@ export const OVERALL_KEY = "__overall__";
 // filtering never repaints a surviving series. "Other" stays neutral gray.
 const SLOT_COLORS = [
   GENRE_COLORS.Horror, // crimson
-  GENRE_COLORS.Thriller, // green
+  GENRE_COLORS.Thriller, // amber
   GENRE_COLORS.Drama, // blue
-  GENRE_COLORS.Comedy, // amber
+  GENRE_COLORS.Comedy, // green
   GENRE_COLORS.Adventure, // violet
 ];
 const OTHER_COLOR = GENRE_COLORS.Other;
 
-const RUNTIME_ORDER = ["< 95m", "95–114m", "115–134m", "135m+"] as const;
+// Exported because it is the site's runtime binning, not this chart's: anything
+// that buckets by runtime has to use these cuts and this order or the reader
+// meets two different definitions of a long film.
+export const RUNTIME_ORDER = ["< 95m", "95–114m", "115–134m", "135m+"] as const;
 
 function hslToHex(h: number, s: number, l: number): string {
   s /= 100;

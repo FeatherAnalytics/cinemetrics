@@ -136,7 +136,7 @@ export function tasteVector(
   data: Pick<EmbeddingData, "dims" | "vectors">,
   watches: { tmdb_id: number; rating: number | null }[],
 ): number[] | null {
-  // Average rating per film so a much-rewatched favourite counts once.
+  // Average rating per film so a much-rewatched favorite counts once.
   const sums = new Map<number, { total: number; n: number }>();
   for (const w of watches) {
     if (w.rating == null || !data.vectors[w.tmdb_id]) continue;

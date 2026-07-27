@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { ACCENT, INK } from "@/lib/palette";
 import { useDragRect, watchKey } from "@/lib/brush";
+import { useWidth } from "@/lib/useWidth";
 import { trunc } from "@/lib/format";
 import { buildSeries, DIMENSIONS, type Dimension, type Series } from "@/lib/series";
 import { computeAvgRating } from "@/lib/stats";
+import { likedOnly } from "@/lib/heartLens";
 
 // Chart geometry. Each panel is measured and drawn 1:1 in CSS pixels: width
 // tracks the grid column (fluid), height is FIXED so every panel is the same
@@ -30,28 +32,11 @@ type Domain = {
   lo: number;
   hi: number;
   yTicks: number[];
-  // Flat reference: mean rating over the current filter set. The old grey
+  // Flat reference: mean rating over the current filter set. The old gray
   // rolling line plotted "nth watch overall" against "nth watch in group" —
   // different moments in time at the same x — so it compared nothing real.
   overallAvg: number | null;
 };
-
-/** Track an element's rendered width via ResizeObserver (for the 1:1 viewBox). */
-function useWidth(): [React.RefObject<HTMLDivElement | null>, number] {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [w, setW] = useState(360);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const cw = entries[0].contentRect.width;
-      if (cw > 0) setW(cw);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return [ref, w];
-}
 
 // Module-scope so its identity is stable — a component defined inside the parent
 // would remount every panel on each hover.
@@ -191,7 +176,7 @@ function PanelChart({
 }
 
 export function RollingRating() {
-  const { all, filtered, setSelection, rollingDimension } = useExplorer();
+  const { all, filtered, setSelection, rollingDimension, heartLens } = useExplorer();
   // A story's rollingDimension only SEEDS the switcher (adjusted during render
   // as it changes); the user can still regroup to drill into the story.
   const [localDim, setLocalDim] = useState<Dimension>("genre");
@@ -204,16 +189,27 @@ export function RollingRating() {
   const setDim = setLocalDim;
   const [hoverX, setHoverX] = useState<number | null>(null);
 
+  // Under the heart lens every panel keeps its grouping and drops to hearted
+  // watches only, which turns "how did this group treat me over time" into "how
+  // did the films I loved in this group". `all` narrows with it, or the dashed
+  // baseline would be my average across everything and the curves would sit above
+  // it by construction rather than by finding.
+  const lensAll = useMemo(() => (heartLens ? likedOnly(all) : all), [heartLens, all]);
+  const lensFiltered = useMemo(
+    () => (heartLens ? likedOnly(filtered) : filtered),
+    [heartLens, filtered],
+  );
+
   const series = useMemo(
-    () => buildSeries(all, filtered, dim, { window: WINDOW }),
-    [all, filtered, dim],
+    () => buildSeries(lensAll, lensFiltered, dim, { window: WINDOW }),
+    [lensAll, lensFiltered, dim],
   );
 
   const panels = useMemo(() => series.filter((s) => !s.isOverall), [series]);
 
   // Shared scales across every panel so the small multiples stay comparable.
   const dom: Domain = useMemo(() => {
-    const overallAvg = computeAvgRating(filtered).mean;
+    const overallAvg = computeAvgRating(lensFiltered).mean;
     let xMin = Infinity;
     let xMax = 1;
     let mn = 100;
@@ -234,7 +230,7 @@ export function RollingRating() {
     const lo = Math.max(0, Math.floor((mn - 2) / 5) * 5);
     const hi = Math.min(100, Math.ceil((mx + 2) / 5) * 5);
     return { xMin, xMax, lo, hi, yTicks: [lo, Math.round((lo + hi) / 2), hi], overallAvg };
-  }, [panels, filtered]);
+  }, [panels, lensFiltered]);
 
   if (panels.length === 0) {
     return <p className="text-sm" style={{ color: INK.muted }}>Not enough rated watches to plot.</p>;

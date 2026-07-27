@@ -15,7 +15,15 @@ import type { Dataset, EnrichedWatch, Film } from "./types";
 import { primaryGenre, type GenreKey } from "./palette";
 import { countryName } from "./countries";
 import { watchKey } from "./brush";
-import { STORIES, computeStoryHeadlines, type StoryResult, type ChartId } from "./stories";
+import { filmHearts } from "./likedChart";
+import {
+  STORIES,
+  LANDING_STORY,
+  chartSetFor,
+  computeStoryHeadlines,
+  type StoryResult,
+  type ChartId,
+} from "./stories";
 
 function yearFrac(d: Date): number {
   const y = d.getUTCFullYear();
@@ -159,6 +167,15 @@ type ExplorerValue = {
   storyResult: StoryResult | null;
   storyFocus: { primary: ChartId; emphasize: ChartId[]; dim: ChartId[] } | null;
   storyHeadlines: { id: string; label: string; headline: string; chip: string }[];
+  /**
+   * Whether the favorites story is running, and with it the heart vocabulary.
+   *
+   * Read by the narrative charts, which REPLACE their own encoding while it is on:
+   * genre on the swim lane, my rating on the barcode, the residual mirror on the
+   * country and keyword bars. Derived here rather than passed down, because eight
+   * charts threading one boolean through their callers is eight chances to forget.
+   */
+  heartLens: boolean;
   setStory: (id: string | null) => void;
   rollingDimension: string | null;
   toggleGenre: (g: GenreKey) => void;
@@ -193,9 +210,19 @@ export function ExplorerProvider({
 
   const derived = useMemo(() => {
     const byId = new Map(data.films.map((f) => [f.tmdb_id, f]));
+    // Built from every watch, before any filter exists. The heart is a property
+    // of the film, so which rows happen to be in view cannot change whether it is
+    // known. See the note on `filmHearts`.
+    const hearts = filmHearts(data.watches);
     const all: EnrichedWatch[] = data.watches.map((w) => {
       const d = new Date(w.date + "T00:00:00Z");
-      return { ...w, film: byId.get(w.tmdb_id), d, yearFrac: yearFrac(d) };
+      return {
+        ...w,
+        film: byId.get(w.tmdb_id),
+        d,
+        yearFrac: yearFrac(d),
+        heart: w.liked ?? hearts.get(w.tmdb_id) ?? null,
+      };
     });
     const watchYears = all.map((w) => w.d.getUTCFullYear());
     const releaseYears = data.films.map((f) => f.year).filter((y): y is number => y != null);
@@ -325,6 +352,48 @@ export function ExplorerProvider({
     setSelectedId(null);
   };
 
+  /**
+   * The annotation a story is currently showing.
+   *
+   * Most stories compute once, when activated, and `storyResult` holds that.
+   * A story with `recomputeOnFilter` instead recomputes against the filtered
+   * watches, so a headline like "3.4x more in October than November" is a
+   * statement about what the reader is actually looking at rather than about
+   * the whole library. `computeStoryHeadlines` is untouched by this: the chips
+   * stay stable invitations computed from everything.
+   *
+   * With NO story selected this falls through to the landing story, which is how
+   * the landing page keeps a headline without pretending to be a story the reader
+   * chose. It always recomputes, because the rail is live there.
+   */
+  const activeResult = useMemo(() => {
+    if (!activeStory) {
+      return LANDING_STORY ? LANDING_STORY.compute(derived.films, filtered) : null;
+    }
+    const cfg = getStoryById(activeStory);
+    if (!cfg?.recomputeOnFilter) return storyResult;
+    return cfg.compute(derived.films, filtered);
+  }, [activeStory, storyResult, derived.films, filtered]);
+
+  /**
+   * Filtering by hand normally drops out of the active story, because for the
+   * narrative stories the filters ARE the story: leaving the chip lit while the
+   * reader filters elsewhere would claim a finding the charts no longer show.
+   *
+   * A story can opt out with `dismissOnFilter: false`. The stats story does,
+   * because it sets no filters and instead swaps the chart SET: dismissing it on
+   * filter pulled all eight charts off the page mid-click, taking the chart the
+   * reader had just clicked with them.
+   *
+   * `reset` deliberately does NOT go through here. That is the explicit "clear
+   * everything" action and it should clear the story too.
+   */
+  const exitStoryOnFilter = () => {
+    if (activeStory && getStoryById(activeStory)?.dismissOnFilter === false) return;
+    setActiveStory(null);
+    setStoryResult(null);
+  };
+
   // The context value is memoized so consumers only re-render when state that
   // feeds them actually changes, not on every provider render.
   const value: ExplorerValue = useMemo(
@@ -334,8 +403,7 @@ export function ExplorerProvider({
       filters,
       selectedId,
       toggleGenre: (g) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => {
           const genres = new Set(f.genres);
           if (genres.has(g)) genres.delete(g);
@@ -344,78 +412,75 @@ export function ExplorerProvider({
         });
       },
       setYearRange: (r) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, yearRange: r }));
       },
       setReleaseYearRange: (r) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, releaseYearRange: r }));
       },
       setRuntimeRange: (r) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, runtimeRange: r }));
       },
       setRatingRange: (r) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, ratingRange: r }));
       },
       setRewatch: (r) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, rewatch: r }));
       },
       setText: (field, value) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, [field]: value }));
       },
       setCountry: (iso) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, country: f.country === iso ? null : iso }));
       },
       setLanguage: (code) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, language: f.language === code ? null : code }));
       },
       setRated: (rated) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, rated: f.rated === rated ? null : rated }));
       },
       setFranchise: (name) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, franchise: f.franchise === name ? null : name }));
       },
       setSelected: (id) => setSelectedId((cur) => (cur === id ? null : id)),
       setSelection: (keys) => {
-        setActiveStory(null);
-        setStoryResult(null);
+        exitStoryOnFilter();
         setFilters((f) => ({ ...f, selection: keys && keys.size > 0 ? keys : null }));
       },
       reset: () => {
+        // Not exitStoryOnFilter: reset is the explicit "clear everything"
+        // action, so it clears the story even when the story opted out of
+        // being dismissed by filtering.
         setActiveStory(null);
         setStoryResult(null);
         setFilters(EMPTY_FILTERS);
         setSelectedId(null);
       },
       activeStory,
-      storyResult,
-      storyFocus: activeStory ? (getStoryById(activeStory)?.focus ?? null) : null,
+      storyResult: activeResult,
+      // The landing page focuses too: its primary chart is where the annotation
+      // renders. `dim` is empty on it, so nothing is faded by having no story.
+      storyFocus:
+        (activeStory ? getStoryById(activeStory)?.focus : LANDING_STORY?.focus) ?? null,
       storyHeadlines,
+      heartLens: chartSetFor(activeStory) === "heart",
       setStory,
-      rollingDimension: storyResult?.rollingDimension ?? null,
+      rollingDimension: activeResult?.rollingDimension ?? null,
     }),
-    // setStory is recreated each render but only reads `derived`, which is
-    // already a dependency, so it's safe to leave out.
+    // setStory and exitStoryOnFilter are recreated each render but only read
+    // `derived` and `activeStory`, both already dependencies, so the closures
+    // here are never stale and both are safe to leave out.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [derived, filtered, filters, selectedId, activeStory, storyResult, storyHeadlines],
+    [derived, filtered, filters, selectedId, activeStory, activeResult, storyHeadlines],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

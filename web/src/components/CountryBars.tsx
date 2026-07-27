@@ -7,12 +7,29 @@ import { countryName } from "@/lib/countries";
 import { aggregateCountries, type CountryRow } from "@/lib/countryStats";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { ChartTakeaway } from "./ChartTakeaway";
+import { heartDeltaPP, heartShare, ppLabel } from "@/lib/heartLens";
 
-const LABEL_W = 200;
-const BAR_W = 360;
-const VALUE_W = 90;
-const WIDTH = LABEL_W + BAR_W + VALUE_W;
+const LABEL_W = 176;
+const BAR_W = 286; // films track, grows left to right
+const DEV_W = 226; // deviation track, signed, growing both ways from its own zero
+const WIDTH = LABEL_W + BAR_W + DEV_W;
+/**
+ * The zero of the deviation track, at its center.
+ *
+ * The track USED to be anchored at the right edge with bars growing leftward, so
+ * the two series converged instead of diverging from a spine. That was right when
+ * the value was a magnitude with its sign in the label. It is wrong now: the
+ * statistic is signed, and a chart where +42% and −18% both grow the same way
+ * forces the reader to check every label to know which direction a row went. A
+ * zero line costs one mark and makes the sign readable at a glance, the way the
+ * keyword chart already does it.
+ */
+const DEV_ZERO = LABEL_W + BAR_W + DEV_W / 2;
+// Half the track, less room for a value label outside the longest bar at either end.
+const DEV_HALF = DEV_W / 2 - 26;
 const TOP_N = 15;
+// Below this length a value label will not fit inside its bar and sits outside.
+const INSIDE_MIN = 44;
 
 export function CountryBars() {
   const { all, byId, filters, setCountry } = useExplorer();
@@ -21,22 +38,47 @@ export function CountryBars() {
   // Aggregate over every filter EXCEPT country, so selecting a country still
   // leaves the rest of the ranking visible (self-excluding cross-filter, same
   // as the archived world map).
-  const agg = useMemo(() => {
-    const watches = filterWatches(all, { ...filters, country: null });
-    return aggregateCountries(watches, byId, TOP_N);
-  }, [all, byId, filters]);
+  const watches = useMemo(
+    () => filterWatches(all, { ...filters, country: null }),
+    [all, filters],
+  );
+  const agg = useMemo(() => aggregateCountries(watches, byId, TOP_N), [watches, byId]);
+
+  // The mirror is how far that country's heart rate sits from my overall one, and
+  // it is no longer conditional: the me-versus-critics residual it replaced asked
+  // what the critics thought, which is a different chart's question and was the one
+  // number here that said nothing about me. Stated as a deviation and not a bare
+  // rate because the bar diverges from an anchor, and because 46% means nothing
+  // until you know the baseline is 47%.
+  const heartRates = useMemo(() => {
+    // The baseline is the whole filtered view, so it moves with the rail: a
+    // deviation against a fixed 47% would be measured off films not on screen.
+    const base = heartShare(watches, 1);
+    if (!base) return null;
+    const out = new Map<string, number>();
+    for (const row of agg.rows) {
+      const share = heartShare(
+        watches.filter((w) => (w.film?.production_countries ?? []).includes(row.iso)),
+      );
+      if (share) out.set(row.iso, heartDeltaPP(share.rate, base.rate));
+    }
+    return out;
+  }, [agg.rows, watches]);
 
   const maxCount = agg.rows.reduce((m, r) => Math.max(m, r.count), 1);
   const tailRow = agg.tailCountries > 0;
 
-  // Strongest finding among the ranked countries: the biggest deviation from
-  // prediction (only rows with enough films to have a residual).
-  const strongest = agg.rows
-    .filter((r) => r.residual != null)
-    .reduce<CountryRow | null>(
-      (best, r) => (best == null || Math.abs(r.residual!) > Math.abs(best.residual!) ? r : best),
-      null,
-    );
+  // Furthest from my baseline either way, measured rather than asserted.
+  const topHeart = [...(heartRates?.entries() ?? [])].reduce<
+    { iso: string; pp: number } | null
+  >(
+    (best, [iso, pp]) => (best == null || Math.abs(pp) > Math.abs(best.pp) ? { iso, pp } : best),
+    null,
+  );
+
+  // Scaled against its own maximum, so the longest deviation fills the track.
+  const devMax = Math.max(0.1, ...[...(heartRates?.values() ?? [])].map(Math.abs));
+
   const HEIGHT = (agg.rows.length + (tailRow ? 1 : 0)) * (BAR_H + GAP) + 40;
 
   if (agg.rows.length === 0) {
@@ -47,8 +89,6 @@ export function CountryBars() {
     );
   }
 
-  const fmtResidual = (r: number) => `${r > 0 ? "+" : ""}${r.toFixed(1)}`;
-
   const handleRow = (row: CountryRow) => setCountry(row.iso);
 
   return (
@@ -57,7 +97,7 @@ export function CountryBars() {
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
         role="img"
-        aria-label="Top production countries ranked by film count, coloured by dominant genre, with my average rating residual per country"
+        aria-label="Top production countries ranked by film count, colored by dominant genre. Films bars grow rightward from the country name. The right-hand track diverges from a zero line: bars grow right where I heart films from that country more often than average and left where less often."
       >
         {/* Column headers */}
         <text
@@ -70,17 +110,28 @@ export function CountryBars() {
         >
           FILMS
         </text>
+        {/* Centered on the zero it labels, rather than parked at the track's right
+            edge, which now describes only the positive half. */}
         <text
-          x={LABEL_W + BAR_W + VALUE_W - 8}
+          x={DEV_ZERO}
           y={8}
           fill={INK.muted}
           fontSize={9}
           letterSpacing="0.1em"
-          textAnchor="end"
+          textAnchor="middle"
           fontFamily="var(--font-mono)"
         >
-          ME − CRITIC EST.
+          HEART RATE vs MINE
         </text>
+
+        <line
+          x1={DEV_ZERO}
+          y1={20}
+          x2={DEV_ZERO}
+          y2={HEIGHT - 20}
+          stroke={INK.axis}
+          strokeWidth={1.5}
+        />
 
         {agg.rows.map((row, i) => {
           const y = 20 + i * (BAR_H + GAP);
@@ -88,7 +139,13 @@ export function CountryBars() {
           const sel = filters.country === row.iso;
           const dim = filters.country != null && !sel;
           const isHover = hover === row.iso;
-          const countInside = barLen > 44;
+          const countInside = barLen > INSIDE_MIN;
+          const dev = heartRates?.get(row.iso) ?? null;
+          const devLen = dev == null ? 0 : (Math.abs(dev) / devMax) * DEV_HALF;
+          // Grows right when I heart that country more often than average, left when
+          // less, from a shared zero.
+          const devX = dev != null && dev > 0 ? DEV_ZERO : DEV_ZERO - devLen;
+          const devInside = devLen > INSIDE_MIN;
           const name = countryName(row.iso);
 
           return (
@@ -139,18 +196,42 @@ export function CountryBars() {
                 {row.count}
               </text>
 
-              {/* Mean residual vs prediction, when enough films to be meaningful */}
-              {row.residual != null && (
-                <text
-                  x={LABEL_W + BAR_W + VALUE_W - 8}
-                  y={y + BAR_H / 2}
-                  fill={INK.muted}
-                  fontSize={11}
-                  textAnchor="end"
-                  dominantBaseline="middle"
-                >
-                  {fmtResidual(row.residual)}
-                </text>
+              {/* The heart deviation, when enough films recorded one. Same fill as the
+                  films bar, so a row reads as one country in one color; the DIRECTION
+                  carries the sign, which is what the old right-anchored version made
+                  the reader read off the label instead. */}
+              {dev != null && (
+                <>
+                  <rect
+                    x={devX}
+                    y={y}
+                    width={devLen}
+                    height={BAR_H}
+                    fill={GENRE_COLORS[row.genre]}
+                    fillOpacity={isHover || sel ? 0.9 : 0.72}
+                    stroke={sel ? ACCENT : "none"}
+                    strokeWidth={sel ? 1.75 : 0}
+                  />
+                  {/* At the growing end of its own bar, whichever way that is, so the
+                      label never crosses the zero line and sit on the wrong side of it.
+                      Inside the bar when there is room, same weight and fill rule as the
+                      film count. */}
+                  <text
+                    x={
+                      dev > 0
+                        ? DEV_ZERO + devLen + (devInside ? -6 : 6)
+                        : DEV_ZERO - devLen + (devInside ? 6 : -6)
+                    }
+                    y={y + BAR_H / 2}
+                    fill={valueLabelFill(devInside)}
+                    fontSize={11}
+                    fontWeight={700}
+                    textAnchor={dev > 0 ? (devInside ? "end" : "start") : devInside ? "start" : "end"}
+                    dominantBaseline="middle"
+                  >
+                    {ppLabel(dev)}
+                  </text>
+                </>
               )}
 
             </g>
@@ -171,10 +252,10 @@ export function CountryBars() {
           </text>
         )}
       </svg>
-      {strongest && (
+      {topHeart && (
         <ChartTakeaway>
-          {agg.totalCountries} countries · I rate {countryName(strongest.iso)}{" "}
-          {fmtResidual(strongest.residual!)} vs critic est.
+          {agg.totalCountries} countries · {countryName(topHeart.iso)} sits{" "}
+          {ppLabel(topHeart.pp)} from my overall heart rate
         </ChartTakeaway>
       )}
     </figure>

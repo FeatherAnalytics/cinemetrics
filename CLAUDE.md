@@ -26,6 +26,14 @@ Personal film analytics pipeline: Letterboxd watch history → dbt/DuckDB → Ne
 - **Three-state `liked`**: `true`/`false`/NULL, where NULL means *unknown* (the 129
   pre-Letterboxd rows), not "not liked". Always filter `liked is not null` before
   computing an affection rate — collapsing them understates it by ~7.5 points.
+- **`is_rewatch` is three-state the same way**, but the column does not say so:
+  the 129 sheet-era rows are all `false` because the Google Sheet had no such
+  field, not because they were first viewings. Divide by rows that recorded it
+  (`liked is not null` marks them) or the rate understates by ~5 points.
+- **"Rewatches" and "returns" are different numbers.** 87 of the 206 flagged
+  rewatches are films whose first viewing predates the dataset, so they appear
+  once. Counting rows in the data gives 118 returns across 82 films. State which
+  one a figure means.
 - **Pipeline order**: RSS parse → enrich new films → dbt build → export JSON → train embeddings → upload to R2.
 - **Franchise rollups**: curated in the `franchise_mapping()` macro (`transform/macros/`), keyed by collection, tmdb_id, or director.
 

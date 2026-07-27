@@ -30,6 +30,7 @@ describe("data type parsing", () => {
     rating: 85,
     stars: 4,
     rewatch: false,
+    liked: true,
   };
 
   it("Film satisfies type with all fields", () => {
@@ -88,6 +89,7 @@ describe("data type parsing", () => {
       rating: null,
       stars: null,
       rewatch: true,
+      liked: null,
     };
     expect(w.rating).toBeNull();
     expect(w.stars).toBeNull();
@@ -96,7 +98,7 @@ describe("data type parsing", () => {
   it("unlinked watch returns undefined from map", () => {
     const dataset: Dataset = {
       films: [sampleFilm],
-      watches: [{ date: "2024-01-01", tmdb_id: 99999, rating: 50, stars: 2.5, rewatch: false }],
+      watches: [{ date: "2024-01-01", tmdb_id: 99999, rating: 50, stars: 2.5, rewatch: false, liked: null }],
     };
     const byId = new Map(dataset.films.map((f) => [f.tmdb_id, f]));
     expect(byId.get(dataset.watches[0].tmdb_id)).toBeUndefined();

@@ -41,7 +41,7 @@ let tid = 100;
 function watch(rating: number | null, film: Partial<Film>, date = "2021-01-01"): EnrichedWatch {
   const f = makeFilm({ tmdb_id: tid++, ...film });
   const d = new Date(date + "T00:00:00Z");
-  return { date, tmdb_id: f.tmdb_id, rating, stars: null, rewatch: false, film: f, d, yearFrac: 0 };
+  return { date, tmdb_id: f.tmdb_id, rating, stars: null, rewatch: false, liked: null, film: f, d, yearFrac: 0, heart: null };
 }
 
 // Successive daily watches, so date ordering matches array order.
@@ -200,11 +200,11 @@ describe("buildSeries", () => {
     expect(out.some((s) => s.key === OTHER)).toBe(false);
     // 1920s excluded from panels but still counted in the overall line.
     expect(out.find((s) => s.isOverall)!.total).toBe(20);
-    // sequential ramp: distinct colours in decade order.
+    // sequential ramp: distinct colors in decade order.
     expect(cats.length).toBe(new Set(out.filter((s) => !s.isOverall).map((s) => s.color)).size);
   });
 
-  it("keeps the colour plan stable when the filtered set shrinks", () => {
+  it("keeps the color plan stable when the filtered set shrinks", () => {
     const all = [
       ...series([60, 62, 64, 66, 68], { language: "en" }),
       ...series([70, 72, 74, 76, 78], { language: "ja" }),
@@ -212,7 +212,7 @@ describe("buildSeries", () => {
     const full = buildSeries(all, all, "language", opts);
     const enColorFull = full.find((s) => s.key === "English")!.color;
     // Filter down to only Japanese watches; English no longer appears, but the
-    // colour plan is seeded from `all`, so surviving series keep their hues.
+    // color plan is seeded from `all`, so surviving series keep their hues.
     const jaOnly = all.filter((w) => w.film?.language === "ja");
     const filtered = buildSeries(all, jaOnly, "language", opts);
     expect(filtered.find((s) => s.key === "English")).toBeUndefined();

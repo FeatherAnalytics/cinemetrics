@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useExplorer } from "@/lib/store";
-import type { ChartId } from "@/lib/stories";
+import { getStoryById, useExplorer } from "@/lib/store";
+import { LANDING_STORY, type ChartId } from "@/lib/stories";
 
 export function StoryAnnotation({ target }: { target: ChartId }) {
   const { activeStory, storyResult, storyFocus } = useExplorer();
@@ -16,12 +16,22 @@ export function StoryAnnotation({ target }: { target: ChartId }) {
     // Interacting with any control rewrites the URL without the hash, so
     // in-session story switches scroll normally.
     if (window.location.hash.startsWith("#chart-")) return;
+    // A story that swapped the whole chart set starts at the top of the page, so
+    // scrolling to its primary would skip charts the reader has not seen. The
+    // landing story is consulted the same way, and says the same thing: a page that
+    // scrolls itself on first load is a page that took the scroll away from the
+    // reader before they asked for anything.
+    const cfg = activeStory ? getStoryById(activeStory) : LANDING_STORY;
+    if (cfg?.scrollToPrimary === false) return;
     if (isTarget && ref.current) {
       ref.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [activeStory, isTarget]);
 
-  if (!activeStory || !storyResult || !isTarget) return null;
+  // No `activeStory` check: with nothing selected this renders the LANDING story's
+  // headline, which is the one line on the page that states a finding rather than
+  // describing a chart.
+  if (!storyResult || !isTarget) return null;
 
   // The primary chart's note renders here, inside the headline bar, so the
   // chart carries a single story element (secondary charts get StoryChartNote,

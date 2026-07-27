@@ -38,7 +38,7 @@ function letterboxdUrl(m: CandidateMetadata): string {
   return `https://letterboxd.com/film/${letterboxdSlug(m.title)}/`;
 }
 
-// GENRE_ORDER is the five tracked, colour-carrying genres (no "Other"), so a
+// GENRE_ORDER is the five tracked, color-carrying genres (no "Other"), so a
 // genre string in this set maps directly to a GENRE_COLORS swatch.
 const GENRE_KEY_SET = new Set<string>(GENRE_ORDER);
 

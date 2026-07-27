@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { computeScreenTime, computeAvgRating, computeMedianRating, computeResiduals } from "../stats";
+import {
+  computeScreenTime,
+  computeAvgRating,
+  computeMedianRating,
+  computeResiduals,
+  computeRewatchShare,
+} from "../stats";
 import type { EnrichedWatch, Film } from "../types";
 
 function makeFilm(overrides: Partial<Film> = {}): Film {
@@ -17,7 +23,8 @@ function makeWatch(film: Film, overrides: Partial<EnrichedWatch> = {}): Enriched
   const d = new Date("2023-06-15T00:00:00Z");
   return {
     date: "2023-06-15", tmdb_id: film.tmdb_id, rating: 70, stars: 3.5,
-    rewatch: false, film, d, yearFrac: 0.45, ...overrides,
+    rewatch: false, liked: null, film, d, yearFrac: 0.45, ...overrides,
+    heart: overrides.heart ?? overrides.liked ?? null,
   };
 }
 
@@ -167,5 +174,41 @@ describe("computeResiduals", () => {
     const result = computeResiduals([...watches, extraWatch], byId);
     const filmAResult = result.films.find((f) => f.tmdb_id === 1)!;
     expect(filmAResult.me).toBe(85);
+  });
+});
+
+describe("computeRewatchShare", () => {
+  // `liked` is the sheet-era marker: null means the row predates Letterboxd and
+  // never recorded a rewatch flag. makeWatch defaults it to null, so every test
+  // here sets it explicitly.
+  const f = makeFilm();
+  const known = (rewatch: boolean) => makeWatch(f, { rewatch, liked: false });
+  const sheetEra = (rewatch = false) => makeWatch(f, { rewatch, liked: null });
+
+  it("divides by rows that recorded the field", () => {
+    expect(computeRewatchShare([known(true), known(false), known(false), known(false)])).toBe(0.25);
+  });
+
+  it("excludes sheet-era rows from the denominator", () => {
+    // Without the fix this is 1/5 = 0.2; the four unknown rows cannot dilute it.
+    const watches = [known(true), sheetEra(), sheetEra(), sheetEra(), sheetEra()];
+    expect(computeRewatchShare(watches)).toBe(1);
+  });
+
+  it("counts a liked row as known regardless of the like value", () => {
+    const watches = [makeWatch(f, { rewatch: true, liked: true }), known(false)];
+    expect(computeRewatchShare(watches)).toBe(0.5);
+  });
+
+  it("returns null when no row recorded the field", () => {
+    expect(computeRewatchShare([sheetEra(), sheetEra()])).toBeNull();
+  });
+
+  it("returns null for no watches at all", () => {
+    expect(computeRewatchShare([])).toBeNull();
+  });
+
+  it("returns 0 when every recorded row is a first watch", () => {
+    expect(computeRewatchShare([known(false), known(false)])).toBe(0);
   });
 });

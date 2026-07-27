@@ -292,7 +292,7 @@ export function FilterBar() {
   );
 }
 
-// One labelled slider inside the "ranges" group.
+// One labeled slider inside the "ranges" group.
 function SliderRow({
   label,
   display,

@@ -1,4 +1,4 @@
-"""Full auto-update: RSS -> enrich new films -> dbt build -> export JSON."""
+"""Full auto-update: RSS -> enrich new films -> dbt deps + build -> export JSON."""
 
 import csv
 import os
@@ -182,7 +182,24 @@ def main() -> None:
 
     append_to_log(watches_to_log)
 
-    # dbt build
+    # dbt deps, then build.
+    #
+    # `deps` is not optional here and its absence is what broke the scheduled run on
+    # 2026-07-26 and 2026-07-27: `transform/dbt_packages/` is gitignored, so a fresh
+    # CI checkout has no dbt_utils and `dbt build` fails compilation before touching a
+    # model. The workflow does run `dbt deps` in a later step, which never helped,
+    # because this call happens first and aborts the job.
+    #
+    # Belongs here rather than in the workflow: this function owns the dbt
+    # invocation, so anywhere it runs -- CI, cron, a local shell -- gets a working
+    # one. Idempotent and cheap when the package is already present.
+    print("Running dbt deps ...")
+    subprocess.run(
+        ["uv", "run", "dbt", "deps", "--profiles-dir", "."],
+        cwd=str(TRANSFORM),
+        check=True,
+    )
+
     print("Running dbt build ...")
     subprocess.run(
         ["uv", "run", "dbt", "build", "--profiles-dir", "."],

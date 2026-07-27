@@ -7,6 +7,7 @@ import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/bru
 import { isSolstice, SunMarker } from "@/lib/solstice";
 import { trunc } from "@/lib/format";
 import type { EnrichedWatch, Film } from "@/lib/types";
+import { likedOnly } from "@/lib/heartLens";
 
 const W = 900;
 const LABEL = 150;
@@ -29,14 +30,18 @@ type Row = {
 type Band = { label: string; rows: Row[]; headerY: number; startY: number };
 
 export function RewatchCadence() {
-  const { all, filters, selectedId, setSelected, setSelection } = useExplorer();
+  const { all, filters, selectedId, setSelected, setSelection, heartLens } = useExplorer();
   const [showUnchanged, setShowUnchanged] = useState(false);
   const [hover, setHover] = useState<{ x: number; y: number; row: Row; w: EnrichedWatch } | null>(
     null,
   );
 
   const { grew, soured, unchanged, x0, x1 } = useMemo(() => {
-    const watches = filterWatches(all, { ...filters, rewatch: "all" });
+    const unlensed = filterWatches(all, { ...filters, rewatch: "all" });
+    // Hearted only under the lens. Applied AFTER the rewatch override, so a film
+    // still needs two viewings to earn a row: the chart is about changing my mind
+    // on a film I love, not about every film I love.
+    const watches = heartLens ? likedOnly(unlensed) : unlensed;
     const byFilm = new Map<number, EnrichedWatch[]>();
     for (const w of watches) {
       const a = byFilm.get(w.tmdb_id);
@@ -75,7 +80,7 @@ export function RewatchCadence() {
     const x0 = times.length ? Math.min(...times) : 0;
     const x1 = times.length ? Math.max(...times) : 1;
     return { grew, soured, unchanged, x0, x1 };
-  }, [all, filters]);
+  }, [all, filters, heartLens]);
 
   const visibleRows = useMemo(
     () => [...grew, ...soured, ...(showUnchanged ? unchanged : [])],

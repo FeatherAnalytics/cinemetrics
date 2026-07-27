@@ -42,11 +42,13 @@ function makeWatch(
     tmdb_id: film.tmdb_id,
     rating: 70,
     stars: 3.5,
+    liked: null,
     rewatch: false,
     film,
     d,
     yearFrac: (d.getTime() - start) / (end - start),
     ...overrides,
+    heart: overrides.heart ?? overrides.liked ?? null,
   };
 }
 

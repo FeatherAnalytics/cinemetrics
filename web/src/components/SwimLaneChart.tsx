@@ -5,6 +5,9 @@ import { useExplorer } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { isSolstice, SunMarker } from "@/lib/solstice";
+import { isFav } from "@/lib/fourFavs";
+import { heartDim } from "@/lib/heartLens";
+import { favColor, StarMarker } from "@/lib/favMarker";
 import type { EnrichedWatch } from "@/lib/types";
 import { ChartTakeaway } from "./ChartTakeaway";
 
@@ -28,8 +31,17 @@ type Pt = {
 };
 
 export function SwimLaneChart() {
-  const { all, filtered, yearBounds, selectedId, setSelected, setSelection, storyResult } =
-    useExplorer();
+  const {
+    all,
+    filtered,
+    yearBounds,
+    selectedId,
+    setSelected,
+    setSelection,
+    storyResult,
+    heartLens,
+    activeStory,
+  } = useExplorer();
   const [hover, setHover] = useState<{ x: number; y: number; w: EnrichedWatch } | null>(null);
   const monthFocus = storyResult?.monthFocus ?? null;
   const showYearMeans = storyResult?.yearMeans ?? false;
@@ -79,6 +91,14 @@ export function SwimLaneChart() {
       pts.push({ w, x, y, color: INK.muted, op: 0.08, r: 3.5, sel: false, unrated: w.rating == null });
     }
 
+    // Under the heart lens the dot KEEPS its genre color and fades when the film
+    // was not hearted, so the hearted films come forward without costing the reader
+    // the encoding they already learned. Unrecorded hearts fade with the rest: all
+    // 129 of them sit in 2019, and giving them a gray turned the whole first row
+    // into chrome.
+    const dotColor = (w: EnrichedWatch) => GENRE_COLORS[primaryGenre(w.film)];
+    const dotFade = (w: EnrichedWatch) => (heartLens ? heartDim(w) : 1);
+
     // Active dots
     for (const w of filtered) {
       const { x, y } = place(w);
@@ -88,11 +108,11 @@ export function SwimLaneChart() {
       // A story with a month focus spotlights that month; everything else recedes.
       const offFocus = monthFocus != null && w.d.getUTCMonth() !== monthFocus;
       if (sel) {
-        pts.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op: 1, r: 5, sel: true, unrated });
+        pts.push({ w, x, y, color: dotColor(w), op: dotFade(w), r: 5, sel: true, unrated });
       } else {
         const base = 0.35 + 0.6 * (rating / 100);
         const op = (hasSel ? base * 0.3 : base) * (offFocus ? 0.12 : 1);
-        pts.push({ w, x, y, color: GENRE_COLORS[primaryGenre(w.film)], op, r: 3.5, sel: false, unrated });
+        pts.push({ w, x, y, color: dotColor(w), op: op * dotFade(w), r: 3.5, sel: false, unrated });
       }
     }
 
@@ -115,7 +135,7 @@ export function SwimLaneChart() {
     // Selected on top
     pts.sort((a, b) => Number(a.sel) - Number(b.sel) || a.op - b.op);
     return pts;
-  }, [all, filtered, hasSel, selectedId, monthFocus, place]);
+  }, [all, filtered, hasSel, selectedId, monthFocus, place, heartLens]);
 
   // The circle elements are memoized as JSX so a tooltip show/hide (hover
   // state) doesn't rebuild ~1,500 SVG nodes.
@@ -134,6 +154,16 @@ export function SwimLaneChart() {
           return (
             <g key={i} opacity={op} style={{ cursor: "pointer" }} {...handlers}>
               <SunMarker x={p.x} y={p.y} />
+            </g>
+          );
+        }
+        // A profile favorite takes a star instead of a dot, in its genre color.
+        // Checked AFTER the solstice sun: that marks one specific watch and this
+        // marks a film, so the more specific mark keeps the position.
+        if (isFav(p.w.tmdb_id)) {
+          return (
+            <g key={i} opacity={p.op} style={{ cursor: "pointer" }} {...handlers}>
+              <StarMarker x={p.x} y={p.y} r={p.r + 2.4} fill={favColor(p.w.film)} />
             </g>
           );
         }
@@ -357,7 +387,12 @@ export function SwimLaneChart() {
         </div>
       )}
 
-      {octoberHorror != null && (
+      {/* Only with no story running. Under a story the annotation above the chart
+          is already making that story's point, and a second, unrelated fact
+          underneath competes with it: reading "October is 73% horror" beneath a
+          story about my ratings rising over time tells the reader nothing about
+          either. */}
+      {!activeStory && octoberHorror != null && (
         <ChartTakeaway>October is {octoberHorror}% horror</ChartTakeaway>
       )}
     </figure>
