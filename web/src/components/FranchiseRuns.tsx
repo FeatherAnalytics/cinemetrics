@@ -6,6 +6,7 @@ import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { trunc, fmt1 } from "@/lib/format";
 import type { EnrichedWatch } from "@/lib/types";
+import { heartDim } from "@/lib/heartLens";
 
 const W = 900;
 const LABEL = 150;
@@ -23,7 +24,7 @@ type Row = {
 };
 
 export function FranchiseRuns() {
-  const { all, filters, selectedId, setSelected, setSelection } = useExplorer();
+  const { all, filters, selectedId, setSelected, setSelection, heartLens } = useExplorer();
   const [showAll, setShowAll] = useState(false);
   const [hover, setHover] = useState<{ x: number; y: number; w: EnrichedWatch } | null>(null);
 
@@ -42,6 +43,10 @@ export function FranchiseRuns() {
     for (const [name, ws] of byCollection) {
       const filmIds = new Set(ws.map((w) => w.tmdb_id));
       if (filmIds.size < 2) continue; // one entry isn't a run
+      // Under the heart lens a run with nothing hearted in it leaves entirely. The
+      // dots stay whole so the run still reads as a run, but a collection I never
+      // loved a single entry of has no place in a story about what I love.
+      if (heartLens && !ws.some((w) => w.heart === true)) continue;
       const sorted = [...ws].sort((a, b) => a.d.getTime() - b.d.getTime());
       const rated = sorted.filter((w) => w.rating != null).map((w) => w.rating as number);
       rows.push({
@@ -60,7 +65,7 @@ export function FranchiseRuns() {
     const x0 = times.length ? Math.min(...times) : 0;
     const x1 = times.length ? Math.max(...times) : 1;
     return { main, minor, x0, x1 };
-  }, [all, filters]);
+  }, [all, filters, heartLens]);
 
   const rows = useMemo(
     () => (showAll ? [...main, ...minor] : main),
@@ -177,8 +182,10 @@ export function FranchiseRuns() {
                   cx={p.x}
                   cy={p.y}
                   r={p.w.tmdb_id === selectedId ? 3.4 : 2.6}
-                  fill={p.w.rating == null ? INK.surface : GENRE_COLORS[primaryGenre(p.w.film)]}
-                  fillOpacity={dim ? 0.3 : 0.9}
+                  fill={
+                    p.w.rating == null ? INK.surface : GENRE_COLORS[primaryGenre(p.w.film)]
+                  }
+                  fillOpacity={(dim ? 0.3 : 0.9) * (heartLens ? heartDim(p.w) : 1)}
                   stroke={p.w.tmdb_id === selectedId ? ACCENT : p.w.rating == null ? INK.muted : INK.surface}
                   strokeWidth={p.w.tmdb_id === selectedId ? 1.5 : p.w.rating == null ? 1 : 0.5}
                   style={{ cursor: "pointer" }}

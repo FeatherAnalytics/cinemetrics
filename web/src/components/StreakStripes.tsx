@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { interpolateRgb } from "d3";
 import { useExplorer } from "@/lib/store";
+import { heartColor } from "@/lib/heartLens";
 import { DIVERGE_COOL, DIVERGE_MID, DIVERGE_WARM, INK } from "@/lib/palette";
 import { computeMedianRating } from "@/lib/stats";
 import type { EnrichedWatch } from "@/lib/types";
@@ -21,7 +22,7 @@ const lerpToWarm = interpolateRgb(MID, WARM);
 const lerpToCool = interpolateRgb(MID, COOL);
 
 export function StreakStripes() {
-  const { all, filtered, selectedId, setSelected } = useExplorer();
+  const { all, filtered, selectedId, setSelected, heartLens } = useExplorer();
   const [hover, setHover] = useState<{ i: number; w: EnrichedWatch } | null>(null);
 
   const { rated, med, devMax } = useMemo(() => {
@@ -64,8 +65,15 @@ export function StreakStripes() {
     }
   });
 
-  const colorOf = (rating: number) => {
-    const t = Math.max(-1, Math.min(1, (rating - med) / devMax));
+  // The barcode is the ONE chart that recolors rather than dims, and it earns the
+  // exception. Its stripes are two pixels wide with no gap, so a faded stripe beside
+  // a full one reads as a lighter shade of the same ramp rather than a different
+  // kind of watch. Replacing the ramp gives every stripe a flat, unmistakable state
+  // and turns the run of hearted films into a solid crimson block, which is the
+  // strongest single picture in the story.
+  const colorOf = (w: EnrichedWatch) => {
+    if (heartLens) return heartColor(w);
+    const t = Math.max(-1, Math.min(1, ((w.rating as number) - med) / devMax));
     return t < 0 ? lerpToCool(-t) : lerpToWarm(t);
   };
 
@@ -88,7 +96,7 @@ export function StreakStripes() {
               y={8}
               width={stripeW + 0.3}
               height={H - MB - 8}
-              fill={colorOf(w.rating as number)}
+              fill={colorOf(w)}
               opacity={hasSel && !sel ? 0.3 : 1}
               style={{ cursor: "pointer" }}
               onMouseEnter={() => setHover({ i, w })}

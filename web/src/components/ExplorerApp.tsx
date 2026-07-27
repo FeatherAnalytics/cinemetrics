@@ -21,6 +21,14 @@ import { MonthlyPace } from "@/components/stats/MonthlyPace";
 import { WeekdayCounts } from "@/components/stats/WeekdayCounts";
 import { RatingsByGenre } from "@/components/stats/RatingsByGenre";
 import { GenrePairing } from "@/components/stats/GenrePairing";
+import { FavPosters } from "@/components/lab/FavPosters";
+import { LikedByRating, LikedByRatingBlurb } from "@/components/lab/LikedByRating";
+import { WhatMovesTheHeart } from "@/components/lab/WhatMovesTheHeart";
+import {
+  FavsAmongTheBest,
+  FavsAmongTheBestBlurb,
+} from "@/components/lab/FavsAmongTheBest";
+import { FavDirectors, FavDirectorsBlurb } from "@/components/lab/FavDirectors";
 import { SelectionPanel } from "@/components/SelectionPanel";
 import { StatBar } from "@/components/StatBar";
 import { StoryAnnotation } from "@/components/StoryAnnotation";
@@ -28,7 +36,7 @@ import { StoryChartNote } from "@/components/StoryChartNote";
 import { StoryChips } from "@/components/StoryChips";
 import { CopyChartLink } from "@/components/CopyChartLink";
 import { Footer } from "@/components/Footer";
-import type { ChartId } from "@/lib/stories";
+import { chartSetFor, swapsChartSet, type ChartId, type ChartSet } from "@/lib/stories";
 import type { Dataset } from "@/lib/types";
 import type { ReactNode } from "react";
 
@@ -37,19 +45,96 @@ type ChartSection = {
   title: string;
   blurbClass: string;
   blurb: ReactNode;
+  /**
+   * Replacement copy while the heart lens is on.
+   *
+   * Not optional decoration: the lens REPLACES what several of these charts
+   * encode, so the shipped blurb becomes actively wrong. The barcode's says
+   * "crimson when I scored it above my median", which under the lens describes a
+   * color the chart is no longer drawing, and wrong copy about a chart is worse
+   * than none because it teaches the reader to misread the picture.
+   */
+  heartBlurb?: ReactNode;
   // Several stats charts return null when a filter empties them out.
   Chart: () => React.JSX.Element | null;
-  // The narrative charts are the default page. The stats charts REPLACE them
-  // while the stats story is active; the two sets are never on screen together,
-  // which is the whole point of that story (see docs/CHART-IDEAS.md X1c).
-  // Omitted means narrative, so the eight entries below need no annotation.
-  mode?: "narrative" | "stats";
+  /**
+   * Which sets this chart appears in. Omitted means `DEFAULT_SETS`.
+   *
+   * A LIST rather than one value, because the favorites story is not a clean
+   * swap: it adds five charts of its own AND keeps the narrative eight, which it
+   * recolors through the heart lens. The stats story is still a clean swap, so its
+   * charts name only their own set (docs/CHART-IDEAS.md X1c).
+   */
+  sets?: ChartSet[];
 };
+
+/**
+ * What a section belongs to when it says nothing: the default page, and the
+ * favorites story, which keeps the narrative charts and recolors them rather than
+ * replacing them. All eight narrative charts want exactly that, so none of them
+ * carries a `sets` field.
+ */
+const DEFAULT_SETS: ChartSet[] = ["narrative", "heart"];
 
 // Section order and copy are load-bearing — the story chips dim charts by id and
 // the narrative reads top to bottom. Keep this array in sync with StoryAnnotation
 // targets and the ChartId union.
 const CHART_SECTIONS: ChartSection[] = [
+  // --- The heart set. Rendered only while the heart story is active. ---
+  // Posters lead, because the four favorites are the concrete thing the rest of
+  // the set is abstract about, and the reader should meet the films before the
+  // charts that fail to explain them.
+  {
+    id: "favposters",
+    title: "The four favorites",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        The four films on my Letterboxd profile, in the order they sit there. Click one to
+        trace it across the charts below.
+      </>
+    ),
+    Chart: FavPosters,
+    sets: ["heart"],
+  },
+  {
+    id: "likedcurve",
+    title: "The heart follows the rating",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: <LikedByRatingBlurb />,
+    Chart: LikedByRating,
+    sets: ["heart"],
+  },
+  {
+    id: "heartpredictors",
+    title: "Nothing decides the ones in between",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Only watches at 3.5★ and 4★, so a dimension that merely predicts my rating cannot
+        show up here as predicting the heart. Switch how the films are grouped.
+      </>
+    ),
+    Chart: WhatMovesTheHeart,
+    sets: ["heart"],
+  },
+  {
+    id: "favtie",
+    title: "Four of nineteen",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: <FavsAmongTheBestBlurb />,
+    Chart: FavsAmongTheBest,
+    sets: ["heart"],
+  },
+  {
+    id: "favdirectors",
+    title: "A favorite brings company",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: <FavDirectorsBlurb />,
+    Chart: FavDirectors,
+    sets: ["heart"],
+  },
+
   {
     id: "spiral",
     title: "When I watch",
@@ -58,6 +143,14 @@ const CHART_SECTIONS: ChartSection[] = [
       <>
         One row per year, January to December. Height within a row is my rating.
         Dots above the upper guide line scored 75+, dots below the lower one under 25.
+      </>
+    ),
+    heartBlurb: (
+      <>
+        One row per year, January to December. Height within a row is my rating and the dot
+        keeps its genre color; films I hearted stay at full strength and everything else
+        fades back, including 2019, which predates Letterboxd and recorded no hearts at all.
+        Stars are the four favorites.
       </>
     ),
     Chart: SwimLaneChart,
@@ -74,6 +167,14 @@ const CHART_SECTIONS: ChartSection[] = [
         trace that film; drag to select a range.
       </>
     ),
+    heartBlurb: (
+      <>
+        Each dot is a film, stacked by how far my rating sits from a prediction fit on
+        Metacritic, Rotten Tomatoes, and IMDB scores. Films I hearted stay at full strength
+        and everything else fades back. Dots right of zero are films I rated above the
+        critics.
+      </>
+    ),
     Chart: ResidualDotStack,
   },
   {
@@ -82,8 +183,11 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-3 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        After controlling for critic scores, keywords where I systematically rate
-        higher or lower than critics predict. Click a bar to see those films.
+        Keywords whose Letterboxd heart rate sits furthest from my overall one, in
+        percentage points. A keyword at +20pp is one I heart twenty points more often than I
+        heart anything at all, so the bars read from what wins me over down to what does
+        not. Only keywords carrying enough films with a recorded heart appear. Click a bar
+        to see those films.
       </>
     ),
     Chart: KeywordBars,
@@ -94,9 +198,10 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 text-xs text-[#67655f]",
     blurb: (
       <>
-        Countries ranked by how many of my films they helped produce, colored by the genre
-        I watch most from each. The right column shows how I rate that country&rsquo;s films
-        against prediction. Click a row to filter the other charts.
+        Countries ranked by how many of my films they helped produce, colored by the genre I
+        watch most from each. The right column is the Letterboxd heart: how much more or less
+        often I heart a film from that country than I heart anything at all. Click a row to
+        filter the other charts.
       </>
     ),
     Chart: CountryBars,
@@ -109,6 +214,14 @@ const CHART_SECTIONS: ChartSection[] = [
       <>
         The whole log as a barcode: one stripe per rated watch, in order.
         Crimson when I scored it above my median, blue below, pale at par.
+      </>
+    ),
+    heartBlurb: (
+      <>
+        The whole log as a barcode: one stripe per rated watch, in order. The ramp stops
+        showing my rating and shows the heart instead: crimson where I hearted the film, blue
+        where I did not, gray where no heart was recorded, which is every watch before
+        Letterboxd I never went back to.
       </>
     ),
     Chart: StreakStripes,
@@ -125,6 +238,13 @@ const CHART_SECTIONS: ChartSection[] = [
         grouped: genre, language, country, runtime, release decade, or content rating.
       </>
     ),
+    heartBlurb: (
+      <>
+        The same panels, restricted to films I hearted: the colored line is my rolling{" "}
+        {10}-watch average rating across the hearted films in that group, and the dashed line
+        my average across everything hearted. Switch how the films are grouped.
+      </>
+    ),
     Chart: RollingRating,
   },
   {
@@ -137,6 +257,13 @@ const CHART_SECTIONS: ChartSection[] = [
         Biggest rating swings first. Every dot is a watch, placed left-to-right by date and
         up-or-down by my rating; the numbers at the right of a row are my first and latest
         scores.
+      </>
+    ),
+    heartBlurb: (
+      <>
+        Films I hearted AND returned to, grouped by whether coming back changed my mind. A
+        film still needs two viewings to appear, so this is about second thoughts on things
+        I already loved. Biggest rating swings first.
       </>
     ),
     Chart: RewatchCadence,
@@ -153,6 +280,14 @@ const CHART_SECTIONS: ChartSection[] = [
         for that franchise.
       </>
     ),
+    heartBlurb: (
+      <>
+        One row per franchise holding at least one film I hearted; runs I never loved an
+        entry of drop out entirely. Dots are watches over time and height is my rating, in
+        the franchise&rsquo;s genre color: hearted entries at full strength, everything else
+        faded.
+      </>
+    ),
     Chart: FranchiseRuns,
   },
 
@@ -163,7 +298,7 @@ const CHART_SECTIONS: ChartSection[] = [
   // stories do, so the primary has to already be there.
   {
     id: "monthly",
-    mode: "stats",
+    sets: ["stats"],
     title: "Pace by month",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
@@ -176,7 +311,7 @@ const CHART_SECTIONS: ChartSection[] = [
   },
   {
     id: "weekday",
-    mode: "stats",
+    sets: ["stats"],
     title: "Pace by weekday",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
@@ -189,7 +324,7 @@ const CHART_SECTIONS: ChartSection[] = [
   },
   {
     id: "velocity",
-    mode: "stats",
+    sets: ["stats"],
     title: "Viewing velocity",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: <>Every bucket since the first logged watch. No smoothing.</>,
@@ -197,7 +332,7 @@ const CHART_SECTIONS: ChartSection[] = [
   },
   {
     id: "cumulative",
-    mode: "stats",
+    sets: ["stats"],
     title: "Cumulative watches",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
@@ -210,7 +345,7 @@ const CHART_SECTIONS: ChartSection[] = [
   },
   {
     id: "ytd",
-    mode: "stats",
+    sets: ["stats"],
     title: "Viewings to date",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
@@ -223,7 +358,7 @@ const CHART_SECTIONS: ChartSection[] = [
   },
   {
     id: "rewatched",
-    mode: "stats",
+    sets: ["stats"],
     title: "What I go back to",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: <MostRewatchedBlurb />,
@@ -231,7 +366,7 @@ const CHART_SECTIONS: ChartSection[] = [
   },
   {
     id: "genrebox",
-    mode: "stats",
+    sets: ["stats"],
     title: "Ratings by primary genre",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: <>Tukey box plots, one value per film, each film in exactly one genre.</>,
@@ -239,7 +374,7 @@ const CHART_SECTIONS: ChartSection[] = [
   },
   {
     id: "pairing",
-    mode: "stats",
+    sets: ["stats"],
     title: "Genre pairing",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
@@ -263,7 +398,7 @@ function spanWord(n: number): string {
 }
 
 function Explorer() {
-  const { storyFocus, activeStory, films, all, yearBounds } = useExplorer();
+  const { storyFocus, activeStory, films, all, yearBounds, heartLens } = useExplorer();
   const { state: recState } = useRecommend();
   const [drawerOpenRaw, setDrawerOpen] = useState(false);
   const drawerOpen = drawerOpenRaw && !recState.open;
@@ -277,22 +412,22 @@ function Explorer() {
   // user can still toggle manually until the next story change. Adjusted during
   // render (not in an effect) so it tracks activeStory changes.
   //
-  // The stats story is the exception. It sets no filters of its own, so the rail
+  // A chart-set story is the exception. It sets no filters of its own, so the rail
   // is a live control there rather than idle chrome: the reader filters, and the
-  // eight statistical charts recompute against the filtered set. Collapsing it
-  // would hide the only thing there is to do with them.
+  // swapped-in charts recompute against the filtered set. Collapsing it would
+  // hide the only thing there is to do with them.
   const [collapsed, setCollapsed] = useState(false);
   const [prevStory, setPrevStory] = useState(activeStory);
   if (activeStory !== prevStory) {
     setPrevStory(activeStory);
-    setCollapsed(!!activeStory && activeStory !== "stats");
+    setCollapsed(!!activeStory && !swapsChartSet(activeStory));
   }
 
-  // Only the stats story swaps the chart set, so only there does the reader's
-  // scroll offset point at a chart that no longer exists. Every other story
-  // leaves the sections in place, where holding position is the right behavior.
+  // Only a set swap leaves the reader's scroll offset pointing at a chart that no
+  // longer exists. Every other story leaves the sections in place, where holding
+  // position is the right behavior.
   useEffect(() => {
-    if (activeStory === "stats") window.scrollTo({ top: 0, behavior: "smooth" });
+    if (swapsChartSet(activeStory)) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [activeStory]);
 
   const drawerCloseRef = useRef<HTMLButtonElement>(null);
@@ -319,11 +454,10 @@ function Explorer() {
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  // The stats story swaps the chart set rather than dimming it. Every other
-  // story works on the narrative eight, so anything that is not "stats" gets
-  // them unchanged.
-  const wanted = activeStory === "stats" ? "stats" : "narrative";
-  const sections = CHART_SECTIONS.filter((s) => (s.mode ?? "narrative") === wanted);
+  // A chart-set story swaps the page rather than dimming it. Which set it wants
+  // is declared on the story, so a new set needs no branch here.
+  const wanted = chartSetFor(activeStory);
+  const sections = CHART_SECTIONS.filter((s) => (s.sets ?? DEFAULT_SETS).includes(wanted));
 
   const chartStyle = (id: ChartId): React.CSSProperties =>
     storyFocus?.dim.includes(id)
@@ -437,14 +571,21 @@ function Explorer() {
           <div className="grid grid-cols-1 gap-8">
             <SelectionPanel />
 
-            {sections.map(({ id, title, blurbClass, blurb, Chart }) => (
+            {sections.map(({ id, title, blurbClass, blurb, heartBlurb, Chart }) => (
               <section key={id} id={`chart-${id}`} className="scroll-mt-6" style={chartStyle(id)}>
                 <div className="min-w-0">
                   <h2 className="group flex items-center gap-2 font-display text-lg font-semibold text-[#0b0b0b]">
                     {title}
                     <CopyChartLink anchor={`chart-${id}`} title={title} />
                   </h2>
-                  <p className={blurbClass}>{blurb}</p>
+                  {/* A div, not a p. Three of the blurbs are components that
+                      render their own paragraph, and a p inside a p is invalid
+                      HTML that the browser silently reparents, which breaks
+                      hydration. The class list is margin and text utilities, so
+                      nothing about the typography depends on the tag. */}
+                  <div className={blurbClass}>
+                    {heartLens && heartBlurb ? heartBlurb : blurb}
+                  </div>
                   {/* Story prose sits between the blurb and the chart: the
                       headline bar on the story's primary chart, a matching
                       note block on secondary charts. Charts keep full width. */}

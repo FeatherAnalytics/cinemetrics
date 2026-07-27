@@ -6,6 +6,9 @@ import { ACCENT, GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/pa
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { computeResiduals, type FilmResidual } from "@/lib/stats";
 import { ChartTakeaway } from "./ChartTakeaway";
+import { isFav } from "@/lib/fourFavs";
+import { StarMarker } from "@/lib/favMarker";
+import { heartByFilm, heartDimForFilm } from "@/lib/heartLens";
 
 const W = 900;
 const ML = 16;
@@ -27,7 +30,9 @@ type Dot = FilmResidual & {
 };
 
 export function ResidualDotStack() {
-  const { filtered, byId, selectedId, setSelected, setSelection } = useExplorer();
+  const { all, filtered, byId, selectedId, setSelected, setSelection, heartLens } =
+    useExplorer();
+  const hearts = useMemo(() => heartByFilm(all), [all]);
   const [hover, setHover] = useState<Dot | null>(null);
 
   const { dots, r2, rMax, axisMax, H, baseline, dotR } = useMemo(() => {
@@ -165,20 +170,49 @@ export function ResidualDotStack() {
 
         {dots.map((d) => {
           const sel = d.tmdb_id === selectedId;
+          // Under the lens the dot keeps its genre color and everything that is not
+          // hearted fades. Films with no recorded heart fade with the rest rather
+          // than taking a gray of their own: the whole 2019 cohort has none, and a
+          // gray for it wiped the genre colors off a fifth of the chart.
+          const fade = heartLens ? heartDimForFilm(hearts.get(d.tmdb_id)) : 1;
+          const fill = GENRE_COLORS[d.genre];
+          const handlers = {
+            onMouseEnter: () => setHover(d),
+            onMouseLeave: () => setHover(null),
+            onClick: () => setSelected(d.tmdb_id),
+          };
+          // A profile favorite takes a star instead of a dot. Same position, same
+          // genre color, so it reads as this film's mark rather than a new series,
+          // and the shape survives a reader who cannot separate the hues.
+          if (isFav(d.tmdb_id)) {
+            return (
+              <g
+                key={d.tmdb_id}
+                style={{ cursor: "pointer" }}
+                opacity={(sel ? 1 : hasSel ? 0.25 : 0.95) * fade}
+                {...handlers}
+              >
+                <StarMarker
+                  x={d.cx}
+                  y={d.cy}
+                  r={sel ? dotR + 3.4 : dotR + 2.6}
+                  fill={fill}
+                />
+              </g>
+            );
+          }
           return (
             <circle
               key={d.tmdb_id}
               cx={d.cx}
               cy={d.cy}
               r={sel ? dotR + 1.2 : dotR}
-              fill={GENRE_COLORS[d.genre]}
-              fillOpacity={sel ? 1 : hasSel ? 0.25 : 0.85}
+              fill={fill}
+              fillOpacity={(sel ? 1 : hasSel ? 0.25 : 0.85) * fade}
               stroke={sel ? ACCENT : INK.surface}
               strokeWidth={sel ? 1.5 : 0.4}
               style={{ cursor: "pointer" }}
-              onMouseEnter={() => setHover(d)}
-              onMouseLeave={() => setHover(null)}
-              onClick={() => setSelected(d.tmdb_id)}
+              {...handlers}
             />
           );
         })}
