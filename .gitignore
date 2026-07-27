@@ -39,6 +39,9 @@ transform/.user.yml
 docs/superpowers/
 .superpowers/
 
+# --- Working notes (local only) ---
+thoughts/
+
 # --- OS / editor ---
 .DS_Store
 Thumbs.db
