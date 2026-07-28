@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Filters } from "./store";
-import type { Film, EnrichedWatch } from "./types";
+import type { Film, EnrichedWatch, WatchlistFilm } from "./types";
+import { genreBars, decadeBars, watchlistSummary } from "./watchlistChart";
 import { primaryGenre, type GenreKey } from "./palette";
 import { watchKey } from "./brush";
 import { ALPHA, anova, chicagoParts, hasKnownRewatchState, mean } from "./statsChart";
@@ -23,7 +24,14 @@ export type ChartId =
   | "monthly"
   | "weekday"
   | "genrebox"
-  | "pairing";
+  | "pairing"
+  // The watchlist set. Like the stats set, these replace the narrative charts
+  // rather than joining them — they plot films with no viewing history at all,
+  // so none of the eight has anything to draw for them.
+  | "wlgenres"
+  | "wldecades"
+  | "wlkeywords"
+  | "wlorigin";
 
 export type StoryFocus = {
   primary: ChartId;
@@ -50,6 +58,10 @@ export const CHART_TITLES: Record<ChartId, string> = {
   weekday: "Pace by weekday",
   genrebox: "Ratings by primary genre",
   pairing: "Genre pairing",
+  wlgenres: "What's waiting, by genre",
+  wldecades: "How old the queue is",
+  wlkeywords: "What the queue keeps tagging",
+  wlorigin: "Where the queue comes from",
 };
 
 export type StoryResult = {
@@ -71,7 +83,18 @@ export type StoryConfig = {
   id: string;
   label: string;
   focus: StoryFocus;
-  compute: (films: Film[], watches: EnrichedWatch[]) => StoryResult;
+  /**
+   * `watchlist` is a third, OPTIONAL argument rather than a different signature
+   * for the one story that needs it. Optional on both sides: every other compute
+   * declares two parameters and stays assignable, and every caller that has no
+   * watchlist to give — the tests, and anything reading a payload written before
+   * dim_watchlist existed — can still call with two.
+   */
+  compute: (
+    films: Film[],
+    watches: EnrichedWatch[],
+    watchlist?: WatchlistFilm[],
+  ) => StoryResult;
   /**
    * Whether filtering by hand drops out of this story. Defaults to true.
    *
@@ -545,6 +568,67 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
   };
 }
 
+/**
+ * The watchlist story: four breakdowns of films that have not been watched.
+ *
+ * Every other story reads the diary. This one reads the OTHER list, so it takes
+ * neither `films` nor `watches` — a watchlist film has no rating, no date and no
+ * heart, and the eight narrative charts have nothing to draw for it. Like the
+ * stats story it swaps the chart set rather than filtering the existing one.
+ *
+ * The headline counts what is genuinely waiting rather than the list length.
+ * Letterboxd leaves a film on the watchlist after it is logged and the reader
+ * clears them only sometimes, so a handful have already been seen; calling all
+ * 136 "waiting" would be wrong by exactly that many. The gap is stated in the
+ * subtext rather than hidden, because a reader who counts the bars will find it.
+ */
+function computeWatchlist(
+  _films: Film[],
+  _watches: EnrichedWatch[],
+  watchlist: WatchlistFilm[] = [],
+): StoryResult {
+  if (watchlist.length === 0) {
+    return { headline: "No watchlist data", chip: "Watchlist" };
+  }
+
+  const { total, watched, unwatched, oldest, preMillenniumShare } = watchlistSummary(watchlist);
+  const topGenre = genreBars(watchlist, 1)[0];
+  const decades = decadeBars(watchlist);
+  const peakDecade = decades.reduce((a, b) => (b.count > a.count ? b : a));
+  const pct = Math.round(100 * preMillenniumShare);
+
+  // Both numbers are measured here rather than written down, so the line cannot
+  // drift from the charts underneath it.
+  const headline = `${total} films on the list, ${pct}% of them from before 2000`;
+
+  return {
+    headline,
+    chip: "Watchlist",
+    ...(watched > 0
+      ? {
+          subtext: ``,
+        }
+      : {}),
+    notes: {
+      ...(topGenre
+        ? {
+            wlgenres: `${topGenre.label} leads at ${topGenre.count} films.`,
+          }
+        : {}),
+      // "The heaviest decade" only says something when there is more than one
+      // to be heaviest of. Filtered to a single decade the superlative is
+      // vacuous — it names the only bar on the chart — so it drops to a plain
+      // statement of what is left.
+      wldecades:
+        decades.length > 1
+          ? `The ${peakDecade.decade}s is the most prominent decade at ${peakDecade.count} films and the queue reaches back to ${oldest}.`
+          : `All ${peakDecade.count} of these are from the ${peakDecade.decade}s.`,
+      wlkeywords:
+        "Counts of TMDB tags, not a measure of taste — a thoroughly tagged film pushes more bars than a thinly tagged one.",
+    },
+  };
+}
+
 export const STORIES: StoryConfig[] = [
   {
     id: "spooktober",
@@ -601,15 +685,33 @@ export const STORIES: StoryConfig[] = [
     scrollToPrimary: false,
     recomputeOnFilter: true,
   },
+  {
+    id: "watchlist",
+    label: "Watchlist",
+    // `dim` is empty for the same reason the stats story's is: the narrative
+    // charts are ABSENT here, not faded, so there is nothing left to dim.
+    focus: { primary: "wldecades", emphasize: ["wldecades", "wlgenres"], dim: [] },
+    compute: computeWatchlist,
+    // Same reasoning as the stats story: this story sets no filters and carries
+    // a chart SET, so cross-filtering within it is the intended interaction and
+    // dismissing on filter would swap every chart out from under the click.
+    dismissOnFilter: false,
+    scrollToPrimary: false,
+    // The rail stays live here, so the headline has to move with it. Left off,
+    // the annotation would keep claiming "130 films waiting" while the charts
+    // under it showed the 19 that survived a genre filter.
+    recomputeOnFilter: true,
+  },
 ];
 
 // All story headlines computed once from the full dataset, for the chip strip.
 export function computeStoryHeadlines(
   films: Film[],
   watches: EnrichedWatch[],
+  watchlist: WatchlistFilm[] = [],
 ): { id: string; label: string; headline: string; chip: string }[] {
   return STORIES.map((s) => {
-    const r = s.compute(films, watches);
+    const r = s.compute(films, watches, watchlist);
     return { id: s.id, label: s.label, headline: r.headline, chip: r.chip ?? s.label };
   });
 }

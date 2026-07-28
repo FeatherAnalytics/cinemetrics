@@ -1,5 +1,12 @@
 import type { Film } from "./types";
 
+/**
+ * Anything with a genre list. Widened from `Film` so watchlist films — which
+ * carry genres but no watch history — colour by the same rule as watched ones,
+ * rather than through a parallel copy of it that could drift.
+ */
+type HasGenres = { genres: string[] };
+
 // Genre identity colors: validated categorical slots 1-5 + neutral "Other".
 // (Validated all-pairs with scripts/validate_palette.js; the crimson/green pair
 // is a known deuteranopia collision the labels + hover mitigate — identity is
@@ -27,7 +34,7 @@ export const GENRE_KEYS: GenreKey[] = [...GENRE_ORDER, "Other"];
 
 // A film's dominant genre for coloring: first of the tracked genres it carries
 // (Horror wins when present, which is what the seasonality story turns on).
-export function primaryGenre(film: Film | undefined): GenreKey {
+export function primaryGenre(film: HasGenres | undefined): GenreKey {
   const gs = film?.genres ?? [];
   for (const g of GENRE_ORDER) if (gs.includes(g)) return g;
   return "Other";

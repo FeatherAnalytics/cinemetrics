@@ -69,6 +69,13 @@ export const COUNTRY_NAME: Record<string, string> = {
   PH: "Philippines",
   IR: "Iran",
   PK: "Pakistan",
+  // Codes the WATCHLIST reaches that the viewing history does not. SU is the
+  // reason this block exists: seven Soviet films sit on the list, and without a
+  // name the origin chart printed a bare "SU" among a column of real names.
+  SU: "Soviet Union",
+  CU: "Cuba",
+  PS: "Palestine",
+  QA: "Qatar",
 };
 
 export function countryName(iso: string): string {

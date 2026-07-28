@@ -103,11 +103,36 @@ export function FilterBar() {
     franchiseOptions,
     activeStory,
     setStory,
+    watchlist,
+    filteredWatchlist,
+    watchlistOptions,
   } = useExplorer();
   const { dispatch: recDispatch } = useRecommend();
+
+  /**
+   * The watchlist story reduces the rail rather than hiding it.
+   *
+   * A watchlist film has no watch date, no rating and no rewatch state, so those
+   * controls are removed instead of left visible and inert — a reader who drags
+   * the rating slider and sees nothing move has found a bug, not a filter that
+   * does not apply. Content rating and franchise go too, for the duller reason
+   * that dim_watchlist does not export them.
+   *
+   * What is left — genre, release year, runtime, country, language — is measured
+   * against the WATCHLIST, since it reaches years and countries the viewing
+   * history never does and an option that matches nothing reads as broken.
+   */
+  const watchlistMode = activeStory === "watchlist";
+  const releaseBounds = watchlistMode
+    ? watchlistOptions.releaseYearBounds
+    : releaseYearBounds;
+  const runBounds = watchlistMode ? watchlistOptions.runtimeBounds : runtimeBounds;
+  const countries = watchlistMode ? watchlistOptions.countryOptions : countryOptions;
+  const languages = watchlistMode ? watchlistOptions.languageOptions : languageOptions;
+
   const [wLo, wHi] = filters.yearRange ?? yearBounds;
-  const [rLo, rHi] = filters.releaseYearRange ?? releaseYearBounds;
-  const [mLo, mHi] = filters.runtimeRange ?? runtimeBounds;
+  const [rLo, rHi] = filters.releaseYearRange ?? releaseBounds;
+  const [mLo, mHi] = filters.runtimeRange ?? runBounds;
   const [sLo, sHi] = filters.ratingRange ?? [0, 100];
 
   return (
@@ -151,40 +176,48 @@ export function FilterBar() {
         )}
       >
       <div className="flex flex-col gap-2">
-        <SearchInput field="title" placeholder="movie title…" options={titleOptions} />
-        <SearchInput field="director" placeholder="director…" options={directorOptions} />
-        <SearchInput field="actor" placeholder="actor…" options={actorOptions} />
+        {!watchlistMode && (
+          <>
+            <SearchInput field="title" placeholder="movie title…" options={titleOptions} />
+            <SearchInput field="director" placeholder="director…" options={directorOptions} />
+            <SearchInput field="actor" placeholder="actor…" options={actorOptions} />
+          </>
+        )}
         <SelectFilter
           value={filters.country}
           onChange={setCountry}
           label="Production country"
           placeholder="country…"
-          options={countryOptions.map((c) => ({ value: c.iso, label: c.name }))}
+          options={countries.map((c) => ({ value: c.iso, label: c.name }))}
         />
         <SelectFilter
           value={filters.language}
           onChange={setLanguage}
           label="Original language"
           placeholder="language…"
-          options={languageOptions.map((l) => ({ value: l.code, label: l.name }))}
+          options={languages.map((l) => ({ value: l.code, label: l.name }))}
         />
-        <SelectFilter
-          value={filters.rated}
-          onChange={setRated}
-          label="Content rating"
-          placeholder="content rating…"
-          options={ratedOptions.map((r) => ({ value: r, label: r }))}
-        />
-        <SelectFilter
-          value={filters.franchise}
-          onChange={setFranchise}
-          label="Franchise"
-          placeholder="franchise…"
-          options={franchiseOptions.map((f) => ({
-            value: f,
-            label: f.replace(/ Collection$/, ""),
-          }))}
-        />
+        {!watchlistMode && (
+          <>
+            <SelectFilter
+              value={filters.rated}
+              onChange={setRated}
+              label="Content rating"
+              placeholder="content rating…"
+              options={ratedOptions.map((r) => ({ value: r, label: r }))}
+            />
+            <SelectFilter
+              value={filters.franchise}
+              onChange={setFranchise}
+              label="Franchise"
+              placeholder="franchise…"
+              options={franchiseOptions.map((f) => ({
+                value: f,
+                label: f.replace(/ Collection$/, ""),
+              }))}
+            />
+          </>
+        )}
       </div>
       </FieldGroup>
 
@@ -210,6 +243,7 @@ export function FilterBar() {
         </div>
       </FieldGroup>
 
+      {!watchlistMode && (
       <FieldGroup label="watches">
         <div
           className="flex w-fit overflow-hidden rounded-full border"
@@ -230,50 +264,55 @@ export function FilterBar() {
           ))}
         </div>
       </FieldGroup>
+      )}
 
       <FieldGroup
         label="ranges"
         collapsible
         defaultOpen={false}
         active={
-          filters.yearRange !== null ||
+          (!watchlistMode && filters.yearRange !== null) ||
           filters.releaseYearRange !== null ||
           filters.runtimeRange !== null ||
-          filters.ratingRange !== null
+          (!watchlistMode && filters.ratingRange !== null)
         }
       >
         <div className="flex flex-col gap-2.5">
-          <SliderRow label="watched" display={`${wLo}–${wHi}`}>
-            <RangeSlider min={yearBounds[0]} max={yearBounds[1]} value={[wLo, wHi]} onChange={setYearRange} />
-          </SliderRow>
+          {!watchlistMode && (
+            <SliderRow label="watched" display={`${wLo}–${wHi}`}>
+              <RangeSlider min={yearBounds[0]} max={yearBounds[1]} value={[wLo, wHi]} onChange={setYearRange} />
+            </SliderRow>
+          )}
           <SliderRow label="released" display={`${rLo}–${rHi}`}>
             <RangeSlider
-              min={releaseYearBounds[0]}
-              max={releaseYearBounds[1]}
+              min={releaseBounds[0]}
+              max={releaseBounds[1]}
               value={[rLo, rHi]}
               onChange={setReleaseYearRange}
             />
           </SliderRow>
           <SliderRow label="runtime" display={`${mLo}–${mHi}m`}>
             <RangeSlider
-              min={runtimeBounds[0]}
-              max={runtimeBounds[1]}
+              min={runBounds[0]}
+              max={runBounds[1]}
               step={5}
               unit="minutes"
               value={[mLo, mHi]}
               onChange={setRuntimeRange}
             />
           </SliderRow>
-          <SliderRow label="my rating" display={`${sLo}–${sHi}`}>
-            <RangeSlider
-              min={0}
-              max={100}
-              step={5}
-              unit="rating"
-              value={[sLo, sHi]}
-              onChange={setRatingRange}
-            />
-          </SliderRow>
+          {!watchlistMode && (
+            <SliderRow label="my rating" display={`${sLo}–${sHi}`}>
+              <RangeSlider
+                min={0}
+                max={100}
+                step={5}
+                unit="rating"
+                value={[sLo, sHi]}
+                onChange={setRatingRange}
+              />
+            </SliderRow>
+          )}
         </div>
       </FieldGroup>
 
@@ -281,8 +320,13 @@ export function FilterBar() {
         className="flex items-center justify-between border-t pt-3 text-[#67655f]"
         style={{ borderColor: "rgba(11,11,11,0.12)" }}
       >
+        {/* The count names what the charts above it are actually plotting. In
+            watchlist mode that is films, not watches — reporting watches there
+            would be a denominator from a different dataset entirely. */}
         <span className="font-mono text-xs">
-          {filtered.length} / {all.length} watches
+          {watchlistMode
+            ? `${filteredWatchlist.length} / ${watchlist.length} films`
+            : `${filtered.length} / ${all.length} watches`}
         </span>
         <button onClick={reset} className="underline underline-offset-2 hover:text-[#0b0b0b]">
           reset

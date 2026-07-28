@@ -11,9 +11,10 @@ import {
   type ReactNode,
 } from "react";
 import { encodeUrlState, parseUrlState } from "./urlState";
-import type { Dataset, EnrichedWatch, Film } from "./types";
+import type { Dataset, EnrichedWatch, Film, WatchlistFilm } from "./types";
 import { primaryGenre, type GenreKey } from "./palette";
 import { countryName } from "./countries";
+import { languageName } from "./languages";
 import { watchKey } from "./brush";
 import { STORIES, computeStoryHeadlines, type StoryResult, type ChartId } from "./stories";
 
@@ -79,6 +80,52 @@ export function filterWatches(
   });
 }
 
+/**
+ * The subset of `Filters` that means anything for a film nobody has watched.
+ *
+ * A watchlist film has no watch date, no rating, no rewatch state and no heart,
+ * so `yearRange`, `ratingRange`, `rewatch` and `selection` have nothing to test
+ * against. They are not merely skipped here — WATCHLIST_FILTERS drives the rail
+ * too, so the controls that set them are never shown while the watchlist story
+ * is active. Silently ignoring a visible control would be worse than hiding it:
+ * the reader would drag the rating slider and watch nothing happen.
+ *
+ * `rated` and `franchise` are absent for a duller reason: dim_watchlist exports
+ * neither, so filtering on them would empty every chart.
+ */
+export const WATCHLIST_FILTERS = [
+  "genres",
+  "releaseYearRange",
+  "runtimeRange",
+  "language",
+  "country",
+] as const satisfies readonly (keyof Filters)[];
+
+export type WatchlistFilterKey = (typeof WATCHLIST_FILTERS)[number];
+
+/** Pure filtering logic for the watchlist, extracted for testability. */
+export function filterWatchlist(
+  all: WatchlistFilm[],
+  filters: Filters,
+): WatchlistFilm[] {
+  return all.filter((f) => {
+    if (filters.genres.size > 0 && !filters.genres.has(primaryGenre(f))) return false;
+    if (filters.releaseYearRange) {
+      const y = f.year;
+      if (y == null || y < filters.releaseYearRange[0] || y > filters.releaseYearRange[1])
+        return false;
+    }
+    if (filters.runtimeRange) {
+      const rt = f.runtime;
+      if (rt == null || rt < filters.runtimeRange[0] || rt > filters.runtimeRange[1])
+        return false;
+    }
+    if (filters.language && f.language !== filters.language) return false;
+    if (filters.country && !f.production_countries.includes(filters.country)) return false;
+    return true;
+  });
+}
+
 export function getStoryById(id: string) {
   return STORIES.find((s) => s.id === id);
 }
@@ -130,19 +177,15 @@ function sortRated(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
-function languageName(code: string): string {
-  try {
-    return new Intl.DisplayNames(["en"], { type: "language" }).of(code) ?? code;
-  } catch {
-    return code;
-  }
-}
-
 type ExplorerValue = {
   films: Film[];
   byId: Map<number, Film>;
   all: EnrichedWatch[];
   filtered: EnrichedWatch[];
+  /** Every film on the watchlist, unfiltered. */
+  watchlist: WatchlistFilm[];
+  /** The watchlist under the reduced rail — see WATCHLIST_FILTERS. */
+  filteredWatchlist: WatchlistFilm[];
   yearBounds: [number, number];
   releaseYearBounds: [number, number];
   runtimeBounds: [number, number];
@@ -153,6 +196,18 @@ type ExplorerValue = {
   languageOptions: { code: string; name: string }[];
   ratedOptions: string[];
   franchiseOptions: string[];
+  /**
+   * Rail options measured from the WATCHLIST rather than from watched films.
+   * Kept separate because the two sets genuinely differ — the watchlist reaches
+   * countries and years the viewing history never does (Soviet films, 1917) —
+   * and offering an option that matches nothing reads as a broken filter.
+   */
+  watchlistOptions: {
+    releaseYearBounds: [number, number];
+    runtimeBounds: [number, number];
+    countryOptions: { iso: string; name: string }[];
+    languageOptions: { code: string; name: string }[];
+  };
   filters: Filters;
   selectedId: number | null; // tmdb_id of film clicked in a chart, highlighted everywhere
   activeStory: string | null;
@@ -224,10 +279,37 @@ export function ExplorerProvider({
     const franchiseOptions = [
       ...new Set(data.films.map((f) => f.collection).filter((c): c is string => !!c)),
     ].sort((a, b) => a.localeCompare(b));
+
+    // `watchlist` is optional in the payload so an older cinemetrics.json (or a
+    // fixture that predates the mart) renders the other stories instead of
+    // throwing on a missing key.
+    const watchlist = data.watchlist ?? [];
+    const wlYears = watchlist.map((f) => f.year).filter((y): y is number => y != null);
+    const wlRuntimes = watchlist.map((f) => f.runtime).filter((r): r is number => r != null);
+    const wlIsos = [...new Set(watchlist.flatMap((f) => f.production_countries ?? []))];
+    const watchlistOptions = {
+      releaseYearBounds: (wlYears.length
+        ? [Math.min(...wlYears), Math.max(...wlYears)]
+        : [1900, 2030]) as [number, number],
+      runtimeBounds: (wlRuntimes.length
+        ? [Math.floor(Math.min(...wlRuntimes) / 5) * 5, Math.ceil(Math.max(...wlRuntimes) / 5) * 5]
+        : [0, 300]) as [number, number],
+      countryOptions: wlIsos
+        .map((iso) => ({ iso, name: countryName(iso) }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      languageOptions: [
+        ...new Set(watchlist.map((f) => f.language).filter((l): l is string => !!l)),
+      ]
+        .map((code) => ({ code, name: languageName(code) }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    };
+
     return {
       films: data.films,
       byId,
       all,
+      watchlist,
+      watchlistOptions,
       yearBounds: [Math.min(...watchYears), Math.max(...watchYears)] as [number, number],
       releaseYearBounds: [Math.min(...releaseYears), Math.max(...releaseYears)] as [number, number],
       runtimeBounds,
@@ -251,12 +333,16 @@ export function ExplorerProvider({
     () => filterWatches(all, deferredFilters),
     [all, deferredFilters],
   );
+  const filteredWatchlist = useMemo(
+    () => filterWatchlist(derived.watchlist, deferredFilters),
+    [derived.watchlist, deferredFilters],
+  );
 
   // Story headlines are computed once from the full dataset — they are stable
   // invitations, not filtered views.
   const storyHeadlines = useMemo(
-    () => computeStoryHeadlines(derived.films, derived.all),
-    [derived.films, derived.all],
+    () => computeStoryHeadlines(derived.films, derived.all, derived.watchlist),
+    [derived.films, derived.all, derived.watchlist],
   );
 
   // --- URL sync: hydrate once from the query string, then mirror state back
@@ -313,7 +399,7 @@ export function ExplorerProvider({
     }
     const story = getStoryById(id);
     if (!story) return;
-    const result = story.compute(derived.films, derived.all);
+    const result = story.compute(derived.films, derived.all, derived.watchlist);
     setActiveStory(id);
     setStoryResult(result);
     const newFilters: Filters = {
@@ -339,8 +425,8 @@ export function ExplorerProvider({
     if (!activeStory) return null;
     const cfg = getStoryById(activeStory);
     if (!cfg?.recomputeOnFilter) return storyResult;
-    return cfg.compute(derived.films, filtered);
-  }, [activeStory, storyResult, derived.films, filtered]);
+    return cfg.compute(derived.films, filtered, filteredWatchlist);
+  }, [activeStory, storyResult, derived.films, filtered, filteredWatchlist]);
 
   /**
    * Filtering by hand normally drops out of the active story, because for the
@@ -367,6 +453,7 @@ export function ExplorerProvider({
     () => ({
       ...derived,
       filtered,
+      filteredWatchlist,
       filters,
       selectedId,
       toggleGenre: (g) => {
@@ -443,7 +530,7 @@ export function ExplorerProvider({
     // `derived` and `activeStory`, both already dependencies, so the closures
     // here are never stale and both are safe to leave out.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [derived, filtered, filters, selectedId, activeStory, activeResult, storyHeadlines],
+    [derived, filtered, filteredWatchlist, filters, selectedId, activeStory, activeResult, storyHeadlines],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

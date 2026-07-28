@@ -25,6 +25,10 @@ import { SelectionPanel } from "@/components/SelectionPanel";
 import { StatBar } from "@/components/StatBar";
 import { StoryAnnotation } from "@/components/StoryAnnotation";
 import { StoryChartNote } from "@/components/StoryChartNote";
+import { WatchlistDecades } from "@/components/watchlist/WatchlistDecades";
+import { WatchlistGenres } from "@/components/watchlist/WatchlistGenres";
+import { WatchlistKeywords } from "@/components/watchlist/WatchlistKeywords";
+import { WatchlistOrigin } from "@/components/watchlist/WatchlistOrigin";
 import { StoryChips } from "@/components/StoryChips";
 import { CopyChartLink } from "@/components/CopyChartLink";
 import { Footer } from "@/components/Footer";
@@ -43,7 +47,20 @@ type ChartSection = {
   // while the stats story is active; the two sets are never on screen together,
   // which is the whole point of that story (see docs/CHART-IDEAS.md X1c).
   // Omitted means narrative, so the eight entries below need no annotation.
-  mode?: "narrative" | "stats";
+  //
+  // The watchlist set replaces them for a harder reason than editorial choice:
+  // it plots films that have never been watched, so every narrative and stats
+  // chart — all of which walk the watch log — would be empty beside it.
+  mode?: ChartMode;
+};
+
+type ChartMode = "narrative" | "stats" | "watchlist";
+
+// A story that carries its own chart SET, keyed by story id. Anything absent
+// works on the narrative eight.
+const STORY_MODES: Record<string, ChartMode> = {
+  stats: "stats",
+  watchlist: "watchlist",
 };
 
 // Section order and copy are load-bearing — the story chips dim charts by id and
@@ -250,6 +267,55 @@ const CHART_SECTIONS: ChartSection[] = [
     ),
     Chart: GenrePairing,
   },
+  {
+    id: "wldecades",
+    mode: "watchlist",
+    title: "Release decade of films on the watchlist",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Films on the watchlist by release decade.
+      </>
+    ),
+    Chart: WatchlistDecades,
+  },
+  {
+    id: "wlgenres",
+    mode: "watchlist",
+    title: "Watchlist by genre",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        How many watchlist films carry each genre. A film counts once in every genre
+        it carries.
+      </>
+    ),
+    Chart: WatchlistGenres,
+  },
+  {
+    id: "wlorigin",
+    mode: "watchlist",
+    title: "Origins of the watchlist",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Production country or original language.
+      </>
+    ),
+    Chart: WatchlistOrigin,
+  },
+  {
+    id: "wlkeywords",
+    mode: "watchlist",
+    title: "Watchlist keywords",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Keywords shared by three or more films on the list.
+      </>
+    ),
+    Chart: WatchlistKeywords,
+  },
 ];
 
 // Small spans read better as words ("Seven years"); past twelve, digits win.
@@ -277,22 +343,24 @@ function Explorer() {
   // user can still toggle manually until the next story change. Adjusted during
   // render (not in an effect) so it tracks activeStory changes.
   //
-  // The stats story is the exception. It sets no filters of its own, so the rail
-  // is a live control there rather than idle chrome: the reader filters, and the
-  // eight statistical charts recompute against the filtered set. Collapsing it
+  // The chart-set stories are the exception. They set no filters of their own,
+  // so the rail is a live control there rather than idle chrome: the reader
+  // filters, and the charts recompute against the filtered set. Collapsing it
   // would hide the only thing there is to do with them.
   const [collapsed, setCollapsed] = useState(false);
   const [prevStory, setPrevStory] = useState(activeStory);
   if (activeStory !== prevStory) {
     setPrevStory(activeStory);
-    setCollapsed(!!activeStory && activeStory !== "stats");
+    setCollapsed(!!activeStory && !STORY_MODES[activeStory]);
   }
 
-  // Only the stats story swaps the chart set, so only there does the reader's
-  // scroll offset point at a chart that no longer exists. Every other story
-  // leaves the sections in place, where holding position is the right behavior.
+  // Only the chart-set stories swap the sections out, so only there does the
+  // reader's scroll offset point at a chart that no longer exists. Every other
+  // story leaves the sections in place, where holding position is right.
   useEffect(() => {
-    if (activeStory === "stats") window.scrollTo({ top: 0, behavior: "smooth" });
+    if (activeStory && STORY_MODES[activeStory]) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }, [activeStory]);
 
   const drawerCloseRef = useRef<HTMLButtonElement>(null);
@@ -319,10 +387,9 @@ function Explorer() {
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  // The stats story swaps the chart set rather than dimming it. Every other
-  // story works on the narrative eight, so anything that is not "stats" gets
-  // them unchanged.
-  const wanted = activeStory === "stats" ? "stats" : "narrative";
+  // The stats and watchlist stories swap the chart set rather than dimming it.
+  // Every other story works on the narrative eight.
+  const wanted: ChartMode = (activeStory ? STORY_MODES[activeStory] : null) ?? "narrative";
   const sections = CHART_SECTIONS.filter((s) => (s.mode ?? "narrative") === wanted);
 
   const chartStyle = (id: ChartId): React.CSSProperties =>
