@@ -48,6 +48,7 @@ function makeWatch(
     d,
     yearFrac: (d.getTime() - start) / (end - start),
     ...overrides,
+    heart: overrides.heart ?? overrides.liked ?? null,
   };
 }
 

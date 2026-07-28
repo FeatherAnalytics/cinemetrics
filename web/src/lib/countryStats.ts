@@ -23,12 +23,38 @@ export type CountryAgg = {
 
 const EMPTY_AGG: CountryAgg = { rows: [], totalCountries: 0, tailCountries: 0, tailFilms: 0 };
 
-// Films list co-productions under every country, so a film may count in several
-// rows (same convention the world map used); the tail film count is deduped
-// against the top rows so the summary line never double-reports.
+/**
+ * Which attribute a row groups on.
+ *
+ * The two behave differently in one way that matters to every count on the
+ * chart: a film lists every co-producing country, so it can appear in several
+ * country rows, while it declares exactly one original language and appears in
+ * exactly one language row. Country bars therefore sum past the film count and
+ * language bars do not.
+ */
+export type OriginDimension = "country" | "language";
+
+function originKeys(f: Film, dimension: OriginDimension): string[] {
+  if (dimension === "language") return f.language ? [f.language] : [];
+  return f.production_countries ?? [];
+}
+
+/** Back-compat wrapper: the country ranking is the default reading. */
 export function aggregateCountries(
   watches: EnrichedWatch[],
   byId: Map<number, Film>,
+  topN = 15,
+): CountryAgg {
+  return aggregateOrigin(watches, byId, "country", topN);
+}
+
+// Films list co-productions under every country, so a film may count in several
+// rows (same convention the world map used); the tail film count is deduped
+// against the top rows so the summary line never double-reports.
+export function aggregateOrigin(
+  watches: EnrichedWatch[],
+  byId: Map<number, Film>,
+  dimension: OriginDimension = "country",
   topN = 15,
 ): CountryAgg {
   const filmsByIso = new Map<string, Set<number>>();
@@ -38,7 +64,7 @@ export function aggregateCountries(
     const f = w.film;
     if (!f) continue;
     const g = primaryGenre(f);
-    for (const iso of f.production_countries ?? []) {
+    for (const iso of originKeys(f, dimension)) {
       let ids = filmsByIso.get(iso);
       if (!ids) filmsByIso.set(iso, (ids = new Set()));
       if (ids.has(f.tmdb_id)) continue;

@@ -52,7 +52,7 @@ def load() -> None:
     con = connect()
     con.execute("CREATE SCHEMA IF NOT EXISTS raw")
 
-    sql = "SELECT DISTINCT tmdb_id, imdb_id FROM dim_film WHERE tmdb_id IS NOT NULL"
+    sql = "SELECT DISTINCT tmdb_id, imdb_id FROM marts.dim_film WHERE tmdb_id IS NOT NULL"
     film_rows = con.execute(sql).fetchall()
     print(f"enriching {len(film_rows)} films via TMDB ...")
     rows, misses = [], 0

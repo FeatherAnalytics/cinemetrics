@@ -1,7 +1,10 @@
 """Train film embeddings and export for the recommendation engine.
 
-Loads rated films from dim_film and candidates from dim_candidate,
-encodes features, and exports embeddings.json for upload to R2.
+Loads rated films from marts.dim_film. Candidates come from the candidate_enrichment
+seed plus the cached TMDB details, not from marts.dim_candidate, because that mart
+blanks title and release_year and both are needed as features here.
+
+Encodes features and exports embeddings.json for upload to R2.
 
 Skips training if source data hasn't changed (hash check).
 """
@@ -56,12 +59,12 @@ def _load_films(con: duckdb.DuckDBPyConnection) -> tuple[list[dict], dict[int, f
             f.genres, f.keywords, f.runtime_min as runtime,
             f.director, f.actors, f.metascore, f.rt_rating, f.imdb_rating,
             f.production_countries, f.rated, f.original_language as language
-        from dim_film f
+        from marts.dim_film f
     """).fetchdf().to_dict("records")
 
     ratings_rows = con.execute("""
         select tmdb_id, max(rating_100) as rating
-        from fct_watches
+        from marts.fct_watches
         where rating_100 is not null
         group by tmdb_id
     """).fetchdf().to_dict("records")

@@ -1,4 +1,4 @@
-.PHONY: setup dev build test lint export ingest update clean
+.PHONY: setup dev build test lint export ingest update docs doc-stats clean
 
 setup:
 	uv sync
@@ -18,6 +18,8 @@ test:
 	uv run ruff check .
 	cd web && npm run lint
 	cd transform && uv run dbt build --profiles-dir .
+	uv run pytest
+	uv run python scripts/update_doc_stats.py --check
 	cd web && npm test
 
 lint:
@@ -46,6 +48,14 @@ retrain:
 
 upload:
 	uv run python scripts/upload_r2.py
+
+docs:
+	cd transform && uv run dbt docs generate --profiles-dir . --static
+	mkdir -p web/public/dbt
+	cp transform/target/static_index.html web/public/dbt/index.html
+
+doc-stats:
+	uv run python scripts/update_doc_stats.py
 
 clean:
 	rm -rf transform/target web/out web/.next __pycache__

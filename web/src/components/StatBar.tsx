@@ -52,8 +52,8 @@ export function StatBar() {
 
   // Every tile above describes the watch LOG — hours watched, rewatch share,
   // average rating. None of that exists for a film nobody has watched, so while
-  // the watchlist story is up the tiles report the queue instead of sitting
-  // there stating figures from a dataset the charts below are not showing.
+  // the watchlist story is up the tiles report the list instead of sitting there
+  // stating figures from a dataset the charts below are not showing.
   if (activeStory === "watchlist") {
     return <WatchlistStats films={filteredWatchlist} total={watchlist.length} />;
   }
@@ -106,21 +106,26 @@ export function StatBar() {
 /**
  * The same three tiles, measured against the watchlist.
  *
- * "Time to clear" is the runtime tile's counterpart: the log's version asks how
- * long has been spent, so the queue's asks how long is owed. It sums only the
- * films that declare a runtime and says how many did, because a total quietly
- * missing a few films is a smaller number presented as a complete one.
+ * "Time to clear" is the screen-time tile's counterpart: the log's version asks
+ * how long has been spent, so the list's asks how long is owed. Its subtext is
+ * the average runtime, which is the same pairing the watched version uses — but
+ * only while unfiltered, because once a filter is on, how many films still carry
+ * a runtime is the more urgent caveat and the two cannot share one line.
  *
- * The third tile is the already-watched count rather than a rating, since the
- * queue has no ratings — and it is the one number on this page a reader most
- * needs to see, because it is why "136 films" and "130 waiting" differ.
+ * "Already seen" sits under the count rather than in a tile of its own: it is a
+ * caveat about that number, not a statistic beside it — the reason "136 on the
+ * list" and "130 waiting" differ.
  */
 function WatchlistStats({ films, total }: { films: WatchlistFilm[]; total: number }) {
   const withRuntime = films.filter((f) => f.runtime != null);
   const minutes = withRuntime.reduce((sum, f) => sum + (f.runtime ?? 0), 0);
   const screen = formatScreenTime(minutes);
+  const avgRuntime = withRuntime.length ? minutes / withRuntime.length : null;
   const watched = films.filter((f) => f.watched).length;
   const isFiltered = films.length < total;
+  // Distinct production countries, counting every co-producer — the same rule
+  // the origin chart uses, so the two cannot disagree.
+  const countries = new Set(films.flatMap((f) => f.production_countries)).size;
 
   return (
     <div className="flex justify-between gap-2 pt-2">
@@ -132,10 +137,18 @@ function WatchlistStats({ films, total }: { films: WatchlistFilm[]; total: numbe
         <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">
           time to clear
         </div>
-        {withRuntime.length < films.length && (
-          <div className="font-mono text-[9px] text-[#67655f]">
-            {withRuntime.length} of {films.length} timed
-          </div>
+        {isFiltered ? (
+          withRuntime.length < films.length && (
+            <div className="font-mono text-[9px] text-[#67655f]">
+              {withRuntime.length} of {films.length} timed
+            </div>
+          )
+        ) : (
+          avgRuntime != null && (
+            <div className="font-mono text-[9px] text-[#67655f]">
+              {Math.round(avgRuntime)} min avg
+            </div>
+          )
         )}
       </div>
       <div className="min-w-0">
@@ -145,6 +158,9 @@ function WatchlistStats({ films, total }: { films: WatchlistFilm[]; total: numbe
         <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">
           on the list
         </div>
+        {watched > 0 && (
+          <div className="font-mono text-[9px] text-[#67655f]">{watched} seen</div>
+        )}
         {isFiltered && (
           <div className="font-mono text-[9px] text-[#67655f]">
             {Math.round((100 * films.length) / total)}% of total
@@ -152,11 +168,11 @@ function WatchlistStats({ films, total }: { films: WatchlistFilm[]; total: numbe
         )}
       </div>
       <div className="min-w-0">
-        <div className="text-lg font-bold leading-tight text-[#0b0b0b] lg:text-xl">{watched}</div>
+        <div className="text-lg font-bold leading-tight text-[#0b0b0b] lg:text-xl">{countries}</div>
         <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">
-          already seen
+          countries
         </div>
-        <div className="font-mono text-[9px] text-[#67655f]">not cleared off</div>
+        <div className="font-mono text-[9px] text-[#67655f]">co-producers counted</div>
       </div>
     </div>
   );

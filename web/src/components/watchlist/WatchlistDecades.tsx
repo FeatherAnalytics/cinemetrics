@@ -156,7 +156,7 @@ export function WatchlistDecades() {
       <ChartTakeaway>
         {bars.length > 1
           ? `${bars[0].decade}s to ${bars[bars.length - 1].decade}s`
-          : `${bars[0].decade}s only · click the bar to clear`}
+          : `${bars[0].decade}s only`}
       </ChartTakeaway>
     </figure>
   );

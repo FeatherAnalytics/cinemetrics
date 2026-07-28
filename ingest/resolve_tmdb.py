@@ -5,7 +5,7 @@ Year — so watchlist and list films must be resolved by title search.
 
 MEASURED 2026-07-25: 100% precision and 100% recall on a 676-film labelled holdout
 (every film in film_log, whose ids come independently from Letterboxd's RSS
-`tmdb:movieId` and from imdb_id via TMDB /find). See docs/LETTERBOXD-NOTES.md.
+`tmdb:movieId` and from imdb_id via TMDB /find).
 
 The counterintuitive part: AN EXACT YEAR MATCH IS FALSE CONFIDENCE. A strict
 title+year strategy scored only 99.26%, and every one of its failures was a film

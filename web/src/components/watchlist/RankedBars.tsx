@@ -3,24 +3,35 @@
 import { useState } from "react";
 import { ACCENT, INK } from "@/lib/palette";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
+import { deltaLabel, type RatingDelta } from "@/lib/ratingDelta";
 import type { RankedBar } from "@/lib/watchlistChart";
 
 const LABEL_W = 150;
-const BAR_W = 400;
-const VALUE_W = 44;
-const WIDTH = LABEL_W + BAR_W + VALUE_W;
+const BAR_W = 300; // films track, grows left to right
+const DEV_W = 200; // deviation track, signed, growing both ways from its own zero
+const WIDTH = LABEL_W + BAR_W + DEV_W;
+const DEV_ZERO = LABEL_W + BAR_W + DEV_W / 2;
+// Half the track, less room for a value label outside the longest bar either way.
+const DEV_HALF = DEV_W / 2 - 22;
+// Below this length a value label will not fit inside its bar and sits outside.
+const INSIDE_MIN = 34;
 
 /**
  * Ranked horizontal bars, one row per category, longest first.
  *
  * The one bar shape behind every watchlist breakdown — genre, keyword, language,
  * country. Four charts drawn by one component rather than four near-copies, so
- * the row height, label gutter and value placement cannot drift apart between
- * them the way they would if each chart owned its own geometry.
+ * row height, label gutter and value placement cannot drift apart between them.
  *
  * Counts, not shares. A watchlist film carries several genres and several
  * keywords, so the bars sum past the film count and a percentage would be a
- * share of a total that means nothing. The caller's takeaway line says which.
+ * share of a total that means nothing. The caller's takeaway says which.
+ *
+ * The optional second track is a RATING deviation, and it describes different
+ * films from the ones the first track counts — deliberately. Nothing on the
+ * watchlist has been rated, so the only honest reading is "how I have rated the
+ * films I ALREADY SAW that share this tag". The column header says so, because
+ * two tracks on one row otherwise read as two measurements of one set.
  */
 export function RankedBars({
   bars,
@@ -28,6 +39,8 @@ export function RankedBars({
   active,
   onPick,
   ariaLabel,
+  deltas,
+  deltaHeader = "MY RATING vs MEDIAN",
 }: {
   bars: RankedBar[];
   /** Films in the current view, for the hover readout's denominator. */
@@ -35,13 +48,18 @@ export function RankedBars({
   /** Key currently driving the rail, drawn in the accent. */
   active?: string | null;
   /**
-   * Cross-filter handler. Omitted for the charts whose category has no matching
-   * rail control (genre beyond the tracked five, and keywords, which the rail
-   * cannot express at all) — a bar that looks clickable and does nothing is
-   * worse than one that never invited the click.
+   * Cross-filter handler. Omitted for charts whose category has no matching rail
+   * control — a bar that looks clickable and does nothing is worse than one that
+   * never invited the click.
    */
   onPick?: (key: string) => void;
   ariaLabel: string;
+  /**
+   * Rating deviation per key, from films already watched. Omit entirely and the
+   * chart is a single track at its natural width.
+   */
+  deltas?: Map<string, RatingDelta>;
+  deltaHeader?: string;
 }) {
   const [hover, setHover] = useState<string | null>(null);
 
@@ -56,21 +74,66 @@ export function RankedBars({
     );
   }
 
+  const hasDev = deltas != null && bars.some((b) => deltas.has(b.key));
+  const width = hasDev ? WIDTH : LABEL_W + BAR_W + 40;
   const peak = Math.max(...bars.map((b) => b.count));
-  const HEIGHT = bars.length * (BAR_H + GAP) + 16;
+  // Scaled against its own maximum, so the longest deviation fills the track.
+  const devMax = Math.max(
+    1,
+    ...bars.map((b) => Math.abs(deltas?.get(b.key)?.delta ?? 0)),
+  );
+  const HEIGHT = bars.length * (BAR_H + GAP) + (hasDev ? 28 : 16);
+  const top = hasDev ? 20 : 8;
 
   return (
     <figure className="m-0">
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" role="img" aria-label={ariaLabel}>
+      <svg viewBox={`0 0 ${width} ${HEIGHT}`} className="w-full" role="img" aria-label={ariaLabel}>
+        {hasDev && (
+          <>
+            <text
+              x={LABEL_W}
+              y={8}
+              fill={INK.muted}
+              fontSize={9}
+              letterSpacing="0.1em"
+              fontFamily="var(--font-mono)"
+            >
+              FILMS WAITING
+            </text>
+            <text
+              x={DEV_ZERO}
+              y={8}
+              fill={INK.muted}
+              fontSize={9}
+              letterSpacing="0.1em"
+              textAnchor="middle"
+              fontFamily="var(--font-mono)"
+            >
+              {deltaHeader}
+            </text>
+            <line
+              x1={DEV_ZERO}
+              y1={top}
+              x2={DEV_ZERO}
+              y2={HEIGHT - 8}
+              stroke={INK.axis}
+              strokeWidth={1.5}
+            />
+          </>
+        )}
+
         {bars.map((bar, i) => {
-          const y = 8 + i * (BAR_H + GAP);
+          const y = top + i * (BAR_H + GAP);
           const barLen = (bar.count / peak) * BAR_W;
           const isActive = active === bar.key;
           const isHover = hover === bar.key;
           // The count rides inside its own bar when the bar is long enough to
-          // hold it, and steps outside when it is not — the same flip every
-          // other bar chart here uses, so a short bar never hides its number.
-          const inside = barLen > 30;
+          // hold it, and steps outside when it is not — the same flip every other
+          // bar chart here uses, so a short bar never hides its number.
+          const inside = barLen > INSIDE_MIN;
+          const d = deltas?.get(bar.key) ?? null;
+          const devLen = d == null ? 0 : (Math.abs(d.delta) / devMax) * DEV_HALF;
+          const devInside = devLen > INSIDE_MIN;
 
           return (
             <g key={bar.key}>
@@ -108,12 +171,48 @@ export function RankedBars({
                 {bar.count}
               </text>
 
+              {/* The rating deviation, when enough watched films back it. Same
+                  fill as the count bar so a row reads as one category in one
+                  colour; DIRECTION carries the sign. A row with too few watched
+                  films simply has no second bar — an absent mark is honest,
+                  a zero-length one would read as "exactly at my median". */}
+              {hasDev && d != null && (
+                <>
+                  <rect
+                    x={d.delta > 0 ? DEV_ZERO : DEV_ZERO - devLen}
+                    y={y}
+                    width={devLen}
+                    height={BAR_H}
+                    fill={isActive ? ACCENT : bar.color}
+                    fillOpacity={isActive || isHover ? 0.95 : 0.72}
+                  />
+                  <text
+                    x={
+                      d.delta > 0
+                        ? DEV_ZERO + devLen + (devInside ? -6 : 6)
+                        : DEV_ZERO - devLen + (devInside ? 6 : -6)
+                    }
+                    y={y + BAR_H / 2}
+                    fill={valueLabelFill(devInside)}
+                    fontSize={11}
+                    fontWeight={700}
+                    textAnchor={
+                      d.delta > 0 ? (devInside ? "end" : "start") : devInside ? "start" : "end"
+                    }
+                    dominantBaseline="middle"
+                    pointerEvents="none"
+                  >
+                    {deltaLabel(d.delta)}
+                  </text>
+                </>
+              )}
+
               {/* Full-row hit area: the reader is aiming at the row, not at the
                   ink, and the shortest bars are the hardest to hit. */}
               <rect
                 x={0}
                 y={y}
-                width={WIDTH}
+                width={width}
                 height={BAR_H}
                 fill="transparent"
                 style={{ cursor: onPick ? "pointer" : "default" }}
@@ -127,14 +226,20 @@ export function RankedBars({
       </svg>
       {/* The readout lives under the chart, in its own strip, rather than in an
           SVG <title>: the native tooltip is an OS box with its own font and
-          half-second delay, which matches nothing else on the page. */}
+          half-second delay, matching nothing else on the page. */}
       <p className="mt-1 h-4 text-xs text-[#67655f]">
         {hover
           ? (() => {
               const b = bars.find((x) => x.key === hover);
               if (!b) return "";
               const pct = total > 0 ? Math.round((100 * b.count) / total) : 0;
-              return `${b.label}: ${b.count} of ${total} films (${pct}%)`;
+              const d = deltas?.get(b.key);
+              const devPart = d
+                ? ` · ${deltaLabel(d.delta)} vs my median, from ${d.n} film${
+                    d.n === 1 ? "" : "s"
+                  } I've seen`
+                : "";
+              return `${b.label}: ${b.count} of ${total} waiting (${pct}%)${devPart}`;
             })()
           : ""}
       </p>

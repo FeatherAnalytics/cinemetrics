@@ -16,7 +16,15 @@ import { primaryGenre, type GenreKey } from "./palette";
 import { countryName } from "./countries";
 import { languageName } from "./languages";
 import { watchKey } from "./brush";
-import { STORIES, computeStoryHeadlines, type StoryResult, type ChartId } from "./stories";
+import { filmHearts } from "./likedChart";
+import {
+  STORIES,
+  LANDING_STORY,
+  chartSetFor,
+  computeStoryHeadlines,
+  type StoryResult,
+  type ChartId,
+} from "./stories";
 
 function yearFrac(d: Date): number {
   const y = d.getUTCFullYear();
@@ -85,10 +93,10 @@ export function filterWatches(
  *
  * A watchlist film has no watch date, no rating, no rewatch state and no heart,
  * so `yearRange`, `ratingRange`, `rewatch` and `selection` have nothing to test
- * against. They are not merely skipped here — WATCHLIST_FILTERS drives the rail
- * too, so the controls that set them are never shown while the watchlist story
- * is active. Silently ignoring a visible control would be worse than hiding it:
- * the reader would drag the rating slider and watch nothing happen.
+ * against. They are not merely skipped here — this list drives the RAIL too, so
+ * the controls that set them are never shown while the watchlist story is
+ * active. Silently ignoring a visible control would be worse than hiding it: the
+ * reader would drag the rating slider and watch nothing happen.
  *
  * `rated` and `franchise` are absent for a duller reason: dim_watchlist exports
  * neither, so filtering on them would empty every chart.
@@ -100,8 +108,6 @@ export const WATCHLIST_FILTERS = [
   "language",
   "country",
 ] as const satisfies readonly (keyof Filters)[];
-
-export type WatchlistFilterKey = (typeof WATCHLIST_FILTERS)[number];
 
 /** Pure filtering logic for the watchlist, extracted for testability. */
 export function filterWatchlist(
@@ -214,6 +220,15 @@ type ExplorerValue = {
   storyResult: StoryResult | null;
   storyFocus: { primary: ChartId; emphasize: ChartId[]; dim: ChartId[] } | null;
   storyHeadlines: { id: string; label: string; headline: string; chip: string }[];
+  /**
+   * Whether the favorites story is running, and with it the heart vocabulary.
+   *
+   * Read by the narrative charts, which REPLACE their own encoding while it is on:
+   * genre on the swim lane, my rating on the barcode, the residual mirror on the
+   * country and keyword bars. Derived here rather than passed down, because eight
+   * charts threading one boolean through their callers is eight chances to forget.
+   */
+  heartLens: boolean;
   setStory: (id: string | null) => void;
   rollingDimension: string | null;
   toggleGenre: (g: GenreKey) => void;
@@ -248,9 +263,19 @@ export function ExplorerProvider({
 
   const derived = useMemo(() => {
     const byId = new Map(data.films.map((f) => [f.tmdb_id, f]));
+    // Built from every watch, before any filter exists. The heart is a property
+    // of the film, so which rows happen to be in view cannot change whether it is
+    // known. See the note on `filmHearts`.
+    const hearts = filmHearts(data.watches);
     const all: EnrichedWatch[] = data.watches.map((w) => {
       const d = new Date(w.date + "T00:00:00Z");
-      return { ...w, film: byId.get(w.tmdb_id), d, yearFrac: yearFrac(d) };
+      return {
+        ...w,
+        film: byId.get(w.tmdb_id),
+        d,
+        yearFrac: yearFrac(d),
+        heart: w.liked ?? hearts.get(w.tmdb_id) ?? null,
+      };
     });
     const watchYears = all.map((w) => w.d.getUTCFullYear());
     const releaseYears = data.films.map((f) => f.year).filter((y): y is number => y != null);
@@ -365,7 +390,7 @@ export function ExplorerProvider({
     if (parsed.story) {
       const story = getStoryById(parsed.story);
       if (!story) return;
-      const result = story.compute(derived.films, derived.all);
+      const result = story.compute(derived.films, derived.all, derived.watchlist);
       setActiveStory(parsed.story);
       setStoryResult(result);
       setFilters({ ...EMPTY_FILTERS, ...result.filters, selection: result.selection ?? null });
@@ -420,9 +445,15 @@ export function ExplorerProvider({
    * statement about what the reader is actually looking at rather than about
    * the whole library. `computeStoryHeadlines` is untouched by this: the chips
    * stay stable invitations computed from everything.
+   *
+   * With NO story selected this falls through to the landing story, which is how
+   * the landing page keeps a headline without pretending to be a story the reader
+   * chose. It always recomputes, because the rail is live there.
    */
   const activeResult = useMemo(() => {
-    if (!activeStory) return null;
+    if (!activeStory) {
+      return LANDING_STORY ? LANDING_STORY.compute(derived.films, filtered) : null;
+    }
     const cfg = getStoryById(activeStory);
     if (!cfg?.recomputeOnFilter) return storyResult;
     return cfg.compute(derived.films, filtered, filteredWatchlist);
@@ -521,8 +552,12 @@ export function ExplorerProvider({
       },
       activeStory,
       storyResult: activeResult,
-      storyFocus: activeStory ? (getStoryById(activeStory)?.focus ?? null) : null,
+      // The landing page focuses too: its primary chart is where the annotation
+      // renders. `dim` is empty on it, so nothing is faded by having no story.
+      storyFocus:
+        (activeStory ? getStoryById(activeStory)?.focus : LANDING_STORY?.focus) ?? null,
       storyHeadlines,
+      heartLens: chartSetFor(activeStory) === "heart",
       setStory,
       rollingDimension: activeResult?.rollingDimension ?? null,
     }),

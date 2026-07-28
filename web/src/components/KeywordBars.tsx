@@ -6,7 +6,7 @@ import { GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
 import { watchKey } from "@/lib/brush";
 import { computeResiduals } from "@/lib/stats";
 import { BAR_H, GAP } from "@/lib/barChart";
-import { ChartTakeaway } from "./ChartTakeaway";
+import { heartByFilm, heartDeltaPP, ppLabel } from "@/lib/heartLens";
 
 const LABEL_W = 200;
 const BAR_W = 400;
@@ -17,23 +17,39 @@ const TOP_N = 8;
 
 type KeywordBar = {
   keyword: string;
-  avgResidual: number;
-  count: number;
+  /** Heart rate minus my overall rate, in points. Null below the evidence floor. */
+  heartDelta: number | null;
+  /** Films under this keyword whose heart is known. The heart denominator. */
+  heartCount: number;
   genre: GenreKey;
   filmIds: Set<number>;
 };
 
 export function KeywordBars() {
-  const { filtered, byId, setSelection } = useExplorer();
+  const { all, filtered, byId, setSelection } = useExplorer();
   const [hover, setHover] = useState<string | null>(null);
+
+  const hearts = useMemo(() => heartByFilm(all), [all]);
 
   const bars = useMemo<KeywordBar[]>(() => {
     const { films } = computeResiduals(filtered, byId);
     if (films.length === 0) return [];
 
+    // The baseline every keyword is measured against: my heart rate across the
+    // films actually in view, so the deviation moves with the rail.
+    let baseLiked = 0;
+    let baseKnown = 0;
+    for (const f of films) {
+      const h = hearts.get(f.tmdb_id);
+      if (h == null) continue;
+      baseKnown += 1;
+      if (h) baseLiked += 1;
+    }
+    const baseRate = baseKnown > 0 ? baseLiked / baseKnown : null;
+
     const kwMap = new Map<
       string,
-      { residuals: number[]; genres: GenreKey[]; ids: Set<number> }
+      { films: number; genres: GenreKey[]; ids: Set<number>; hearts: boolean[] }
     >();
 
     for (const f of films) {
@@ -44,19 +60,20 @@ export function KeywordBars() {
       const genre = primaryGenre(film);
 
       for (const kw of kws) {
-        if (!kwMap.has(kw)) kwMap.set(kw, { residuals: [], genres: [], ids: new Set() });
+        if (!kwMap.has(kw))
+          kwMap.set(kw, { films: 0, genres: [], ids: new Set(), hearts: [] });
         const entry = kwMap.get(kw)!;
-        entry.residuals.push(f.residual);
+        entry.films += 1;
         entry.genres.push(genre);
         entry.ids.add(f.tmdb_id);
+        const h = hearts.get(f.tmdb_id);
+        if (h != null) entry.hearts.push(h);
       }
     }
 
     const candidates: KeywordBar[] = [];
     for (const [kw, data] of kwMap) {
-      if (data.residuals.length < MIN_FILMS) continue;
-
-      const avgResidual = data.residuals.reduce((a, b) => a + b, 0) / data.residuals.length;
+      if (data.films < MIN_FILMS) continue;
 
       // Dominant genre: most common
       const genreCounts = new Map<GenreKey, number>();
@@ -70,32 +87,45 @@ export function KeywordBars() {
         }
       }
 
+      // Suppressed below MIN_FILMS of KNOWN heart, which is a different count than
+      // the film count above: a keyword can clear the film floor on films that all
+      // predate the heart, and 0% of nothing is not a finding.
+      const heartDelta =
+        baseRate != null && data.hearts.length >= MIN_FILMS
+          ? heartDeltaPP(
+              data.hearts.filter(Boolean).length / data.hearts.length,
+              baseRate,
+            )
+          : null;
+
       candidates.push({
         keyword: kw,
-        avgResidual,
-        count: data.residuals.length,
+        heartDelta,
+        heartCount: data.hearts.length,
         genre: dominantGenre,
         filmIds: data.ids,
       });
     }
 
-    // Sort by avg residual, strongest positive first — the chart reads top to
-    // bottom from "I rate these higher" down to "I rate these lower".
-    candidates.sort((a, b) => b.avgResidual - a.avgResidual);
+    // Sorted by the heart deviation, strongest positive first, so the chart reads
+    // top to bottom from "I heart these more often than I heart anything" down to
+    // less often. Keywords with no measurable deviation leave rather than piling up
+    // at whichever end null happens to sort to.
+    const ranked = candidates.filter((c) => c.heartDelta != null);
+    ranked.sort((a, b) => b.heartDelta! - a.heartDelta!);
 
     // When fewer than 2*TOP_N, just show all sorted
-    if (candidates.length <= TOP_N * 2) return candidates;
+    if (ranked.length <= TOP_N * 2) return ranked;
 
     // Take top N + bottom N (no overlap possible)
-    const top = candidates.slice(0, TOP_N);
-    const bottom = candidates.slice(-TOP_N);
+    return [...ranked.slice(0, TOP_N), ...ranked.slice(-TOP_N)];
+  }, [filtered, byId, hearts]);
 
-    return [...top, ...bottom];
-  }, [filtered, byId]);
-
+  // Bars are filtered to a measurable delta above, so the fallback never fires.
+  const valueOf = (b: KeywordBar) => b.heartDelta ?? 0;
   const maxAbs = useMemo(() => {
     if (bars.length === 0) return 10;
-    return Math.max(...bars.map((b) => Math.abs(b.avgResidual)));
+    return Math.max(...bars.map((b) => Math.abs(valueOf(b))));
   }, [bars]);
 
   const HEIGHT = bars.length * (BAR_H + GAP) + 40;
@@ -128,15 +158,16 @@ export function KeywordBars() {
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
         role="img"
-        aria-label="Keywords with highest and lowest average residual ratings"
+        aria-label="Keywords whose heart rate sits furthest above and below my overall heart rate"
       >
         {/* Zero line */}
         <line x1={zeroX} y1={20} x2={zeroX} y2={HEIGHT - 20} stroke={INK.axis} strokeWidth={1.5} />
 
         {bars.map((bar, i) => {
           const y = 20 + i * (BAR_H + GAP);
-          const barLen = (Math.abs(bar.avgResidual) / maxAbs) * (BAR_W / 2 - 10);
-          const barX = bar.avgResidual > 0 ? zeroX : zeroX - barLen;
+          const value = valueOf(bar);
+          const barLen = (Math.abs(value) / maxAbs) * (BAR_W / 2 - 10);
+          const barX = value > 0 ? zeroX : zeroX - barLen;
           const isHover = hover === bar.keyword;
 
           return (
@@ -173,16 +204,15 @@ export function KeywordBars() {
                   whenever a bar got long enough to sit under it. The empty
                   half of each row is where the eye already is. */}
               <text
-                x={bar.avgResidual > 0 ? zeroX - 6 : zeroX + 6}
+                x={value > 0 ? zeroX - 6 : zeroX + 6}
                 y={y + BAR_H / 2}
                 fill={INK.primary}
                 fontSize={11}
                 fontWeight={700}
-                textAnchor={bar.avgResidual > 0 ? "end" : "start"}
+                textAnchor={value > 0 ? "end" : "start"}
                 dominantBaseline="middle"
               >
-                {bar.avgResidual > 0 ? "+" : ""}
-                {bar.avgResidual.toFixed(1)}
+                {ppLabel(value)}
               </text>
 
               {/* Tooltip */}
@@ -203,9 +233,8 @@ export function KeywordBars() {
                     fontSize={11}
                     dominantBaseline="middle"
                   >
-                    {bar.count} films tagged &lsquo;{bar.keyword}&rsquo; · avg residual{" "}
-                    {bar.avgResidual > 0 ? "+" : ""}
-                    {bar.avgResidual.toFixed(1)} · {bar.genre}
+                    {bar.heartCount} films tagged &lsquo;{bar.keyword}&rsquo; · 
+                    {ppLabel(value)} vs my overall heart rate · {bar.genre}
                   </text>
                 </>
               )}
@@ -213,7 +242,6 @@ export function KeywordBars() {
           );
         })}
       </svg>
-      <ChartTakeaway>keywords appearing in {MIN_FILMS}+ rated films</ChartTakeaway>
     </figure>
   );
 }

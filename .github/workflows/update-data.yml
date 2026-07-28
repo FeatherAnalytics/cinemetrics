@@ -5,19 +5,33 @@ on:
     - cron: '23 8 * * *'
   workflow_dispatch: {}
 
+# Seeds are append-only and the job pushes to main, so two overlapping runs
+# (cron plus a manual dispatch) would race on the same append and push. Queue
+# instead of cancelling: a half-finished run has already appended locally, and
+# cancelling it mid-push is worse than letting it land.
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
 permissions:
   contents: write
+  # `Trigger deploy` dispatches deploy.yml, which needs actions:write. Declaring
+  # `permissions` at all drops every unlisted scope to none, so contents:write
+  # alone made that step 403 while the rest of the pipeline succeeded.
+  actions: write
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          prune-cache: true
       - run: uv sync
       - name: Run update pipeline
         run: uv run python scripts/update.py
@@ -39,9 +53,22 @@ jobs:
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
-      - name: Build dbt
+      # Validates the candidate seed that `Fetch candidates` just appended, via the
+      # unique/not_null tests on stg_candidate_enrichment and dim_candidate. Scoped
+      # to that path rather than a full build: update.py already built and tested
+      # all 35 models above, and candidates feed nothing else. A full rebuild here
+      # would also mislead, since export_web.py does not run again afterwards.
+      - name: Validate candidate seed
         if: steps.diff.outputs.changed == 'true'
-        run: cd transform && uv run dbt deps --profiles-dir . && uv run dbt build --profiles-dir .
+        # `deps` stays even though update.py already ran it in this job: it is
+        # idempotent and ~1s, and its absence is what broke the 2026-07-26 and
+        # 2026-07-27 runs. Not worth re-earning that bug to save a second.
+        run: cd transform && uv run dbt deps --profiles-dir . && uv run dbt build --profiles-dir . --select candidate_enrichment+
+      # After the candidate build above, so dim_candidate is current when the
+      # candidate count is read. update.py already rebuilt the rest.
+      - name: Refresh doc figures
+        if: steps.diff.outputs.changed == 'true'
+        run: uv run python scripts/update_doc_stats.py
       - name: Train embeddings
         if: steps.diff.outputs.changed == 'true'
         run: uv run python scripts/train_embeddings.py
@@ -58,6 +85,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add transform/seeds/film_log.csv transform/seeds/film_enrichment.csv transform/seeds/candidate_enrichment.csv web/public/data/cinemetrics.json
+          # Figures quoted in the docs move with the data, so they land in the
+          # same commit. overview.md feeds the published dbt docs landing page.
+          git add docs/ARCHITECTURE.md transform/models/overview.md
           git commit -m "data: update from Letterboxd RSS"
           git push
       - name: Trigger deploy

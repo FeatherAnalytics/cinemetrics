@@ -55,7 +55,7 @@ def main() -> None:
             nullif(dim_film.rated, '')              as rated,
             nullif(dim_film.original_language, '')  as language,
             nullif(dim_film.collection, '')         as collection
-        from dim_film
+        from marts.dim_film
         """,
     )
 
@@ -71,7 +71,7 @@ def main() -> None:
             -- Three-state: true / false / null. NULL means UNKNOWN (pre-Letterboxd
             -- watches), NOT "not liked" — filter nulls before any affection rate.
             liked
-        from fct_watches
+        from marts.fct_watches
         order by watched_date
         """,
     )
@@ -98,7 +98,7 @@ def main() -> None:
             director,
             imdb_rating,
             imdb_votes
-        from dim_watchlist
+        from marts.dim_watchlist
         order by added_date
         """,
     )

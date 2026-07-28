@@ -8,16 +8,25 @@ test-paths: ["tests"]
 target-path: "target"
 clean-targets: ["target", "dbt_packages"]
 
+# Schemas mirror the layers, so the Database tab of the dbt docs reads as the
+# pipeline does. Names are taken verbatim rather than prefixed with the target
+# schema — see macros/generate_schema_name.sql.
 models:
   cinemetrics:
     staging:
       +materialized: view
+      +schema: staging
     marts:
       +materialized: table
+      +schema: marts
 
+# Seeds are grouped by where the data actually came from, not by the fact that
+# they are all seeds. film_enrichment and candidate_enrichment hold TMDB and OMDb
+# attributes, so filing them under `letterboxd` would assert something false.
 seeds:
   cinemetrics:
     film_log:
+      +schema: letterboxd
       +column_types:
         tmdb_id: bigint
         imdb_id: varchar
@@ -28,10 +37,12 @@ seeds:
         # a nullable boolean, which is precisely the three-state semantics wanted
         # (true / false / NULL=unknown). Declaring it varchar broke seed sniffing.
     watchlist:
+      +schema: letterboxd
       +column_types:
         tmdb_id: bigint
         release_year: integer
     film_enrichment:
+      +schema: enrichment
       +column_types:
         tmdb_id: bigint
         imdb_id: varchar
@@ -44,6 +55,7 @@ seeds:
         imdb_votes: bigint
         box_office: bigint
     candidate_enrichment:
+      +schema: enrichment
       +column_types:
         tmdb_id: bigint
         imdb_id: varchar

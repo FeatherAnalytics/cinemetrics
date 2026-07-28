@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
+import { ratingDeltaByKey } from "@/lib/ratingDelta";
 import { countryBars, languageBars } from "@/lib/watchlistChart";
 import { ChartTakeaway } from "../ChartTakeaway";
 import { Toggle } from "../stats/Toggle";
@@ -13,27 +14,44 @@ type Mode = (typeof MODES)[number];
 /**
  * Where the watchlist comes from — production country or original language.
  *
- * One chart with a switch rather than two charts side by side. The two views
- * mostly agree (an American film is usually in English), so as separate charts
- * they read as one finding stated twice; the switch makes the comparison the
- * point and gives the disagreements — a co-production, an English-language film
- * shot abroad — somewhere to show up.
+ * One chart with a switch rather than two side by side. The two views mostly
+ * agree (an American film is usually in English), so as separate charts they
+ * read as one finding stated twice; the switch makes the comparison the point
+ * and gives the disagreements — a co-production, an English-language film shot
+ * abroad — somewhere to show up.
  *
- * Country counts every co-producing country, so its bars sum past the film
- * count. Language is single-valued and sums to the films that declare one.
- * Both cross-filter the rail, since both have a control there.
+ * The second track is a rating deviation drawn from films ALREADY WATCHED from
+ * that country or language, because nothing on the watchlist has a rating. So
+ * the row reads "twelve Japanese films waiting, and Japanese films I have seen
+ * rate four points above my median" — two facts about one origin, not one fact
+ * measured twice.
  */
 export function WatchlistOrigin() {
-  const { filteredWatchlist, filters, setCountry, setLanguage } = useExplorer();
+  const { filteredWatchlist, filtered, filters, setCountry, setLanguage } = useExplorer();
   const [mode, setMode] = useState<Mode>("country");
+  const isLang = mode === "language";
 
   const bars = useMemo(
-    () => (mode === "country" ? countryBars(filteredWatchlist) : languageBars(filteredWatchlist)),
-    [filteredWatchlist, mode],
+    () => (isLang ? languageBars(filteredWatchlist) : countryBars(filteredWatchlist)),
+    [filteredWatchlist, isLang],
   );
 
-  const active = mode === "country" ? filters.country : filters.language;
-  const onPick = mode === "country" ? setCountry : setLanguage;
+  // Measured off the WATCH log, not the watchlist, and against whatever the rail
+  // currently shows so the baseline is the films on screen.
+  const deltas = useMemo(
+    () =>
+      ratingDeltaByKey(filtered, (w) =>
+        isLang
+          ? w.film?.language
+            ? [w.film.language]
+            : []
+          : (w.film?.production_countries ?? []),
+      ),
+    [filtered, isLang],
+  );
+
+  const active = isLang ? filters.language : filters.country;
+  const onPick = isLang ? setLanguage : setCountry;
 
   return (
     <>
@@ -45,12 +63,13 @@ export function WatchlistOrigin() {
         total={filteredWatchlist.length}
         active={active}
         onPick={onPick}
-        ariaLabel={`Watchlist films per ${mode}`}
+        deltas={deltas}
+        ariaLabel={`Watchlist films per ${mode}, with how I rate films I have already seen from each`}
       />
       <ChartTakeaway>
-        {mode === "country"
-          ? "co-productions count once per country"
-          : "one language per film"}
+        {isLang
+          ? "one language per film · deviation from films I've seen"
+          : "co-productions count once per country · deviation from films I've seen"}
       </ChartTakeaway>
     </>
   );

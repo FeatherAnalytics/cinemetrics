@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { STORIES } from "../stories";
+import { chartSetFor, computeStoryHeadlines, STORIES, swapsChartSet } from "../stories";
+import { FOUR_FAVS } from "../fourFavs";
 import type { EnrichedWatch, Film } from "../types";
 
 function makeFilm(overrides: Partial<Film> = {}): Film {
@@ -19,6 +20,7 @@ function makeWatch(film: Film, overrides: Partial<EnrichedWatch> = {}): Enriched
   return {
     date, tmdb_id: film.tmdb_id, rating: 70, stars: 3.5,
     rewatch: false, liked: null, film, d, yearFrac: 0.45, ...overrides,
+    heart: overrides.heart ?? overrides.liked ?? null,
   };
 }
 
@@ -26,9 +28,9 @@ const spooktober = STORIES.find((s) => s.id === "spooktober")!;
 const binges = STORIES.find((s) => s.id === "binges")!;
 const franchises = STORIES.find((s) => s.id === "franchises")!;
 const hiddenGems = STORIES.find((s) => s.id === "hidden-gems")!;
-const genreContrarian = STORIES.find((s) => s.id === "critics-and-me")!;
 const runtime = STORIES.find((s) => s.id === "runtime")!;
 const pickier = STORIES.find((s) => s.id === "getting-pickier")!;
+const heart = STORIES.find((s) => s.id === "heart")!;
 
 describe("runtime", () => {
   it("reports how much higher long films score and highlights them", () => {
@@ -216,19 +218,93 @@ describe("franchises", () => {
   });
 });
 
-describe("critics-and-me", () => {
-  it("finds genre with biggest rating delta from critics", () => {
-    const horror1 = makeFilm({ tmdb_id: 1, genres: ["Horror"], metascore: 40 });
-    const horror2 = makeFilm({ tmdb_id: 2, genres: ["Horror"], metascore: 45 });
-    const drama1 = makeFilm({ tmdb_id: 3, genres: ["Drama"], metascore: 70 });
+describe("chart sets", () => {
+  it("shows the landing set with no story selected", () => {
+    expect(chartSetFor(null)).toBe("landing");
+    // Nothing is being swapped away from, so no story is dismissing anything.
+    expect(swapsChartSet(null)).toBe(false);
+  });
+
+  it("falls back to narrative for an id that is not a story", () => {
+    expect(chartSetFor("no-such-story")).toBe("narrative");
+  });
+
+  it("reads the set off the story rather than off its id", () => {
+    expect(chartSetFor("heart")).toBe("heart");
+    expect(swapsChartSet("heart")).toBe(true);
+  });
+
+  it("keeps the landing story out of the chip strip", () => {
+    // The landing page is the default view, not an invitation, so offering a chip
+    // for it would ask the reader to navigate to where they already are.
+    const chips = computeStoryHeadlines([], []).map((c) => c.id);
+    expect(chips).not.toContain("stats");
+    expect(chips.length).toBe(STORIES.filter((s) => !s.landing).length);
+  });
+
+  it("has exactly one landing story, and it is the one the page falls back to", () => {
+    const landing = STORIES.filter((s) => s.landing);
+    expect(landing).toHaveLength(1);
+    expect(chartSetFor(null)).toBe(landing[0].chartSet);
+  });
+
+  it("leaves the filter-driven stories on the narrative page", () => {
+    for (const id of ["spooktober", "binges", "franchises", "runtime"]) {
+      expect(chartSetFor(id)).toBe("narrative");
+      expect(swapsChartSet(id)).toBe(false);
+    }
+  });
+
+  it("gives every set-swapping story the three flags that make a swap work", () => {
+    // A swap with the defaults would collapse the rail it depends on, scroll past
+    // charts the reader has not seen, and freeze its headline while the rail moves.
+    for (const s of STORIES.filter((s) => s.chartSet && s.chartSet !== "narrative")) {
+      expect(s.dismissOnFilter, s.id).toBe(false);
+      expect(s.scrollToPrimary, s.id).toBe(false);
+      expect(s.recomputeOnFilter, s.id).toBe(true);
+      expect(s.focus.dim, s.id).toEqual([]);
+    }
+  });
+});
+
+describe("heart", () => {
+  const rated = (tmdb_id: number, rating: number, liked: boolean | null, date = "2023-06-15") =>
+    makeWatch(makeFilm({ tmdb_id }), { tmdb_id, rating, liked, date });
+
+  it("measures the crossover band rather than quoting it", () => {
     const watches = [
-      makeWatch(horror1, { tmdb_id: 1, rating: 80 }),
-      makeWatch(horror2, { tmdb_id: 2, rating: 85 }),
-      makeWatch(drama1, { tmdb_id: 3, rating: 72 }),
+      rated(1, 60, false),
+      rated(2, 70, true),
+      rated(3, 70, false),
+      rated(4, 80, true),
+      rated(5, 100, true),
     ];
-    const result = genreContrarian.compute([horror1, horror2, drama1], watches);
-    expect(result.headline).toContain("Horror");
-    expect(result.headline).toMatch(/above/);
-    expect(result.filters?.genres).toBeDefined();
+    const r = heart.compute([], watches);
+    // The band is 70 to 89, so 60 and 100 are outside it: three watches in, two
+    // hearted. 67%, and the 60 and the 100 must not reach the numerator.
+    expect(r.headline).toContain("67%");
+    expect(r.headline).toContain("3 watches");
+  });
+
+  it("says so plainly when nothing in view recorded a heart", () => {
+    const r = heart.compute([], [rated(1, 80, null)]);
+    expect(r.headline).toMatch(/No watch in view/);
+    expect(r.subtext).toBeUndefined();
+  });
+
+  it("states no subtext: the tie chart shows the tie", () => {
+    const fav = FOUR_FAVS[0].tmdb_id;
+    const r = heart.compute([], [rated(fav, 100, true), rated(2, 100, true)]);
+    // It used to name the most-rewatched film to argue the rating cannot single the
+    // four out, and got it wrong: at the ceiling the most-rewatched film IS one.
+    expect(r.subtext).toBeUndefined();
+  });
+
+  it("annotates only the charts that cannot speak for themselves", () => {
+    const watches = [rated(1, 60, false), rated(2, 80, true), rated(3, 100, true)];
+    const r = heart.compute([], watches);
+    // The curve, the tie and the cohort charts print their own numbers, so a note
+    // on any of them is the same finding twice.
+    expect(Object.keys(r.notes ?? {}).sort()).toEqual(["favposters", "heartpredictors"]);
   });
 });
