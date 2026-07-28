@@ -143,7 +143,15 @@ type Status = "loading" | "ready" | "error";
 
 export function RecommendDrawer() {
   const { state, dispatch } = useRecommend();
-  const { byId, all, filters: dashFilters } = useExplorer();
+  const { byId, all, filters: dashFilters, watchlist } = useExplorer();
+
+  // Films the reader has already shortlisted. A recommendation that lands on one
+  // is the recommender agreeing with a decision already made, which is worth
+  // saying: without the badge it reads as a film they have never considered.
+  const watchlistIds = useMemo(
+    () => new Set(watchlist.map((f) => f.tmdb_id)),
+    [watchlist],
+  );
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [reasonsMap, setReasonsMap] = useState<Record<number, Reason[]>>({});
   const [boostCount, setBoostCount] = useState(0);
@@ -398,6 +406,7 @@ export function RecommendDrawer() {
                       metadata={r.metadata}
                       score={r.score}
                       reasons={reasonsMap[r.tmdb_id] ?? []}
+                      onWatchlist={watchlistIds.has(r.tmdb_id)}
                     />
                   </div>
                 </div>

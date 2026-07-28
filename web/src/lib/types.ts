@@ -54,6 +54,12 @@ export type WatchlistFilm = {
   tmdb_id: number;
   title: string;
   year: number | null;
+  /**
+   * Full TMDB release date, for the barcode's time axis. Null for the six films
+   * TMDB serves no date for; `year` still covers those, so the axis falls back
+   * to January 1 rather than dropping them.
+   */
+  released: string | null;
   added: string; // ISO date the film was added to the list
   /**
    * True when the film has also been watched. Letterboxd does not clear a film

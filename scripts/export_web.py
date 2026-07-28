@@ -86,6 +86,7 @@ def main() -> None:
             tmdb_id,
             title,
             release_year                                            as year,
+            release_date                                            as released,
             added_date                                              as added,
             watched,
             list_filter(string_split(coalesce(genres, ''), ', '),   x -> x <> '') as genres,

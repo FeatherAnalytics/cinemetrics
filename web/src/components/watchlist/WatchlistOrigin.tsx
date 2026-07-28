@@ -23,7 +23,7 @@ type Mode = (typeof MODES)[number];
  * The second track is a rating deviation drawn from films ALREADY WATCHED from
  * that country or language, because nothing on the watchlist has a rating. So
  * the row reads "twelve Japanese films waiting, and Japanese films I have seen
- * rate four points above my median" — two facts about one origin, not one fact
+ * rate four points above my average" — two facts about one origin, not one fact
  * measured twice.
  */
 export function WatchlistOrigin() {

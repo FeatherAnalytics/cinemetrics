@@ -747,12 +747,10 @@ function computeWatchlist(
       // only bar on the chart, so it drops to a plain statement.
       wldecades:
         decades.length > 1
-          ? `The ${peakDecade.decade}s is the heaviest decade at ${peakDecade.count} films, and the watchlist reaches back to ${oldest}.`
+          ? `The ${peakDecade.decade}s is the most prominent decade at ${peakDecade.count} films and the watchlist reaches back to ${oldest}.`
           : `All ${peakDecade.count} of these are from the ${peakDecade.decade}s.`,
-      wlkeywords:
-        "The bar is how many watchlist films carry the tag; the deviation is how I rate the films I have already seen with it.",
       wlorigin:
-        "Country counts every co-producer, so its bars total more than the language view's.",
+        "",
       // The blurb already explains the encoding, so the note carries the thing
       // the decade chart above cannot show: where inside a decade the films
       // actually sit.

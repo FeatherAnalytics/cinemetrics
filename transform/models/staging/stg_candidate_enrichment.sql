@@ -18,6 +18,10 @@ select
     rated,
     production_countries,
     original_language,
-    collection
+    collection,
+    title,
+    -- Empty for the few films TMDB serves no date for; try_cast keeps those NULL
+    -- rather than failing the build.
+    try_cast(release_date as date) as release_date
 from {{ ref('candidate_enrichment') }}
 where tmdb_id is not null

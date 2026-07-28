@@ -8,6 +8,8 @@ type Props = {
   metadata: CandidateMetadata;
   score: number;
   reasons: Reason[];
+  /** Already on the Letterboxd watchlist — badged so a hit reads as a hit. */
+  onWatchlist?: boolean;
 };
 
 function LetterboxdIcon({ size = 14 }: { size?: number }) {
@@ -42,7 +44,7 @@ function letterboxdUrl(m: CandidateMetadata): string {
 // genre string in this set maps directly to a GENRE_COLORS swatch.
 const GENRE_KEY_SET = new Set<string>(GENRE_ORDER);
 
-export function FilmCard({ metadata, score, reasons }: Props) {
+export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
   const m = metadata;
   const genres = m.genres ? m.genres.split(", ").filter(Boolean) : [];
   const isEnglish = m.language === "en";
@@ -66,6 +68,18 @@ export function FilmCard({ metadata, score, reasons }: Props) {
               <a href={filmUrl} target="_blank" rel="noopener noreferrer" title="View on Letterboxd">
                 <LetterboxdIcon />
               </a>
+              {/* Already shortlisted. Sits beside the Letterboxd mark because it
+                  is the same kind of fact — where this film already exists for
+                  me — rather than something the recommender computed. */}
+              {onWatchlist && (
+                <span
+                  className="rounded-sm px-1 py-px font-mono text-[9px] font-bold leading-none"
+                  style={{ background: ACCENT, color: "#f7f6f3" }}
+                  title="Already on my Letterboxd watchlist"
+                >
+                  WL
+                </span>
+              )}
             </div>
             <div className="text-[11px]" style={{ color: INK.muted }}>
               {m.year}

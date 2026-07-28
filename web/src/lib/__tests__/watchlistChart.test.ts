@@ -17,6 +17,7 @@ function film(over: Partial<WatchlistFilm> = {}): WatchlistFilm {
     tmdb_id: 1,
     title: "A Film",
     year: 2000,
+    released: "2000-01-01",
     added: "2024-01-01",
     watched: false,
     genres: [],

@@ -40,7 +40,7 @@ export function RankedBars({
   onPick,
   ariaLabel,
   deltas,
-  deltaHeader = "MY RATING vs MEDIAN",
+  deltaHeader = "MY RATING vs AVERAGE",
 }: {
   bars: RankedBar[];
   /** Films in the current view, for the hover readout's denominator. */
@@ -175,7 +175,7 @@ export function RankedBars({
                   fill as the count bar so a row reads as one category in one
                   colour; DIRECTION carries the sign. A row with too few watched
                   films simply has no second bar — an absent mark is honest,
-                  a zero-length one would read as "exactly at my median". */}
+                  a zero-length one would read as "exactly at my average". */}
               {hasDev && d != null && (
                 <>
                   <rect
@@ -235,7 +235,7 @@ export function RankedBars({
               const pct = total > 0 ? Math.round((100 * b.count) / total) : 0;
               const d = deltas?.get(b.key);
               const devPart = d
-                ? ` · ${deltaLabel(d.delta)} vs my median, from ${d.n} film${
+                ? ` · ${deltaLabel(d.delta)} vs my average, from ${d.n} film${
                     d.n === 1 ? "" : "s"
                   } I've seen`
                 : "";

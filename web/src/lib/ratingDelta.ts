@@ -1,4 +1,4 @@
-// How far my rating for a group of films sits from my overall median.
+// How far my rating for a group of films sits from my overall average.
 //
 // The watchlist charts need this because their own films have no rating: nobody
 // has watched them. So the deviation beside a watchlist row is not about the
@@ -6,8 +6,10 @@
 // language or keyword, and it answers "how have I felt about this sort of thing
 // so far" rather than "how will I feel about these".
 //
-// Medians, not means, matching the barcode chart's baseline: one 12/100 in a
-// small group drags a mean somewhere no film in the group actually sits.
+// Means, against the mean of the same watch set. A mean moves with every film
+// in the group rather than only with the middle one, so a country I rate evenly
+// well separates from one with a couple of standouts — and because ratings sit
+// on a half-star lattice, medians quantised the whole track to 0, ±5 and ±10.
 
 import type { EnrichedWatch } from "./types";
 
@@ -15,22 +17,20 @@ import type { EnrichedWatch } from "./types";
 export const DELTA_MIN_N = 5;
 
 export type RatingDelta = {
-  delta: number; // group median minus overall median, in rating points (0-100)
-  n: number; // films (not watches) behind the group median
+  delta: number; // group mean minus overall mean, in rating points (0-100)
+  n: number; // films (not watches) behind the group mean
 };
 
-function median(xs: number[]): number | null {
+function mean(xs: number[]): number | null {
   if (xs.length === 0) return null;
-  const s = [...xs].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  return xs.reduce((a, b) => a + b, 0) / xs.length;
 }
 
 /**
  * One rating per FILM, so a film watched four times does not outvote three
  * films watched once. A rewatched film's ratings are averaged into a single
  * value first — that is the film's standing with me, and it is what the group
- * median should be built from.
+ * mean should be built from.
  */
 function ratingsByFilm(watches: EnrichedWatch[]): Map<number, number> {
   const sums = new Map<number, { sum: number; n: number }>();
@@ -47,7 +47,7 @@ function ratingsByFilm(watches: EnrichedWatch[]): Map<number, number> {
 }
 
 /**
- * Rating deviation per group key, against the median of the same watch set.
+ * Rating deviation per group key, against the mean of the same watch set.
  *
  * The baseline moves with whatever is passed in, so under a filter the
  * deviations are measured against the films on screen rather than against a
@@ -63,7 +63,7 @@ export function ratingDeltaByKey(
   minN = DELTA_MIN_N,
 ): Map<string, RatingDelta> {
   const perFilm = ratingsByFilm(watches);
-  const base = median([...perFilm.values()]);
+  const base = mean([...perFilm.values()]);
   const out = new Map<string, RatingDelta>();
   if (base == null) return out;
 
@@ -83,7 +83,7 @@ export function ratingDeltaByKey(
 
   for (const [key, films] of groups) {
     if (films.size < minN) continue;
-    const m = median([...films.values()]);
+    const m = mean([...films.values()]);
     if (m == null) continue;
     out.set(key, { delta: m - base, n: films.size });
   }

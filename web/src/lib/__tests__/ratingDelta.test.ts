@@ -52,11 +52,14 @@ function group(key: string, n: number, rating: number): EnrichedWatch[] {
 describe("ratingDeltaByKey", () => {
   const keyOf = (w: EnrichedWatch) => w.film?.production_countries ?? [];
 
-  it("measures a group's median against the median of the whole set", () => {
-    // Ten films at 50 set the baseline; five at 70 sit 20 above it.
+  it("measures a group's mean against the mean of the whole set", () => {
+    // Ten films at 50 and five at 70 average to 56.67 overall, so the 70 group
+    // sits 13.33 above. NOT 20: the baseline is the whole set INCLUDING the
+    // group, so a group large enough to move the average partly chases its own
+    // baseline. That is what "vs my average" means and the label says so.
     const ws = [...group("BASE", 10, 50), ...group("HI", 5, 70)];
     const out = ratingDeltaByKey(ws, keyOf);
-    expect(out.get("HI")?.delta).toBe(20);
+    expect(out.get("HI")!.delta).toBeCloseTo(70 - 850 / 15);
     expect(out.get("HI")?.n).toBe(5);
   });
 
@@ -88,16 +91,20 @@ describe("ratingDeltaByKey", () => {
     expect(out.get("JP")?.n).toBe(5);
   });
 
-  it("averages a rewatched film's ratings into one value before taking the median", () => {
+  it("averages a rewatched film's ratings into one value before taking the group mean", () => {
     const f = film({ production_countries: ["X"] });
     const ws = [
       ...group("BASE", 10, 50),
-      // 40 and 80 average to 60, so this film enters the group median as 60.
+      // 40 and 80 average to 60, so this film enters the group as a single 60 —
+      // exactly like the four single-watch films beside it, which is the point.
       watch(f, 40),
       watch(f, 80),
       ...group("X", 4, 60),
     ];
-    expect(ratingDeltaByKey(ws, keyOf).get("X")!.delta).toBe(10);
+    const out = ratingDeltaByKey(ws, keyOf).get("X")!;
+    expect(out.n).toBe(5);
+    // Group mean 60 against an overall mean of 800/15.
+    expect(out.delta).toBeCloseTo(60 - 800 / 15);
   });
 
   it("counts a multi-key film into every key it carries", () => {
@@ -130,7 +137,7 @@ describe("deltaLabel", () => {
     expect(deltaLabel(-7.2)).toBe("−7");
   });
 
-  it("prints an unsigned zero, so 'at my median' does not read as a direction", () => {
+  it("prints an unsigned zero, so 'at my average' does not read as a direction", () => {
     expect(deltaLabel(0)).toBe("0");
     expect(deltaLabel(0.3)).toBe("0");
   });

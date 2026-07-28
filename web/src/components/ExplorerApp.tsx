@@ -414,9 +414,9 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        Production country or original language — switch between them. The left bar is
-        how many films are waiting; the right is how far my rating for films I&rsquo;ve
-        already seen from there sits from my median. Click a row to filter.
+        Production country or original language. The left bar is
+        how many films are on the watchlist; the right is how far my rating for films I&rsquo;ve
+        already seen from there sits from my average.
       </>
     ),
     Chart: WatchlistOrigin,
@@ -429,7 +429,7 @@ const CHART_SECTIONS: ChartSection[] = [
     blurb: (
       <>
         Keywords shared by three or more films on the list. The right track is how I
-        rate the films I&rsquo;ve already seen carrying that tag, against my median.
+        rate the films I&rsquo;ve already seen carrying that tag, against my average.
       </>
     ),
     Chart: WatchlistKeywords,

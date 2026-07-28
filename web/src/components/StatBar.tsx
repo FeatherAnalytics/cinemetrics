@@ -124,8 +124,14 @@ function WatchlistStats({ films, total }: { films: WatchlistFilm[]; total: numbe
   const watched = films.filter((f) => f.watched).length;
   const isFiltered = films.length < total;
   // Distinct production countries, counting every co-producer — the same rule
-  // the origin chart uses, so the two cannot disagree.
+  // the origin chart uses, so the two cannot disagree. Languages sit underneath
+  // as the subtext because they measure the same thing (how far the list
+  // reaches) at a different grain, and the gap between the two numbers is the
+  // interesting part: many countries making films in few languages.
   const countries = new Set(films.flatMap((f) => f.production_countries)).size;
+  const languages = new Set(
+    films.map((f) => f.language).filter((l): l is string => !!l),
+  ).size;
 
   return (
     <div className="flex justify-between gap-2 pt-2">
@@ -172,7 +178,9 @@ function WatchlistStats({ films, total }: { films: WatchlistFilm[]; total: numbe
         <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">
           countries
         </div>
-        <div className="font-mono text-[9px] text-[#67655f]">co-producers counted</div>
+        <div className="font-mono text-[9px] text-[#67655f]">
+          {languages} language{languages === 1 ? "" : "s"}
+        </div>
       </div>
     </div>
   );

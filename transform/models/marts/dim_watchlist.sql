@@ -28,7 +28,10 @@ with enrichment as (
         coalesce(f.imdb_votes, c.imdb_votes)                     as imdb_votes,
         coalesce(f.production_countries, c.production_countries) as production_countries,
         coalesce(f.original_language, c.original_language)       as original_language,
-        coalesce(f.collection, c.collection)                     as collection
+        coalesce(f.collection, c.collection)                     as collection,
+        -- Only the candidate seed carries a release DATE; film_enrichment has
+        -- never needed one because dim_film takes its year from the watch log.
+        c.release_date
     from {{ ref('stg_film_enrichment') }} f
     full outer join {{ ref('stg_candidate_enrichment') }} c using (tmdb_id)
 ),
@@ -47,6 +50,10 @@ select
     e.imdb_id,
     w.title,
     w.release_year,
+    -- The full date where TMDB has one, for the release-date barcode. The year
+    -- stays authoritative for binning: it comes from the watchlist export, which
+    -- is what the reader actually saw when they added the film.
+    e.release_date,
     w.added_date,
     (v.tmdb_id is not null) as watched,
     e.genres,
