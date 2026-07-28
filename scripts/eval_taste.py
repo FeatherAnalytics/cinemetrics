@@ -13,26 +13,55 @@ Usage: uv run python scripts/eval_taste.py
 """
 
 import json
+import sys
+from pathlib import Path
 
 import duckdb
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold, cross_val_predict
 
-from recommend import ROOT
-from recommend.taste import DEFAULT_KS, cross_validate_knn, select_k
+# Running a script by path puts scripts/ on sys.path, not the repo root, so the
+# `recommend` package is not importable without this. Same bootstrap as
+# train_embeddings.py; without it the Usage line above fails immediately.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from recommend import ROOT  # noqa: E402
+from recommend.taste import DEFAULT_KS, cross_validate_knn, select_k  # noqa: E402
 
 DB = ROOT / "data" / "movies.duckdb"
-EMBEDDINGS = ROOT / "data" / "ml" / "embeddings.json"
+
+# The artifact train_embeddings.py actually writes. This used to read
+# `embeddings.json`, a v1 file nothing has produced since the sparse export
+# landed - so the script evaluated whatever stale copy happened to be on disk,
+# and on a clean checkout (data/ml/ is gitignored) it could not run at all.
+EMBEDDINGS = ROOT / "data" / "ml" / "embeddings-v2.json"
+
+
+def _densify(vec: list[list], dims: int) -> np.ndarray:
+    """Expand one [indices, values] pair back to a dense row.
+
+    v1 stored dense rows; v2 stores sparse ones, so feeding v2 vectors straight
+    into np.array would build a ragged object array rather than a feature matrix.
+    """
+    row = np.zeros(dims, dtype=float)
+    indices, values = vec
+    row[np.asarray(indices, dtype=int)] = np.asarray(values, dtype=float)
+    return row
 
 
 def _load() -> tuple[list[int], np.ndarray, np.ndarray, np.ndarray]:
+    if not EMBEDDINGS.exists():
+        raise SystemExit(
+            f"{EMBEDDINGS.relative_to(ROOT)} missing — run `make train` first."
+        )
     emb = json.loads(EMBEDDINGS.read_text())
     vectors, meta = emb["vectors"], emb["metadata"]
+    dims = int(emb["dims"])
 
     con = duckdb.connect(str(DB), read_only=True)
     rows = con.execute(
-        "select tmdb_id, max(rating_100) as rating from fct_watches "
+        "select tmdb_id, max(rating_100) as rating from marts.fct_watches "
         "where rating_100 is not null group by tmdb_id"
     ).fetchall()
     con.close()
@@ -47,7 +76,7 @@ def _load() -> tuple[list[int], np.ndarray, np.ndarray, np.ndarray]:
         if ms is None or rt is None or ir is None:
             continue
         ids.append(tid)
-        X.append(vec)
+        X.append(_densify(vec, dims))
         y.append(float(rating))
         crit.append([ms, rt, ir * 10.0])
 

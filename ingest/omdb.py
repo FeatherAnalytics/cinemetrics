@@ -58,7 +58,7 @@ def load() -> None:
     con.execute("CREATE SCHEMA IF NOT EXISTS raw")
 
     film_rows = con.execute(
-        "SELECT DISTINCT imdb_id, tmdb_id FROM dim_film WHERE imdb_id <> ''"
+        "SELECT DISTINCT imdb_id, tmdb_id FROM marts.dim_film WHERE imdb_id <> ''"
     ).fetchall()
     print(f"enriching {len(film_rows)} films via OMDb ...")
     rows, misses = [], 0

@@ -35,31 +35,39 @@ OMDb   (critic scores)     ─┘
                             Cloudflare R2 ─► browser (cosine similarity, client-side)
 ```
 
-- **Seeds**: committed CSVs — `film_log.csv` (watch history), `film_enrichment.csv` (rated films),
-  `candidate_enrichment.csv` (recommendation pool from TMDB similar + popular).
-- **Staging**: cleaned, typed views over the seeds.
-- **Marts**: `dim_film`, `fct_watches`, `dim_candidate`. The `franchise_mapping()` macro
-  (in `transform/macros/`) rolls TMDB collections up into umbrella franchises by
-  collection, film, or director rules.
-- **ML pipeline**: TF-IDF + multi-hot feature encoding → cosine similarity. Embeddings are
-  exported as sparse vectors at build time and served from R2; the browser builds a
+- **Seeds**: committed CSVs — [`film_log.csv`](transform/seeds/film_log.csv) (watch history),
+  [`film_enrichment.csv`](transform/seeds/film_enrichment.csv) (rated films),
+  [`candidate_enrichment.csv`](transform/seeds/candidate_enrichment.csv) (recommendation pool
+  from TMDB similar + popular).
+- **Staging**: cleaned, typed views over the seeds
+  ([`transform/models/staging/`](transform/models/staging/)).
+- **Marts**: [`dim_film`](transform/models/marts/dim_film.sql),
+  [`fct_watches`](transform/models/marts/fct_watches.sql),
+  [`dim_candidate`](transform/models/marts/dim_candidate.sql). The
+  [`franchise_mapping()`](transform/macros/franchise_mapping.sql) macro rolls TMDB collections
+  up into umbrella franchises by collection, film, or director rules.
+- **ML pipeline**: TF-IDF + multi-hot feature encoding → cosine similarity
+  ([`recommend/encode.py`](recommend/encode.py)).
+  [`train_embeddings.py`](scripts/train_embeddings.py) exports sparse vectors and R2 serves
+  them; the browser ([`web/src/lib/recommend.ts`](web/src/lib/recommend.ts)) builds a
   rating-weighted taste vector and does the similarity math client-side. (A k-NN taste
   predictor was evaluated but did not beat critic scores, so it stays an offline tool:
-  `scripts/eval_taste.py`.)
-- **Auto-updates**: daily GitHub Action fetches Letterboxd RSS, enriches new films, retrains
-  if data changed, uploads to R2, deploys.
+  [`scripts/eval_taste.py`](scripts/eval_taste.py).)
+- **Auto-updates**: a daily GitHub Action
+  ([`update-data.yml`](.github/workflows/update-data.yml)) fetches Letterboxd RSS, enriches new
+  films, retrains if data changed, uploads to R2, deploys.
 
 ## Layout
 
-```
-recommend/  Python: ML pipeline (feature encoding, model, explainability)
-ingest/     Python: TMDB + OMDb enrichment
-transform/  dbt project (seeds → staging → marts)
-scripts/    export, candidate fetch, training, R2 upload
-tests/      pytest: encoding, model, ingest, taste eval
-web/        Next.js dashboard + recommendation drawer
-data/       movies.duckdb, ml/ (gitignored)
-```
+| Path | Contents |
+|---|---|
+| [`recommend/`](recommend/) | Python: ML pipeline (feature encoding, model, explainability) |
+| [`ingest/`](ingest/) | Python: TMDB + OMDb enrichment |
+| [`transform/`](transform/) | dbt project (seeds → staging → marts) |
+| [`scripts/`](scripts/) | export, candidate fetch, training, R2 upload |
+| [`tests/`](tests/) | pytest: encoding, model, ingest, taste eval |
+| [`web/`](web/) | Next.js dashboard + recommendation drawer |
+| `data/` | `movies.duckdb`, `ml/` (gitignored) |
 
 ## Setup
 
@@ -70,7 +78,11 @@ make build                # full pipeline: dbt → export → train → web buil
 make dev                  # start Next.js dev server at localhost:3000
 ```
 
+See [`.env.example`](.env.example) for the full list of keys.
+
 ### Commands
+
+All targets are defined in the [`Makefile`](Makefile).
 
 | Command | What it does |
 |---------|-------------|
@@ -82,8 +94,19 @@ make dev                  # start Next.js dev server at localhost:3000
 | `make retrain` | Force retrain regardless of data changes |
 | `make upload` | Upload embeddings to Cloudflare R2 |
 | `make update` | Auto-update from Letterboxd RSS |
+| `make docs` | Generate the dbt docs site into `web/public/dbt/` |
+| `make doc-stats` | Refresh the docs' figures and lineage diagram from the built marts |
+
+## Documentation
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the pipeline and infrastructure fit
+  together, plus the data conventions that are easy to get wrong.
+- [Data model docs](https://featheranalytics.dev/cinemetrics/dbt/) — generated dbt catalog,
+  column descriptions, and lineage graph. The dashboard footer links here too.
 
 ## Data sources
 
-Letterboxd for the watch log, TMDB for genres/keywords/runtime/budget/revenue/similar films,
-OMDb for critic scores, box office, and cast. Primary key: `tmdb_id`.
+Letterboxd for the watch log ([`ingest/letterboxd.py`](ingest/letterboxd.py)), TMDB for
+genres/keywords/runtime/budget/revenue/similar films ([`ingest/tmdb.py`](ingest/tmdb.py)), OMDb
+for critic scores, box office, and cast ([`ingest/omdb.py`](ingest/omdb.py)). Primary key:
+`tmdb_id`.

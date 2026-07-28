@@ -19,6 +19,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          prune-cache: true
+      - run: uv sync
+      # The dbt catalog needs real relations to describe, and the DuckDB file is
+      # gitignored, so the docs page requires a build from the seeds first. It is
+      # the same build CI already runs on the PR, repeated here only because the
+      # database is disposable.
+      - run: uv run dbt deps --profiles-dir .
+        working-directory: transform
+      - run: uv run dbt build --profiles-dir .
+        working-directory: transform
+      # --static emits a single self-contained HTML file. The non-static index.html
+      # fetches manifest.json and catalog.json as siblings, which is one more thing
+      # to keep in sync under a basePath.
+      - name: Generate dbt docs
+        run: uv run dbt docs generate --profiles-dir . --static
+        working-directory: transform
+      - name: Stage dbt docs for export
+        run: |
+          mkdir -p web/public/dbt
+          cp transform/target/static_index.html web/public/dbt/index.html
       - uses: actions/setup-node@v7
         with:
           node-version: 22
