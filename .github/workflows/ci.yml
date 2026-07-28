@@ -8,14 +8,20 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - uses: astral-sh/setup-uv@v4
+      # Exact version, not a floating major: setup-uv stopped publishing moving
+      # major tags after v7, so `@v9` does not resolve.
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          # v9 flipped this default to false. Left off, the uv cache grows
+          # unbounded and evicts the npm caches the web jobs rely on.
+          prune-cache: true
       - run: uv sync
       - run: uv run ruff check .
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -28,11 +34,13 @@ jobs:
   data:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          prune-cache: true
       - run: uv sync
       - run: uv run dbt deps --profiles-dir .
         working-directory: transform
@@ -42,8 +50,8 @@ jobs:
   web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
