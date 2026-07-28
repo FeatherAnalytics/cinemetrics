@@ -12,10 +12,12 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - uses: astral-sh/setup-uv@v9
+      # Exact version, not a floating major: setup-uv stopped publishing moving
+      # major tags after v7, so `@v9` does not resolve.
+      - uses: astral-sh/setup-uv@v9.0.0
         with:
-          # setup-uv v9 flipped this default to false. Left off, the uv cache
-          # grows unbounded and evicts the npm caches the web jobs rely on.
+          # v9 flipped this default to false. Left off, the uv cache grows
+          # unbounded and evicts the npm caches the web jobs rely on.
           prune-cache: true
       - run: uv sync
       - run: uv run ruff check .
@@ -36,7 +38,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - uses: astral-sh/setup-uv@v9
+      - uses: astral-sh/setup-uv@v9.0.0
         with:
           prune-cache: true
       - run: uv sync
