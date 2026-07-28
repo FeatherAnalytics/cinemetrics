@@ -66,6 +66,7 @@ const EMPTY: Filters = {
   franchise: null,
   runtimeRange: null,
   ratingRange: null,
+  votesRange: null,
   selection: null,
 };
 

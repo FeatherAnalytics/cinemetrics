@@ -4,7 +4,7 @@
 
 import { countryName } from "./countries";
 import { languageName } from "./languages";
-import { GENRE_COLORS, GENRE_KEYS, type GenreKey } from "./palette";
+import { GENRE_COLORS, GENRE_KEYS, GENRE_ORDER, primaryGenre, type GenreKey } from "./palette";
 import type { WatchlistFilm } from "./types";
 
 export type RankedBar = {
@@ -12,15 +12,39 @@ export type RankedBar = {
   label: string; // what the reader sees
   count: number;
   color: string;
+  genre: GenreKey; // dominant primary genre among the films behind the bar
 };
 
-// Anything outside the five tracked genres shares one neutral. The genre
-// palette is an identity scale with five slots; stretching it to the ~19 TMDB
-// genres would mean inventing colours that carry no meaning anywhere else.
-const NEUTRAL = GENRE_COLORS.Other;
+// Anything outside the five tracked genres shares one neutral. The genre palette
+// is an identity scale with five slots; stretching it to the ~19 TMDB genres
+// would mean inventing colours that carry no meaning anywhere else. Reached via
+// GENRE_COLORS.Other, which is what dominantGenre returns for such a group.
 
 function isTracked(name: string): name is GenreKey {
   return (GENRE_KEYS as string[]).includes(name);
+}
+
+/**
+ * The genre a group of films is mostly made of, by the site's five-slot rule.
+ *
+ * Lets a bar for Japan or for `neo-noir` carry a colour that means something —
+ * what I am actually queueing from there — instead of one flat neutral for every
+ * row. Ties break by GENRE_ORDER priority, the same rule aggregateCountries
+ * uses, so the two charts cannot disagree about one country's colour.
+ */
+function dominantGenre(films: WatchlistFilm[]): GenreKey {
+  const tally = new Map<GenreKey, number>();
+  for (const f of films) {
+    const g = primaryGenre(f);
+    tally.set(g, (tally.get(g) ?? 0) + 1);
+  }
+  let best: GenreKey = "Other";
+  let n = -1;
+  for (const g of [...GENRE_ORDER, "Other"] as GenreKey[]) {
+    const c = tally.get(g) ?? 0;
+    if (c > n) [n, best] = [c, g];
+  }
+  return best;
 }
 
 /**
@@ -39,33 +63,64 @@ function isTracked(name: string): name is GenreKey {
 export function rankMulti(
   films: WatchlistFilm[],
   pick: (f: WatchlistFilm) => string[],
-  opts: { limit?: number; minCount?: number; label?: (key: string) => string } = {},
+  opts: {
+    limit?: number;
+    minCount?: number;
+    label?: (key: string) => string;
+    /**
+     * How a bar earns its colour.
+     *
+     * "dominant" reads the films behind the bar and takes their commonest
+     * primary genre — right for a country, a language or a keyword, where the
+     * key is not itself a genre and the colour is the only place that
+     * information can go.
+     *
+     * "self" is for the genre chart, where the key IS the category. Colouring
+     * Mystery by its films' dominant primary genre painted it Horror, because
+     * primaryGenre resolves Horror first and most Mystery films on the list are
+     * also horror — so the chart showed a red bar labelled Mystery directly
+     * above a red bar labelled Horror, which reads as a mistake whatever the
+     * logic behind it. Untracked genres take the neutral instead.
+     */
+    colorBy?: "dominant" | "self";
+  } = {},
 ): RankedBar[] {
-  const { limit = 10, minCount = 1, label = (k) => k } = opts;
-  const counts = new Map<string, number>();
+  const { limit = 10, minCount = 1, label = (k) => k, colorBy = "dominant" } = opts;
+  const members = new Map<string, WatchlistFilm[]>();
   for (const f of films) {
     // A value listed twice on one film still counts once: the question is how
     // many FILMS carry it.
     for (const v of new Set(pick(f))) {
       const key = v.trim();
       if (!key) continue;
-      counts.set(key, (counts.get(key) ?? 0) + 1);
+      const list = members.get(key);
+      if (list) list.push(f);
+      else members.set(key, [f]);
     }
   }
-  return [...counts.entries()]
-    .filter(([, n]) => n >= minCount)
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  return [...members.entries()]
+    .filter(([, fs]) => fs.length >= minCount)
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
     .slice(0, limit)
-    .map(([key, count]) => ({
-      key,
-      label: label(key),
-      count,
-      color: isTracked(key) ? GENRE_COLORS[key] : NEUTRAL,
-    }));
+    .map(([key, fs]) => {
+      // A tracked genre always keeps its own colour. Beyond that, see colorBy.
+      const genre = isTracked(key)
+        ? key
+        : colorBy === "self"
+          ? "Other"
+          : dominantGenre(fs);
+      return {
+        key,
+        label: label(key),
+        count: fs.length,
+        genre,
+        color: GENRE_COLORS[genre],
+      };
+    });
 }
 
 export function genreBars(films: WatchlistFilm[], limit = 10): RankedBar[] {
-  return rankMulti(films, (f) => f.genres, { limit });
+  return rankMulti(films, (f) => f.genres, { limit, colorBy: "self" });
 }
 
 export function keywordBars(films: WatchlistFilm[], limit = 12, minCount = 3): RankedBar[] {
@@ -90,7 +145,15 @@ export function languageBars(films: WatchlistFilm[], limit = 10): RankedBar[] {
   });
 }
 
-export type DecadeBar = { decade: number; label: string; count: number };
+export type DecadeBar = {
+  decade: number;
+  label: string;
+  count: number;
+  genre: GenreKey; // dominant primary genre among that decade's films
+  color: string;
+  /** Share of the films in view, 0-1. The denominator is every dated film. */
+  share: number;
+};
 
 /**
  * Films per release decade, with the empty decades in between kept.
@@ -101,21 +164,37 @@ export type DecadeBar = { decade: number; label: string; count: number };
  * currently has one, so this only guards a future gap.
  */
 export function decadeBars(films: WatchlistFilm[]): DecadeBar[] {
-  const years = films.map((f) => f.year).filter((y): y is number => y != null);
-  if (years.length === 0) return [];
+  const dated = films.filter((f) => f.year != null);
+  if (dated.length === 0) return [];
+  const years = dated.map((f) => f.year as number);
   const lo = Math.floor(Math.min(...years) / 10) * 10;
   const hi = Math.floor(Math.max(...years) / 10) * 10;
-  const counts = new Map<number, number>();
-  for (const y of years) {
-    const d = Math.floor(y / 10) * 10;
-    counts.set(d, (counts.get(d) ?? 0) + 1);
+
+  const byDecade = new Map<number, WatchlistFilm[]>();
+  for (const f of dated) {
+    const d = Math.floor((f.year as number) / 10) * 10;
+    const list = byDecade.get(d);
+    if (list) list.push(f);
+    else byDecade.set(d, [f]);
   }
+
   const out: DecadeBar[] = [];
   for (let d = lo; d <= hi; d += 10) {
-    // Full year, not the two-digit "10s" shorthand. The list runs from 1917 to
-    // 2026, so the short form labels both the 1910s and the 2010s "10s" — two
-    // columns a century apart carrying one name.
-    out.push({ decade: d, label: `${d}s`, count: counts.get(d) ?? 0 });
+    const fs = byDecade.get(d) ?? [];
+    // An empty decade takes the neutral rather than a genre it has no films to
+    // justify. Its share is 0, which is what the hover should say.
+    const genre = fs.length ? dominantGenre(fs) : "Other";
+    out.push({
+      decade: d,
+      // Full year, not the two-digit "10s" shorthand. The list runs from 1917 to
+      // 2026, so the short form labels both the 1910s and the 2010s "10s" — two
+      // columns a century apart carrying one name.
+      label: `${d}s`,
+      count: fs.length,
+      genre,
+      color: GENRE_COLORS[genre],
+      share: fs.length / dated.length,
+    });
   }
   return out;
 }
@@ -143,4 +222,65 @@ export function watchlistSummary(films: WatchlistFilm[]) {
     // every row currently carries a year, and the two agree.
     preMillenniumShare: films.length ? preMillennium / films.length : 0,
   };
+}
+
+export type GenreDecadeCell = {
+  genre: GenreKey;
+  decade: number;
+  count: number;
+};
+
+export type GenreDecadeGrid = {
+  genres: GenreKey[]; // rows, in GENRE_ORDER, only those with any film
+  decades: number[]; // columns, every decade in range including empty ones
+  cells: Map<string, number>; // `${genre}|${decade}` -> count
+  peak: number; // largest cell, for the colour ramp
+};
+
+/** Key for the cell map. Exported so the component cannot invent its own. */
+export function cellKey(genre: GenreKey, decade: number): string {
+  return `${genre}|${decade}`;
+}
+
+/**
+ * Films per (primary genre x release decade).
+ *
+ * The bin is the same size everywhere by construction, which is the point: the
+ * barcode places films at their true release date and so has no bins at all,
+ * while the decade bars have bins but throw genre away. This is the grid between
+ * them, and it is the only one of the three that can show an ABSENCE — no 1930s
+ * horror waiting — because an empty cell is drawn rather than simply not there.
+ *
+ * One genre per film, via the site's primaryGenre, unlike the genre bar chart
+ * which counts a film into every genre it carries. A film has to sit in exactly
+ * one cell or the columns would not sum to the decade counts directly above.
+ */
+export function genreDecadeGrid(films: WatchlistFilm[]): GenreDecadeGrid {
+  const dated = films.filter((f) => f.year != null);
+  const empty: GenreDecadeGrid = { genres: [], decades: [], cells: new Map(), peak: 0 };
+  if (dated.length === 0) return empty;
+
+  const years = dated.map((f) => f.year as number);
+  const lo = Math.floor(Math.min(...years) / 10) * 10;
+  const hi = Math.floor(Math.max(...years) / 10) * 10;
+  const decades: number[] = [];
+  for (let d = lo; d <= hi; d += 10) decades.push(d);
+
+  const cells = new Map<string, number>();
+  const seen = new Set<GenreKey>();
+  let peak = 0;
+  for (const f of dated) {
+    const g = primaryGenre(f);
+    const d = Math.floor((f.year as number) / 10) * 10;
+    const k = cellKey(g, d);
+    const n = (cells.get(k) ?? 0) + 1;
+    cells.set(k, n);
+    seen.add(g);
+    if (n > peak) peak = n;
+  }
+
+  // Rows keep GENRE_ORDER rather than sorting by volume, so the row a genre
+  // occupies does not move when the filter changes.
+  const genres = ([...GENRE_ORDER, "Other"] as GenreKey[]).filter((g) => seen.has(g));
+  return { genres, decades, cells, peak };
 }

@@ -47,7 +47,8 @@ export type ChartId =
   | "wldecades"
   | "wlkeywords"
   | "wlorigin"
-  | "wlbarcode";
+  | "wlbarcode"
+  | "wlgenredecades";
 
 /**
  * Which group of charts a story puts on the page.
@@ -754,6 +755,8 @@ function computeWatchlist(
       // The blurb already explains the encoding, so the note carries the thing
       // the decade chart above cannot show: where inside a decade the films
       // actually sit.
+      wlgenredecades:
+        "One genre per film here, so each column sums to the decade bar above it. The outlined cells are eras I have queued nothing from.",
       wlbarcode:
         "The decade bars above round these positions to the nearest ten years; here the clumps and gaps inside a decade stay visible.",
     },

@@ -37,6 +37,7 @@ import { StoryAnnotation } from "@/components/StoryAnnotation";
 import { StoryChartNote } from "@/components/StoryChartNote";
 import { WatchlistDecades } from "@/components/watchlist/WatchlistDecades";
 import { WatchlistBarcode } from "@/components/watchlist/WatchlistBarcode";
+import { WatchlistGenreDecades } from "@/components/watchlist/WatchlistGenreDecades";
 import { WatchlistGenres } from "@/components/watchlist/WatchlistGenres";
 import { WatchlistKeywords } from "@/components/watchlist/WatchlistKeywords";
 import { WatchlistOrigin } from "@/components/watchlist/WatchlistOrigin";
@@ -379,6 +380,20 @@ const CHART_SECTIONS: ChartSection[] = [
       </>
     ),
     Chart: WatchlistDecades,
+  },
+  {
+    id: "wlgenredecades",
+    sets: ["watchlist"],
+    title: "Genre by release decade",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        One cell per genre and decade, darker where more films are waiting. Every bin
+        is the same size, so rows and columns compare directly &mdash; and an outlined
+        cell is an era I have queued nothing from.
+      </>
+    ),
+    Chart: WatchlistGenreDecades,
   },
   {
     id: "wlbarcode",

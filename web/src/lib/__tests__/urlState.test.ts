@@ -23,6 +23,7 @@ const DEFAULTS: Filters = {
   franchise: null,
   runtimeRange: null,
   ratingRange: null,
+  votesRange: null,
   selection: null,
 };
 

@@ -83,6 +83,10 @@ export function filterWatches(
       const r = w.rating;
       if (r == null || r < filters.ratingRange[0] || r > filters.ratingRange[1]) return false;
     }
+    if (filters.votesRange) {
+      const v = f?.imdb_votes;
+      if (v == null || v < filters.votesRange[0] || v > filters.votesRange[1]) return false;
+    }
     if (filters.selection && !filters.selection.has(watchKey(w))) return false;
     return true;
   });
@@ -107,6 +111,7 @@ export const WATCHLIST_FILTERS = [
   "runtimeRange",
   "language",
   "country",
+  "votesRange",
 ] as const satisfies readonly (keyof Filters)[];
 
 /** Pure filtering logic for the watchlist, extracted for testability. */
@@ -128,6 +133,10 @@ export function filterWatchlist(
     }
     if (filters.language && f.language !== filters.language) return false;
     if (filters.country && !f.production_countries.includes(filters.country)) return false;
+    if (filters.votesRange) {
+      const v = f.imdb_votes;
+      if (v == null || v < filters.votesRange[0] || v > filters.votesRange[1]) return false;
+    }
     return true;
   });
 }
@@ -150,6 +159,15 @@ export type Filters = {
   franchise: string | null; // collection/franchise name (null = all)
   runtimeRange: [number, number] | null; // film runtime in minutes, inclusive
   ratingRange: [number, number] | null; // my rating 0-100, inclusive (drops unrated)
+  /**
+   * IMDb vote count, inclusive. How many people logged an opinion, which is the
+   * closest thing here to "how obscure is this" — the Hidden Gems story cuts at
+   * 10k on the same field.
+   *
+   * Drops films with no vote count while active, like every other range filter.
+   * That bites hardest on the watchlist, where OMDb coverage is partial.
+   */
+  votesRange: [number, number] | null;
   selection: Set<string> | null; // brushed watch keys (null = no brush active)
 };
 
@@ -167,6 +185,7 @@ const EMPTY_FILTERS: Filters = {
   franchise: null,
   runtimeRange: null,
   ratingRange: null,
+  votesRange: null,
   selection: null,
 };
 
@@ -195,6 +214,8 @@ type ExplorerValue = {
   yearBounds: [number, number];
   releaseYearBounds: [number, number];
   runtimeBounds: [number, number];
+  /** IMDb vote-count bounds across watched films, for the rail's slider. */
+  votesBounds: [number, number];
   titleOptions: string[];
   directorOptions: string[];
   actorOptions: string[];
@@ -236,6 +257,7 @@ type ExplorerValue = {
   setReleaseYearRange: (r: [number, number]) => void;
   setRuntimeRange: (r: [number, number]) => void;
   setRatingRange: (r: [number, number]) => void;
+  setVotesRange: (r: [number, number]) => void;
   setRewatch: (r: Filters["rewatch"]) => void;
   setText: (field: TextField, value: string) => void;
   setCountry: (iso: string | null) => void;
@@ -284,6 +306,13 @@ export function ExplorerProvider({
     const runtimeBounds: [number, number] = runtimes.length
       ? [Math.floor(Math.min(...runtimes) / 5) * 5, Math.ceil(Math.max(...runtimes) / 5) * 5]
       : [0, 300];
+    // Vote counts span five orders of magnitude, so the rail slides in log space
+    // rather than linear; the bounds here are the raw counts it maps between.
+    const votes = data.films.map((f) => f.imdb_votes).filter((v): v is number => v != null && v > 0);
+    const votesBounds: [number, number] = votes.length
+      ? [Math.min(...votes), Math.max(...votes)]
+      : [1, 1_000_000];
+
     // Autocomplete option lists (director/actors are comma-separated -> split).
     const directorOptions = uniqueSorted(
       data.films.flatMap((f) => (f.director ?? "").split(",")),
@@ -338,6 +367,7 @@ export function ExplorerProvider({
       yearBounds: [Math.min(...watchYears), Math.max(...watchYears)] as [number, number],
       releaseYearBounds: [Math.min(...releaseYears), Math.max(...releaseYears)] as [number, number],
       runtimeBounds,
+      votesBounds,
       titleOptions: uniqueSorted(data.films.map((f) => f.title)),
       directorOptions,
       actorOptions,
@@ -511,6 +541,10 @@ export function ExplorerProvider({
       setRatingRange: (r) => {
         exitStoryOnFilter();
         setFilters((f) => ({ ...f, ratingRange: r }));
+      },
+      setVotesRange: (r) => {
+        exitStoryOnFilter();
+        setFilters((f) => ({ ...f, votesRange: r }));
       },
       setRewatch: (r) => {
         exitStoryOnFilter();

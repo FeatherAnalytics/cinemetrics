@@ -10,7 +10,6 @@ import { ChartTakeaway } from "../ChartTakeaway";
 
 const W0 = 720;
 const W_MIN = 300;
-const FADE = "#b3b1a6";
 
 /**
  * When the watchlist's films were released.
@@ -71,6 +70,8 @@ export function WatchlistDecades() {
       ? filters.releaseYearRange[0]
       : null;
 
+  const hovered = bars.find((b) => b.decade === hover) ?? null;
+
   const pick = (decade: number) => {
     if (activeDecade === decade) setReleaseYearRange(watchlistOptions.releaseYearBounds);
     else setReleaseYearRange([decade, decade + 9]);
@@ -100,8 +101,12 @@ export function WatchlistDecades() {
                   y={y(b.count)}
                   width={barW}
                   height={barH}
-                  fill={isActive ? ACCENT : FADE}
-                  fillOpacity={hover === b.decade ? 0.95 : 1}
+                  // Coloured by the decade's dominant genre, so the axis reads
+                  // as what I am queueing from each era rather than as one grey
+                  // block. The accent still wins while a decade is selected —
+                  // selection has to stay legible against every genre colour.
+                  fill={isActive ? ACCENT : b.color}
+                  fillOpacity={hover == null || hover === b.decade ? 1 : 0.35}
                 />
                 {/* An empty decade gets no label: there is no bar to annotate and
                     nothing happened to describe. */}
@@ -153,6 +158,19 @@ export function WatchlistDecades() {
       {/* A single surviving decade reads as "1910s to 1910s" if the range is
           printed unconditionally, so a one-decade view states the decade and
           offers the way back out instead. */}
+      {/* Readout in its own strip, the same place every other chart here puts
+          it. Fixed height so the page does not jump as the reader sweeps the
+          columns. The SHARE is the part the chart cannot show: the y axis
+          already carries the count. */}
+      <p className="mt-1 h-4 text-xs text-[#67655f]">
+        {hovered
+          ? hovered.count === 0
+            ? `${hovered.label}: no films on the watchlist`
+            : `${hovered.label}: ${(
+                100 * hovered.share
+              ).toFixed(0)}% of the watchlist`
+          : ""}
+      </p>
       <ChartTakeaway>
         {bars.length > 1
           ? `${bars[0].decade}s to ${bars[bars.length - 1].decade}s`

@@ -98,7 +98,7 @@ export function RankedBars({
               letterSpacing="0.1em"
               fontFamily="var(--font-mono)"
             >
-              FILMS WAITING
+              FILMS IN WATCHLIST
             </text>
             <text
               x={DEV_ZERO}
@@ -235,11 +235,15 @@ export function RankedBars({
               const pct = total > 0 ? Math.round((100 * b.count) / total) : 0;
               const d = deltas?.get(b.key);
               const devPart = d
-                ? ` · ${deltaLabel(d.delta)} vs my average, from ${d.n} film${
+                ? ` · ${deltaLabel(d.delta)} vs my average (n = ${d.n} film${
                     d.n === 1 ? "" : "s"
-                  } I've seen`
+                  })`
                 : "";
-              return `${b.label}: ${b.count} of ${total} waiting (${pct}%)${devPart}`;
+              // The bar's colour is its dominant genre, and nothing else on the
+              // chart decodes it — a legend would repeat the five swatches the
+              // rail already shows, so the readout names it instead.
+              const genrePart = b.key === b.genre ? "" : ``;
+              return `${b.label}: ${pct}% of watchlist${genrePart}${devPart}`;
             })()
           : ""}
       </p>

@@ -46,6 +46,7 @@ const EMPTY: Filters = {
   franchise: null,
   runtimeRange: null,
   ratingRange: null,
+  votesRange: null,
   selection: null,
 };
 
@@ -102,13 +103,40 @@ describe("rankMulti", () => {
 });
 
 describe("genreBars", () => {
-  it("gives the five tracked genres their identity colour and everything else the neutral", () => {
+  it("gives a tracked genre its own identity colour rather than a dominant one", () => {
+    // A genre row IS its category, so it keeps its own colour even though the
+    // one film behind it is also a Horror film.
     const bars = genreBars([film({ genres: ["Horror", "Documentary"] })]);
     const byKey = new Map(bars.map((b) => [b.key, b.color]));
     expect(byKey.get("Horror")).toBe(GENRE_COLORS.Horror);
-    // Documentary is outside the five-slot identity scale, so it must not
-    // borrow a colour that means a different genre elsewhere on the site.
-    expect(byKey.get("Documentary")).toBe(GENRE_COLORS.Other);
+  });
+
+  it("never paints an untracked genre in another genre's colour", () => {
+    // Most Mystery and Science Fiction films on the list are also horror, and
+    // primaryGenre resolves Horror first — so a dominant-genre rule painted
+    // those rows crimson, putting a red bar labelled Mystery directly above a
+    // red bar labelled Horror. On the genre chart the key IS the category, so
+    // anything outside the five-slot scale takes the neutral.
+    const bars = genreBars([
+      film({ genres: ["Horror", "Mystery"] }),
+      film({ genres: ["Horror", "Science Fiction"] }),
+    ]);
+    const byKey = new Map(bars.map((b) => [b.key, b]));
+    expect(byKey.get("Horror")!.color).toBe(GENRE_COLORS.Horror);
+    for (const k of ["Mystery", "Science Fiction"]) {
+      expect(byKey.get(k)!.genre).toBe("Other");
+      expect(byKey.get(k)!.color).toBe(GENRE_COLORS.Other);
+    }
+  });
+
+  it("still colours a COUNTRY by its dominant genre, which is where that rule belongs", () => {
+    const bars = countryBars([
+      film({ production_countries: ["JP"], genres: ["Horror"] }),
+      film({ production_countries: ["JP"], genres: ["Horror"] }),
+      film({ production_countries: ["JP"], genres: ["Drama"] }),
+    ]);
+    expect(bars[0].genre).toBe("Horror");
+    expect(bars[0].color).toBe(GENRE_COLORS.Horror);
   });
 
   it("keeps genres primaryGenre would have collapsed into Other", () => {
@@ -165,7 +193,8 @@ describe("decadeBars", () => {
 
   it("floors a year to its decade", () => {
     const bars = decadeBars([film({ year: 1999 }), film({ year: 1990 })]);
-    expect(bars).toEqual([{ decade: 1990, label: "1990s", count: 2 }]);
+    expect(bars).toHaveLength(1);
+    expect(bars[0]).toMatchObject({ decade: 1990, label: "1990s", count: 2, share: 1 });
   });
 
   it("labels 2000s decades without colliding with 1900s ones", () => {

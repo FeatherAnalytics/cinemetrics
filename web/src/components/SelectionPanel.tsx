@@ -27,11 +27,32 @@ const letterboxdUrl = (tmdbId: number) => `https://letterboxd.com/tmdb/${tmdbId}
 type SortKey = "date" | "title" | "year" | "me" | "mc" | "rt" | "imdb" | "genre";
 type Sort = { key: SortKey; dir: 1 | -1 };
 
-const COLUMNS: { key: SortKey; label: string; numeric: boolean }[] = [
+type Column = { key: SortKey; label: string; numeric: boolean };
+
+const COLUMNS: Column[] = [
   { key: "date", label: "Watched", numeric: false },
   { key: "title", label: "Title", numeric: false },
   { key: "year", label: "Year", numeric: true },
   { key: "me", label: "Me", numeric: true },
+  { key: "mc", label: "MC", numeric: true },
+  { key: "rt", label: "RT", numeric: true },
+  { key: "imdb", label: "IMDB", numeric: true },
+  { key: "genre", label: "Genre", numeric: false },
+];
+
+/**
+ * The watchlist view of the same table.
+ *
+ * The date column becomes the RELEASE date, because a watchlist film has no
+ * watched date — that is the whole point of the list. "Me" goes entirely rather
+ * than printing a column of dashes: nothing on the list has been rated, so the
+ * column could never hold a value and an empty column reads as missing data
+ * rather than as a category that does not apply.
+ */
+const WATCHLIST_COLUMNS: Column[] = [
+  { key: "date", label: "Released", numeric: false },
+  { key: "title", label: "Title", numeric: false },
+  { key: "year", label: "Year", numeric: true },
   { key: "mc", label: "MC", numeric: true },
   { key: "rt", label: "RT", numeric: true },
   { key: "imdb", label: "IMDB", numeric: true },
@@ -56,10 +77,46 @@ function compareRows(a: Row, b: Row, sort: Sort): number {
 // cross-filters, so `filtered` already IS the selection; we summarise it and
 // list every watch in date order.
 export function SelectionPanel() {
-  const { filtered, filters, setSelection, setCountry } = useExplorer();
+  const { filtered, filters, setSelection, setCountry, activeStory, filteredWatchlist } =
+    useExplorer();
   const [sort, setSort] = useState<Sort>({ key: "date", dir: 1 }); // oldest → most recent
+  const watchlistMode = activeStory === "watchlist";
+  const columns = watchlistMode ? WATCHLIST_COLUMNS : COLUMNS;
 
   const { rows, films, avgMe, avgCritic, genres } = useMemo(() => {
+    if (watchlistMode) {
+      // `t` sorts on the release date, falling back to January 1 of the year for
+      // the few films TMDB has no date for — the same fallback the barcode uses,
+      // so the two orderings agree.
+      const wlRows: Row[] = filteredWatchlist.map((f) => ({
+        key: `wl-${f.tmdb_id}`,
+        tmdb_id: f.tmdb_id,
+        date: f.released ?? (f.year != null ? `${f.year}` : "—"),
+        t: f.released
+          ? new Date(f.released + "T00:00:00Z").getTime()
+          : f.year != null
+            ? Date.UTC(f.year, 0, 1)
+            : 0,
+        title: f.title,
+        year: f.year,
+        genre: primaryGenre(f),
+        me: null,
+        mc: null,
+        rt: null,
+        imdb: f.imdb_rating ?? null,
+      }));
+      wlRows.sort((a, b) => compareRows(a, b, sort));
+      const gCounts = new Map<GenreKey, number>();
+      for (const r of wlRows) gCounts.set(r.genre, (gCounts.get(r.genre) ?? 0) + 1);
+      return {
+        rows: wlRows,
+        films: wlRows.length,
+        avgMe: null,
+        avgCritic: null,
+        genres: [...gCounts.entries()].sort((a, b) => b[1] - a[1]),
+      };
+    }
+
     const rows: Row[] = filtered.map((w) => ({
       key: watchKey(w),
       tmdb_id: w.tmdb_id,
@@ -93,12 +150,14 @@ export function SelectionPanel() {
     const genres = [...gCounts.entries()].sort((a, b) => b[1] - a[1]);
 
     return { rows, films: seen.size, avgMe, avgCritic, genres };
-  }, [filtered, sort]);
+  }, [filtered, filteredWatchlist, watchlistMode, sort]);
 
   const toggleSort = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
 
-  if (!filters.selection && !filters.country) return null;
+  // The watchlist story shows the table unconditionally: the list IS the subject
+  // there, not a selection made out of something larger.
+  if (!watchlistMode && !filters.selection && !filters.country) return null;
 
   const delta = avgMe != null && avgCritic != null ? avgMe - avgCritic : null;
   const clear = () => {
@@ -115,12 +174,18 @@ export function SelectionPanel() {
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
           <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">
-            {filters.country ? countryName(filters.country) : "Selection"}{" "}
+            {watchlistMode
+              ? "Watchlist"
+              : filters.country
+                ? countryName(filters.country)
+                : "Selection"}{" "}
             <span style={{ color: ACCENT }}>·</span> {films} {films === 1 ? "film" : "films"}
           </h2>
-          <span className="font-mono text-xs" style={{ color: INK.muted }}>
-            {rows.length} watches
-          </span>
+          {!watchlistMode && (
+            <span className="font-mono text-xs" style={{ color: INK.muted }}>
+              {rows.length} watches
+            </span>
+          )}
           {avgMe != null && (
             <span className="text-xs" style={{ color: INK.secondary }}>
               avg me <b>{fmt1(avgMe)}</b>
@@ -140,13 +205,15 @@ export function SelectionPanel() {
             </span>
           )}
         </div>
-        <button
-          onClick={clear}
-          className="rounded-full border px-3 py-1 text-xs text-[#3d3c38] transition hover:text-[#0b0b0b]"
-          style={{ borderColor: "rgba(11,11,11,0.2)" }}
-        >
-          clear selection
-        </button>
+        {!watchlistMode && (
+          <button
+            onClick={clear}
+            className="rounded-full border px-3 py-1 text-xs text-[#3d3c38] transition hover:text-[#0b0b0b]"
+            style={{ borderColor: "rgba(11,11,11,0.2)" }}
+          >
+            clear selection
+          </button>
+        )}
       </div>
 
       {genres.length > 0 && (
@@ -164,7 +231,7 @@ export function SelectionPanel() {
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0" style={{ background: "#f2f1ec" }}>
             <tr style={{ color: INK.muted }}>
-              {COLUMNS.map((c) => (
+              {columns.map((c) => (
                 <th
                   key={c.key}
                   aria-sort={
@@ -206,9 +273,11 @@ export function SelectionPanel() {
                 <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: INK.secondary }}>
                   {r.year ?? "—"}
                 </td>
-                <td className="px-2 py-1.5 text-right tabular-nums text-[#0b0b0b]">
-                  {r.me != null ? Math.round(r.me) : "—"}
-                </td>
+                {!watchlistMode && (
+                  <td className="px-2 py-1.5 text-right tabular-nums text-[#0b0b0b]">
+                    {r.me != null ? Math.round(r.me) : "—"}
+                  </td>
+                )}
                 <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: INK.secondary }}>
                   {r.mc ?? "—"}
                 </td>

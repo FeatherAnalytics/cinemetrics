@@ -177,7 +177,7 @@ export function RecommendDrawer() {
   // (selection only) does not re-run the fetch or flash the skeleton.
   const {
     genres, country, language, rated, franchise, rewatch, title, director, actor,
-    yearRange, releaseYearRange, runtimeRange, ratingRange,
+    yearRange, releaseYearRange, runtimeRange, ratingRange, votesRange,
   } = dashFilters;
   const recFilters = useMemo<Filters>(
     () => ({
@@ -194,9 +194,10 @@ export function RecommendDrawer() {
       franchise,
       runtimeRange,
       ratingRange,
+      votesRange,
       selection: null,
     }),
-    [genres, country, language, rated, franchise, rewatch, title, director, actor, yearRange, releaseYearRange, runtimeRange, ratingRange],
+    [genres, country, language, rated, franchise, rewatch, title, director, actor, yearRange, releaseYearRange, runtimeRange, ratingRange, votesRange],
   );
 
   useEffect(() => {
