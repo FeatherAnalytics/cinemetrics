@@ -1,7 +1,10 @@
 """Train film embeddings and export for the recommendation engine.
 
-Loads rated films from dim_film and candidates from dim_candidate,
-encodes features, and exports embeddings.json for upload to R2.
+Loads rated films from dim_film. Candidates come from the candidate_enrichment
+seed plus the cached TMDB details, not from dim_candidate, because that mart
+blanks title and release_year and both are needed as features here.
+
+Encodes features and exports embeddings.json for upload to R2.
 
 Skips training if source data hasn't changed (hash check).
 """
