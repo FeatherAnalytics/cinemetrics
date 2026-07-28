@@ -1,0 +1,64 @@
+{# Source for overview.md. Do not edit overview.md directly - run `make doc-stats`.
+
+   A template rather than the inline HTML-comment markers docs/ARCHITECTURE.md
+   uses, because dbt's docs renderer escapes HTML comments and prints them as
+   literal text on the published page. GitHub hides them; dbt does not. So the
+   generated overview.md has to come out free of markers entirely.
+
+   Placeholders are %%stat:name%%, filled by scripts/update_doc_stats.py. #}
+{% docs __overview__ %}
+
+# Cinemetrics — data model
+
+This is the dbt layer behind [featheranalytics.dev/cinemetrics](https://featheranalytics.dev/cinemetrics),
+a personal film analytics dashboard built from %%stat:years_word%% years of Letterboxd watch
+history: %%stat:watches%% viewings of %%stat:films%% films.
+
+## How to read this
+
+Use the **Project** tab to browse models as they sit on disk, or the **Database** tab to see
+them as DuckDB relations. Click the icon at the bottom-right of any model page for its lineage
+graph.
+
+## The layers
+
+Each layer is its own schema, so the **Database** tab groups them the way the pipeline runs.
+
+- **Seeds** — committed CSVs, and the source of truth for the whole project. Split by where the
+  data came from: schema `letterboxd` holds `film_log` (watch events) and `watchlist`, while
+  schema `enrichment` holds `film_enrichment` (attributes for watched films) and
+  `candidate_enrichment` (the recommendation pool). The DuckDB database is rebuilt from these on
+  every run and is never persisted.
+- **Staging** (schema `staging`, `stg_*`, views) — typing, cleaning, and derived columns. One
+  staging model per seed, no joins.
+- **Marts** (schema `marts`, tables) — `dim_film` (one row per film), `fct_watches` (one row per
+  watch event), `dim_candidate` (one row per unwatched candidate, mutually exclusive with
+  `dim_film`).
+
+`tmdb_id` is the primary key throughout. `imdb_id` is kept for external linking, and its
+not-null test is a warning rather than an error because coverage is incomplete by design.
+
+## Things that might surprise you
+
+- **`liked` and `is_rewatch` are three-state.** The %%stat:sheet_era%% pre-Letterboxd rows
+  (imported from a spreadsheet) never recorded either field. `liked` is NULL for those;
+  `is_rewatch` is stored as `false`, which is *not* the same as "was a first viewing". Filter on
+  `liked is not null` to isolate rows that actually recorded these fields — otherwise the
+  affection rate is understated by %%stat:affection_delta%% points and the rewatch rate by
+  %%stat:rewatch_delta%%.
+- **Ratings use two scales.** `rating_100` is 0–100 and is the authoritative one.
+  `star_rating` is 0–5, derived as `rating_100 / 20` where the source did not supply it. The
+  factor of exactly 20 is measured across the %%stat:seed_rows_both%% rows that arrived carrying
+  both values, not assumed.
+- **"Rewatches" and "returns" are different counts.** %%stat:flagged_rewatches%% rows are flagged
+  as rewatches, but %%stat:flagged_once%% of those are films whose first viewing predates the
+  dataset, so they appear only once. Counting actual return visits gives %%stat:returns%% returns
+  across %%stat:films_with_returns%% films.
+- **Franchises are curated, not inferred.** The `franchise_mapping()` macro rolls TMDB
+  collections up into umbrella franchises (the MCU, for instance) by collection, by
+  `tmdb_id`, or by director.
+
+Full architecture notes, including the ingestion and deployment pipeline, are in
+[`docs/ARCHITECTURE.md`](https://github.com/FeatherAnalytics/cinemetrics/blob/main/docs/ARCHITECTURE.md).
+
+{% enddocs %}

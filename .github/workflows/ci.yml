@@ -46,6 +46,12 @@ jobs:
         working-directory: transform
       - run: uv run dbt build --profiles-dir .
         working-directory: transform
+      # pytest runs here rather than in `lint` on purpose: tests/test_doc_stats.py
+      # asserts against the built marts and skips itself when the DuckDB file is
+      # absent, so running it before dbt would quietly test nothing.
+      - run: uv run pytest
+      - name: Check doc figures match the data
+        run: uv run python scripts/update_doc_stats.py --check
 
   web:
     runs-on: ubuntu-latest
