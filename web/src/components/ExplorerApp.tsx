@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ExplorerProvider, useExplorer } from "@/lib/store";
+import { eyebrow, summaryLine } from "@/lib/summary";
 import { RecommendProvider, useRecommend } from "@/lib/recommendStore";
 import { RecommendDrawer } from "@/components/RecommendDrawer";
 import { FilterBar } from "@/components/FilterBar";
@@ -360,16 +361,6 @@ const CHART_SECTIONS: ChartSection[] = [
   },
 ];
 
-// Small spans read better as words ("Seven years"); past twelve, digits win.
-const SPAN_WORDS = [
-  "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
-  "Ten", "Eleven", "Twelve",
-];
-
-function spanWord(n: number): string {
-  return SPAN_WORDS[n] ?? String(n);
-}
-
 function Explorer() {
   const { storyFocus, activeStory, films, yearBounds, heartLens } = useExplorer();
   const { state: recState } = useRecommend();
@@ -447,17 +438,17 @@ function Explorer() {
     <main className="mx-auto w-full max-w-7xl px-6 py-10">
       <header className="mb-6">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-[#67655f]">
-          a personal film log · {startYear}–{endYear}
+          {eyebrow(startYear, endYear)}
         </p>
         <h1 className="font-display text-4xl font-bold tracking-tight text-[#0b0b0b]">
           cinemetrics<span style={{ color: "#c01023" }}>.</span>
         </h1>
-        {/* No instruction, and no counts: the stat bar prints the watch total a few
-            inches below, and telling a reader to tap a chip spends a line on
-            something the chip's own arrow already says. */}
+        {/* Same sentence the share preview uses, from lib/summary. No instruction
+            and no watch total: the stat bar prints that a few inches below, and
+            telling a reader to tap a chip spends a line on something the chip's
+            own arrow already says. */}
         <p className="mt-2 max-w-2xl text-sm text-[#3d3c38]">
-          {spanWord(years)} {years === 1 ? "year" : "years"} and {films.length} films, scored
-          on my own scale and lined up against the critics.
+          {summaryLine(years, films.length)}
         </p>
         <div className="mt-3">
           <StoryChips />
