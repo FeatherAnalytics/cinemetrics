@@ -7,6 +7,10 @@ on:
 
 permissions:
   contents: write
+  # `Trigger deploy` dispatches deploy.yml, which needs actions:write. Declaring
+  # `permissions` at all drops every unlisted scope to none, so contents:write
+  # alone made that step 403 while the rest of the pipeline succeeded.
+  actions: write
 
 jobs:
   update:
