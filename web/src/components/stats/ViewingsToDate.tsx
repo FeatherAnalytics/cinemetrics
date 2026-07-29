@@ -50,7 +50,7 @@ const LEG_VAL_W = 26; // the count, right aligned
 export function ViewingsToDate() {
   const { filtered, filters, setSelection } = useExplorer();
   const { tokens } = useTheme();
-  const FADE = tokens.ink.grid;
+  const FADE = tokens.ink.mark;
   const [hover, setHover] = useState<number | null>(null);
   const [ref, W] = useWidth(W0, W_MIN);
   const accent = accentFor(filters.genres, tokens);

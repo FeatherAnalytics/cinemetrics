@@ -84,7 +84,7 @@ export function CategoryBars({
   showMedian?: boolean;
 }) {
   const { tokens } = useTheme();
-  const FADE = tokens.ink.grid;
+  const FADE = tokens.ink.mark;
   const MID = tokens.surface.well;
 
   // Width tracks the column, height is fixed: there is no viewBox, so one user

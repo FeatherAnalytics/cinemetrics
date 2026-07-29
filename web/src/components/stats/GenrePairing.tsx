@@ -60,7 +60,7 @@ function densityColor(share: number, accent: string, fade: string): string {
 export function GenrePairing() {
   const { filtered, filters, setSelection } = useExplorer();
   const { tokens } = useTheme();
-  const FADE = tokens.ink.grid;
+  const FADE = tokens.ink.mark;
   const MID = tokens.surface.well;
   const [ref, W] = useWidth(720);
   const accent = accentFor(filters.genres, tokens);

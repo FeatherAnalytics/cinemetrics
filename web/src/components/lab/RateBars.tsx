@@ -97,7 +97,7 @@ export function RateBars({
   const { tokens } = useTheme();
   // Chrome gray for the complement. Never a genre color, so "not hearted" cannot
   // read as a category, and never named "other": that word is a genre here.
-  const REST = tokens.ink.grid;
+  const REST = tokens.ink.mark;
   const NO_DATA = tokens.surface.well;
   const [ref, W] = useWidth(W0, W_MIN);
   // MB carries two rows: the category label, then the count row under it.

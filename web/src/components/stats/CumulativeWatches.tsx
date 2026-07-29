@@ -40,7 +40,7 @@ type Band = {
 export function CumulativeWatches() {
   const { all, filtered, filters } = useExplorer();
   const { tokens } = useTheme();
-  const FADE = tokens.ink.grid;
+  const FADE = tokens.ink.mark;
   const [hover, setHover] = useState<number | null>(null);
   const [ref, W] = useWidth(W0, W_MIN);
 

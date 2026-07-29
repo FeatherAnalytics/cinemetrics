@@ -95,6 +95,16 @@ export const INK = {
   secondary: "#3d3c38",
   muted: "#67655f",
   grid: "#b3b1a6",
+  /**
+   * The neutral fill for a mark carrying no categorical colour — a bar in a
+   * univariate chart, a faded non-highlighted category.
+   *
+   * Separate from `grid` even though they match here, because the two want
+   * opposite things on a dark ground: a gridline should recede almost to the
+   * background, while a bar has to stay clearly visible and carry a legible
+   * knocked-out value label on top of it.
+   */
+  mark: "#b3b1a6",
   axis: "#7c7a71",
   // Chart marks sit on the CARD, not the page ground — these are the fills that
   // punch a hole in a mark, so they have to match what is behind it.
@@ -154,6 +164,10 @@ export const DARK = {
     secondary: "#b6b3a9",
     muted: "#86837a",
     grid: "#3a3833",
+    // Lifted well clear of `grid`. A bar at the gridline tone is nearly
+    // invisible on the dark card, and the knocked-out value label sitting on it
+    // falls to about 1.6:1 — unreadable.
+    mark: "#78746a",
     axis: "#5c5a53",
     surface: "#1c1b17",
     plane: "#1c1b17",

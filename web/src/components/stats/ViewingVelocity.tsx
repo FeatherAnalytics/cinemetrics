@@ -82,7 +82,7 @@ function bucketSpan(dates: string[], grain: Grain): string[] {
 export function ViewingVelocity() {
   const { all, filtered, filters, setSelection } = useExplorer();
   const { tokens } = useTheme();
-  const FADE = tokens.ink.grid;
+  const FADE = tokens.ink.mark;
   const MID = tokens.surface.well;
   const [grain, setGrain] = useState<Grain>("month");
   const [kind, setKind] = useState<Kind>("all");

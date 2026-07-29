@@ -54,7 +54,7 @@ type Row = BoxBounds & { genre: GenreKey; n: number; watches: EnrichedWatch[] };
 export function RatingsByGenre() {
   const { filtered, filters, setSelection } = useExplorer();
   const { tokens } = useTheme();
-  const FADE = tokens.ink.grid;
+  const FADE = tokens.ink.mark;
   const [ref, W] = useWidth(W0, W_MIN);
   const accent = accentFor(filters.genres, tokens);
   const bySecondary = filters.genres.size > 0;
