@@ -59,7 +59,7 @@ export function WatchlistScores() {
               )}% of the watchlist`
           : ""}
       </p>
-      <CategoryBars bars={bars} onHover={setHover} barLabel="value" />
+      <CategoryBars bars={bars} onHover={setHover} barLabel="value" showMedian={false} />
       <ChartTakeaway>
         {median != null && `median ${median.toFixed(1)}★ · `}
         TMDB audience score

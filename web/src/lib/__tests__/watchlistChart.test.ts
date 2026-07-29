@@ -124,14 +124,25 @@ describe("genreBars", () => {
     // anything outside the five-slot scale takes the neutral.
     const bars = genreBars([
       film({ genres: ["Horror", "Mystery"] }),
-      film({ genres: ["Horror", "Science Fiction"] }),
+      film({ genres: ["Horror", "Sci-Fi"] }),
     ]);
     const byKey = new Map(bars.map((b) => [b.key, b]));
     expect(byKey.get("Horror")!.color).toBe(GENRE_COLORS.Horror);
-    for (const k of ["Mystery", "Science Fiction"]) {
+    for (const k of ["Mystery", "Sci-Fi"]) {
       expect(byKey.get(k)!.genre).toBe("Other");
       expect(byKey.get(k)!.color).toBe(GENRE_COLORS.Other);
     }
+  });
+
+  it("folds TMDB's spelling of science fiction into OMDb's", () => {
+    // The pipeline settles this upstream, but a stale export could still carry
+    // the old spelling, and two bars for one genre is the visible failure.
+    const bars = genreBars([
+      film({ genres: ["Science Fiction"] }),
+      film({ genres: ["Sci-Fi"] }),
+    ]);
+    expect(bars).toHaveLength(1);
+    expect(bars[0]).toMatchObject({ key: "Sci-Fi", count: 2 });
   });
 
   it("still colours a COUNTRY by its dominant genre, which is where that rule belongs", () => {

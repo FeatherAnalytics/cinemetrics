@@ -35,19 +35,19 @@ export const GENRE_KEYS: GenreKey[] = [...GENRE_ORDER, "Other"];
 /**
  * One spelling for genres the two sources name differently.
  *
- * Watched films take their genres from OMDb, watchlist films from TMDB, and the
- * two vocabularies agree on everything except science fiction: OMDb writes
- * "Sci-Fi" (68 watched films), TMDB writes "Science Fiction" (25 on the list).
- * Any join by genre name therefore missed that pair entirely — the watchlist's
- * Science Fiction row showed no rating deviation at all, not because nothing had
- * been watched but because the 68 films were filed under another name.
+ * The split was OMDb's "Sci-Fi" against TMDB's "Science Fiction", and it is now
+ * settled UPSTREAM: transform/macros/canonical_genres.sql rewrites both halves
+ * to "Sci-Fi" in staging, so the exported data carries one spelling and this map
+ * matches nothing in practice.
  *
- * TMDB's spelling wins because it is what the watchlist charts print. Genres
- * unique to one source (OMDb's Biography, Film-Noir, Short) are left alone:
- * there is nothing on the other side to join them to.
+ * It stays as a guard rather than being deleted. The export is a build artefact
+ * a reader may hold a stale copy of, and a chart that silently shows no
+ * deviation is a harder failure to notice than one that quietly agrees with the
+ * pipeline. Genres unique to one source (OMDb's Biography, Film-Noir, Short) are
+ * left alone: there is nothing on the other side to join them to.
  */
 const GENRE_ALIASES: Record<string, string> = {
-  "Sci-Fi": "Science Fiction",
+  "Science Fiction": "Sci-Fi",
 };
 
 export function canonicalGenre(name: string): string {

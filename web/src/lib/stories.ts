@@ -740,14 +740,9 @@ function computeWatchlist(
             )}% of the watchlist.`,
           }
         : {}),
-      wlscores:
-        "Not my ratings — nothing here has been watched. This is TMDB's crowd, on my scale, so the shape can be read against How I rate.",
+      wlscores: "TMDB ratings scaled to 5 stars",
       wlorigin:
         "",
-      // The blurb explains the encoding, so the note carries what the shape
-      // itself says rather than restating how to read it.
-      wlbarcode:
-        "The columns thicken toward the present, but the tallest single year still holds only a handful — this is a wide list, not a deep one.",
     },
   };
 }

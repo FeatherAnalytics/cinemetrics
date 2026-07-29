@@ -19,13 +19,6 @@ const STACK_ORDER = [...GENRE_ORDER, "Other"] as GenreKey[];
  * The watchlist by release year and genre: one equal-width column per year, one
  * brick per film, stacked.
  *
- * This replaced a true time axis, where each film sat at its exact release date.
- * That was honest about spacing and wrong about everything else: 30 films from
- * the 2020s had to share the six pixels their six years were worth, so they were
- * nudged sideways until the run spilled past the plot and the recent end of the
- * chart looked stretched relative to the sparse decades before it. The distortion
- * was an artefact of the layout, not a fact about the watchlist.
- *
  * Every year now gets the same width whether it holds seven films or none, so
  * column HEIGHT is a clean count and the eye can compare 1974 with 2024 directly.
  * Empty years stay in as blank columns — the axis is time, and closing the gaps
@@ -189,7 +182,7 @@ export function WatchlistBarcode() {
           : ""}
       </p>
       <ChartTakeaway>
-        one column per year, {years[0]}–{years[years.length - 1]} · click a film to open it
+        one column per year, {years[0]}–{years[years.length - 1]}
       </ChartTakeaway>
     </figure>
   );

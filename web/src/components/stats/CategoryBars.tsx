@@ -35,6 +35,7 @@ export function CategoryBars({
   accent = "#c01023",
   barLabel = "value",
   onHover,
+  showMedian = true,
 }: {
   bars: CategoryBar[];
   /** Indices given a flat backdrop tint, e.g. the weekend. */
@@ -72,6 +73,16 @@ export function CategoryBars({
    * simply has no hover.
    */
   onHover?: (index: number | null) => void;
+  /**
+   * Draw the median tick. On by default.
+   *
+   * Off for a chart whose x axis is already a value scale: the watchlist's
+   * ratings histogram runs 1★ to 5★, so a median drawn across the COUNT axis
+   * marks the middle of the bar heights, which is a fact about the chart's own
+   * shape rather than about the ratings. The median that matters there is a
+   * position along x, and it goes in the takeaway instead.
+   */
+  showMedian?: boolean;
 }) {
   // Width tracks the column, height is fixed: there is no viewBox, so one user
   // unit is one pixel and the type stays the same size at every width.
@@ -97,7 +108,7 @@ export function CategoryBars({
   // The gutter sizes to its widest label rather than a fixed number: axis labels
   // are caller-formatted, so "median 64" and "median 3.7" differ enough that a
   // fixed width clipped the longer one.
-  const axisLabels = [fmt(0), fmt(peak), `median ${fmt(median)}`];
+  const axisLabels = showMedian ? [fmt(0), fmt(peak), `median ${fmt(median)}`] : [fmt(0), fmt(peak)];
   const ML = Math.max(34, Math.max(...axisLabels.map((l) => l.length)) * 4.7 + 10);
 
   const plotW = W - ML - MR;
@@ -187,26 +198,30 @@ export function CategoryBars({
           </g>
         ))}
 
-        <line
-          x1={ML}
-          y1={y(median)}
-          x2={W - MR}
-          y2={y(median)}
-          stroke={INK.muted}
-          strokeWidth={1}
-          strokeDasharray="4 3"
-          pointerEvents="none"
-        />
-        <text
-          x={ML - 6}
-          y={y(median) + 3}
-          textAnchor="end"
-          fontSize={8}
-          fill={INK.muted}
-          pointerEvents="none"
-        >
-          median {fmt(median)}
-        </text>
+        {showMedian && (
+          <>
+            <line
+              x1={ML}
+              y1={y(median)}
+              x2={W - MR}
+              y2={y(median)}
+              stroke={INK.muted}
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              pointerEvents="none"
+            />
+            <text
+              x={ML - 6}
+              y={y(median) + 3}
+              textAnchor="end"
+              fontSize={8}
+              fill={INK.muted}
+              pointerEvents="none"
+            >
+              median {fmt(median)}
+            </text>
+          </>
+        )}
 
         {bars.map((b, i) => (
           <text
