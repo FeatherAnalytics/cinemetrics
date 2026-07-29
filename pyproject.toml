@@ -23,6 +23,9 @@ dependencies = [
     # fails verification on such a machine. Injected lazily in ingest/http.py, so
     # it is inert wherever the bundled roots already work.
     "truststore>=0.9",
+    # Sampling poster art down to the colour column the landing-page barcode
+    # draws. Only used at ingest time; nothing at request time touches images.
+    "pillow>=11",
 ]
 
 [tool.setuptools.packages.find]

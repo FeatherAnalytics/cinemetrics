@@ -120,6 +120,34 @@ def omdb_get(imdb_id: str, *, api_key: str | None, fetch: Fetch = requests.get) 
     return _get_json(OMDB_BASE, {"i": imdb_id, "apikey": api_key}, fetch=fetch)
 
 
+def get_bytes(
+    url: str, *, fetch: Fetch = requests.get, attempts: int = 3, timeout: int = 20
+) -> bytes:
+    """GET a binary asset, with the same OS-trust recovery as the JSON helpers.
+
+    Deliberately not routed through ``_get_json``: the poster CDN is a static
+    file host with no API key, no 401 semantics and no 429 budget, so the parts
+    of that function worth sharing are the trust-store retry and the backoff,
+    not its response handling.
+
+    Returns b"" when every attempt fails, mirroring ``_get_json``'s empty-dict
+    contract — the caller decides whether an absent asset is fatal.
+    """
+    for attempt in range(attempts):
+        try:
+            resp = fetch(url, timeout=timeout)
+            if resp.status_code == 200:
+                return resp.content
+        except requests.exceptions.SSLError:
+            # Must be caught before RequestException, which is its parent.
+            if _ensure_os_trust():
+                continue
+        except requests.RequestException:
+            pass
+        time.sleep(1 + attempt)
+    return b""
+
+
 def cached_json(
     cache_file: Path,
     produce: Callable[[], Any],
