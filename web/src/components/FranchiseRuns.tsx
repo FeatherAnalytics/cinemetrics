@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
+import { GENRE_COLORS, INK, primaryGenre, UI } from "@/lib/palette";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { trunc, fmt1 } from "@/lib/format";
 import type { EnrichedWatch } from "@/lib/types";
@@ -158,7 +158,7 @@ export function FranchiseRuns() {
           const labelY = rowTop + ROWH / 2;
           return (
             <g key={r.name}>
-              {rowSel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={ACCENT} fillOpacity={0.06} />}
+              {rowSel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={UI.selected} fillOpacity={0.06} />}
               <text
                 x={LABEL - 8}
                 y={labelY}
@@ -186,7 +186,7 @@ export function FranchiseRuns() {
                     p.w.rating == null ? INK.surface : GENRE_COLORS[primaryGenre(p.w.film)]
                   }
                   fillOpacity={(dim ? 0.3 : 0.9) * (heartLens ? heartDim(p.w) : 1)}
-                  stroke={p.w.tmdb_id === selectedId ? ACCENT : p.w.rating == null ? INK.muted : INK.surface}
+                  stroke={p.w.tmdb_id === selectedId ? UI.selected : p.w.rating == null ? INK.muted : INK.surface}
                   strokeWidth={p.w.tmdb_id === selectedId ? 1.5 : p.w.rating == null ? 1 : 0.5}
                   style={{ cursor: "pointer" }}
                   onMouseEnter={() => setHover({ x: p.x, y: p.y, w: p.w })}

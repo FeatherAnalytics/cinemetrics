@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useExplorer } from "@/lib/store";
 import { useRecommend } from "@/lib/recommendStore";
-import { ACCENT, GENRE_COLORS, GENRE_KEYS } from "@/lib/palette";
+import { ACCENT, GENRE_COLORS, GENRE_KEYS, UI } from "@/lib/palette";
 import { RangeSlider } from "./RangeSlider";
 import type { TextField } from "@/lib/store";
 
@@ -272,8 +272,8 @@ export function FilterBar() {
               onClick={() => setRewatch(r)}
               className="px-3 py-1 capitalize transition"
               style={{
-                background: filters.rewatch === r ? "#c01023" : "transparent",
-                color: filters.rewatch === r ? "#f7f6f3" : "#3d3c38",
+                background: filters.rewatch === r ? UI.active : "transparent",
+                color: filters.rewatch === r ? UI.activeText : "#3d3c38",
               }}
             >
               {r === "first" ? "first watch" : r}

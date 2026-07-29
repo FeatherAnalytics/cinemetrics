@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
+import { GENRE_COLORS, INK, primaryGenre, UI } from "@/lib/palette";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { isSolstice, SunMarker } from "@/lib/solstice";
 import { trunc } from "@/lib/format";
@@ -192,7 +192,7 @@ export function RewatchCadence() {
             {band.rows.map((r, i) => {
               const rowTop = band.startY + i * ROWH;
               const sel = r.tmdb_id === selectedId;
-              const color = sel ? ACCENT : GENRE_COLORS[primaryGenre(r.film)];
+              const color = sel ? UI.selected : GENRE_COLORS[primaryGenre(r.film)];
               const dim = selectedId != null && !sel;
               const pts = r.watches.map((w) => ({
                 x: x(w.d.getTime()),
@@ -203,7 +203,7 @@ export function RewatchCadence() {
               const labelY = rowTop + ROWH / 2;
               return (
                 <g key={r.tmdb_id} style={{ cursor: "pointer" }} onClick={() => setSelected(r.tmdb_id)}>
-                  {sel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={ACCENT} fillOpacity={0.06} />}
+                  {sel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={UI.selected} fillOpacity={0.06} />}
                   <text
                     x={LABEL - 8}
                     y={labelY}

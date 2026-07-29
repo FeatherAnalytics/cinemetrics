@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ACCENT, INK } from "@/lib/palette";
+import { INK, UI } from "@/lib/palette";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { deltaLabel, type RatingDelta } from "@/lib/ratingDelta";
 import type { RankedBar } from "@/lib/watchlistChart";
@@ -45,7 +45,7 @@ export function RankedBars({
   bars: RankedBar[];
   /** Films in the current view, for the hover readout's denominator. */
   total: number;
-  /** Key currently driving the rail, drawn in the accent. */
+  /** Key currently driving the rail, marked with the selection outline. */
   active?: string | null;
   /**
    * Cross-filter handler. Omitted for charts whose category has no matching rail
@@ -142,7 +142,7 @@ export function RankedBars({
               <text
                 x={LABEL_W - 8}
                 y={y + BAR_H / 2}
-                fill={isActive ? ACCENT : INK.secondary}
+                fill={isActive ? UI.selected : INK.secondary}
                 fontSize={12}
                 fontWeight={isActive ? 700 : 400}
                 textAnchor="end"
@@ -154,7 +154,7 @@ export function RankedBars({
               {/* Selection is an OUTLINE, not a recolour. The fill is the bar's
                   genre, and repainting it crimson to say "picked" threw that away
                   — the reader lost the one thing the colour was carrying at the
-                  exact moment they were focused on that row. The accent moves to
+                  exact moment they were focused on that row. Ink moves to
                   the stroke and the label instead, which is how CountryBars has
                   always marked its selection. */}
               <rect
@@ -164,7 +164,7 @@ export function RankedBars({
                 height={BAR_H}
                 fill={bar.color}
                 fillOpacity={isActive || isHover ? 0.95 : 0.72}
-                stroke={isActive ? ACCENT : "none"}
+                stroke={isActive ? UI.selected : "none"}
                 strokeWidth={isActive ? 1.75 : 0}
               />
 
@@ -195,7 +195,7 @@ export function RankedBars({
                     height={BAR_H}
                     fill={bar.color}
                     fillOpacity={isActive || isHover ? 0.95 : 0.72}
-                    stroke={isActive ? ACCENT : "none"}
+                    stroke={isActive ? UI.selected : "none"}
                     strokeWidth={isActive ? 1.75 : 0}
                   />
                   <text

@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
+import { ACCENT, GENRE_COLORS, INK, primaryGenre, UI } from "@/lib/palette";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { isSolstice, SunMarker } from "@/lib/solstice";
 import { isFav } from "@/lib/fourFavs";
@@ -176,7 +176,7 @@ export function SwimLaneChart() {
             r={p.r}
             fill={ring ? "none" : p.color}
             fillOpacity={ring ? 0 : p.op}
-            stroke={p.sel ? ACCENT : ring ? p.color : "none"}
+            stroke={p.sel ? UI.selected : ring ? p.color : "none"}
             strokeWidth={p.sel ? 2 : ring ? 1 : 0}
             strokeOpacity={ring ? p.op : 1}
             style={{ cursor: "pointer" }}

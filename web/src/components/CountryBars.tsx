@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK } from "@/lib/palette";
+import { GENRE_COLORS, INK, UI } from "@/lib/palette";
 import { countryName } from "@/lib/countries";
 import { languageName } from "@/lib/languages";
 import { aggregateOrigin, type CountryRow, type OriginDimension } from "@/lib/countryStats";
@@ -215,7 +215,7 @@ export function CountryBars() {
                 height={BAR_H}
                 fill={GENRE_COLORS[row.genre]}
                 fillOpacity={isHover || sel ? 0.9 : 0.72}
-                stroke={sel ? ACCENT : "none"}
+                stroke={sel ? UI.selected : "none"}
                 strokeWidth={sel ? 1.75 : 0}
               />
 
@@ -245,7 +245,7 @@ export function CountryBars() {
                     height={BAR_H}
                     fill={GENRE_COLORS[row.genre]}
                     fillOpacity={isHover || sel ? 0.9 : 0.72}
-                    stroke={sel ? ACCENT : "none"}
+                    stroke={sel ? UI.selected : "none"}
                     strokeWidth={sel ? 1.75 : 0}
                   />
                   {/* At the growing end of its own bar, whichever way that is, so the

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, INK } from "@/lib/palette";
+import { ACCENT, INK, UI } from "@/lib/palette";
 import { useDragRect, watchKey } from "@/lib/brush";
 import { useWidth } from "@/lib/useWidth";
 import { trunc } from "@/lib/format";
@@ -253,8 +253,8 @@ export function RollingRating() {
               aria-pressed={dim === d.key}
               className="px-3 py-1 capitalize transition"
               style={{
-                background: dim === d.key ? ACCENT : "transparent",
-                color: dim === d.key ? INK.surface : INK.secondary,
+                background: dim === d.key ? UI.active : "transparent",
+                color: dim === d.key ? UI.activeText : INK.secondary,
               }}
             >
               {d.label}

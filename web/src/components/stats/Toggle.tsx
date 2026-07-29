@@ -1,6 +1,6 @@
 "use client";
 
-import { ACCENT, INK } from "@/lib/palette";
+import { INK, UI } from "@/lib/palette";
 
 /**
  * The pill switcher, matching the one on "Warming up or wearing out".
@@ -34,8 +34,8 @@ export function Toggle<T extends string>({
           aria-pressed={value === o}
           className="px-3 py-0.5 capitalize transition"
           style={{
-            background: value === o ? ACCENT : "transparent",
-            color: value === o ? INK.surface : INK.secondary,
+            background: value === o ? UI.active : "transparent",
+            color: value === o ? UI.activeText : INK.secondary,
           }}
         >
           {o}

@@ -19,7 +19,7 @@ import {
   type Reason,
 } from "@/lib/explainClient";
 import { FilmCard } from "./FilmCard";
-import { ACCENT, INK } from "@/lib/palette";
+import { ACCENT, INK, UI } from "@/lib/palette";
 
 const R2_URL = process.env.NEXT_PUBLIC_R2_URL || "";
 
@@ -267,9 +267,9 @@ export function RecommendDrawer() {
 
   const langActive = state.filters.language != null;
   const pill = (active: boolean) => ({
-    background: active ? ACCENT : "transparent",
-    color: active ? INK.surface : INK.secondary,
-    borderColor: active ? ACCENT : "rgba(11,11,11,0.2)",
+    background: active ? UI.active : "transparent",
+    color: active ? UI.activeText : INK.secondary,
+    borderColor: active ? UI.active : "rgba(11,11,11,0.2)",
   });
 
   return (

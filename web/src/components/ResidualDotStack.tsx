@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
+import { GENRE_COLORS, INK, primaryGenre, type GenreKey, UI } from "@/lib/palette";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { computeResiduals, type FilmResidual } from "@/lib/stats";
 import { ChartTakeaway } from "./ChartTakeaway";
@@ -223,7 +223,7 @@ export function ResidualDotStack() {
               r={sel ? dotR + 1.2 : dotR}
               fill={fill}
               fillOpacity={(sel ? 1 : hasSel ? 0.25 : 0.85) * fade}
-              stroke={sel ? ACCENT : INK.surface}
+              stroke={sel ? UI.selected : INK.surface}
               strokeWidth={sel ? 1.5 : 0.4}
               style={{ cursor: "pointer" }}
               {...handlers}
