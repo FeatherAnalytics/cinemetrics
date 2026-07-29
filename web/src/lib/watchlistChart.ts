@@ -12,6 +12,7 @@ import {
   primaryGenre,
   type GenreKey,
 } from "./palette";
+import { STAR_BINS } from "./likedChart";
 import type { WatchlistFilm } from "./types";
 
 export type RankedBar = {
@@ -178,4 +179,47 @@ export function watchlistSummary(films: WatchlistFilm[]) {
     // every row currently carries a year, and the two agree.
     preMillenniumShare: films.length ? preMillennium / films.length : 0,
   };
+}
+
+export type StarBin = { stars: number; count: number };
+
+/**
+ * Watchlist films binned onto the site's half-star scale.
+ *
+ * The score is TMDB's audience average, NOT one of mine — nothing here has been
+ * watched. It is also not IMDb's: the seed's imdb_rating comes from OMDb, which
+ * covers 34 of the 136 films, while TMDB's own score covers 130. A chart drawn
+ * from the OMDb column would describe a quarter of the list while looking like
+ * it described all of it.
+ *
+ * TMDB scores 0-10, so halving lands on the same 0-5 star axis every other
+ * rating chart here uses, and rounding to the nearest half star puts a film in
+ * the bin it would occupy if it were one of mine. That is the whole point of
+ * reusing the scale: the shape can be read straight against "How I rate".
+ *
+ * Films with no score are dropped rather than binned at zero — a film nobody has
+ * voted on has no opinion attached, and half a star is an opinion.
+ */
+export function tmdbStarBins(films: WatchlistFilm[]): StarBin[] {
+  const counts = new Map<number, number>();
+  for (const b of STAR_BINS) counts.set(b, 0);
+  for (const f of films) {
+    if (f.tmdb_rating == null) continue;
+    const stars = Math.round(f.tmdb_rating / 2 / 0.5) * 0.5;
+    const clamped = Math.min(Math.max(stars, STAR_BINS[0]), STAR_BINS[STAR_BINS.length - 1]);
+    counts.set(clamped, (counts.get(clamped) ?? 0) + 1);
+  }
+  return STAR_BINS.map((stars) => ({ stars, count: counts.get(stars) ?? 0 }));
+}
+
+/** Median TMDB score across the films that carry one, in stars. */
+export function medianTmdbStars(films: WatchlistFilm[]): number | null {
+  const vals = films
+    .map((f) => f.tmdb_rating)
+    .filter((v): v is number => v != null)
+    .sort((a, b) => a - b);
+  if (vals.length === 0) return null;
+  const mid = Math.floor(vals.length / 2);
+  const med = vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
+  return med / 2;
 }

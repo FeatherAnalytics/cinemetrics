@@ -75,6 +75,15 @@ export type WatchlistFilm = {
   director: string | null;
   imdb_rating: number | null;
   imdb_votes: number | null;
+  /**
+   * TMDB's audience score, 0-10, and the votes behind it.
+   *
+   * Kept alongside the OMDb-sourced imdb_* pair rather than replacing it because
+   * they are different measurements from different crowds. This one is here for
+   * coverage: OMDb answers for 34 of the 136 films on the list, TMDB for 130.
+   */
+  tmdb_rating: number | null;
+  tmdb_votes: number | null;
 };
 
 // `watchlist` is optional so a payload written before dim_watchlist existed —

@@ -22,6 +22,11 @@ select
     title,
     -- Empty for the few films TMDB serves no date for; try_cast keeps those NULL
     -- rather than failing the build.
-    try_cast(release_date as date) as release_date
+    try_cast(release_date as date) as release_date,
+    -- TMDB's own audience score, 0-10, and the votes behind it. Distinct from
+    -- imdb_rating/imdb_votes, which come from OMDb and cover far less of the
+    -- pool; see scripts/backfill_tmdb_scores.py.
+    try_cast(tmdb_rating as double)  as tmdb_rating,
+    try_cast(tmdb_votes as integer)  as tmdb_votes
 from {{ ref('candidate_enrichment') }}
 where tmdb_id is not null

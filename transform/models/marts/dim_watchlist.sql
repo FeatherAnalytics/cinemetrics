@@ -31,7 +31,9 @@ with enrichment as (
         coalesce(f.collection, c.collection)                     as collection,
         -- Only the candidate seed carries a release DATE; film_enrichment has
         -- never needed one because dim_film takes its year from the watch log.
-        c.release_date
+        c.release_date,
+        c.tmdb_rating,
+        c.tmdb_votes
     from {{ ref('stg_film_enrichment') }} f
     full outer join {{ ref('stg_candidate_enrichment') }} c using (tmdb_id)
 ),
@@ -66,6 +68,8 @@ select
     e.rt_rating,
     e.imdb_rating,
     e.imdb_votes,
+    e.tmdb_rating,
+    e.tmdb_votes,
     e.production_countries,
     e.original_language,
     e.collection

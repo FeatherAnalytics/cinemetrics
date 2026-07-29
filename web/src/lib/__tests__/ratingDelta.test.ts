@@ -132,13 +132,15 @@ describe("ratingDeltaByKey", () => {
 });
 
 describe("deltaLabel", () => {
-  it("signs positives with + and negatives with a true minus", () => {
-    expect(deltaLabel(4.4)).toBe("+4");
-    expect(deltaLabel(-7.2)).toBe("−7");
+  it("signs positives with + and negatives with a true minus, in percent", () => {
+    // Percent, not bare points: the rating scale is 0-100, and the heart-rate
+    // deviation on the main page already reads this way.
+    expect(deltaLabel(4.4)).toBe("+4%");
+    expect(deltaLabel(-7.2)).toBe("−7%");
   });
 
   it("prints an unsigned zero, so 'at my average' does not read as a direction", () => {
-    expect(deltaLabel(0)).toBe("0");
-    expect(deltaLabel(0.3)).toBe("0");
+    expect(deltaLabel(0)).toBe("0%");
+    expect(deltaLabel(0.3)).toBe("0%");
   });
 });

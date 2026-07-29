@@ -46,7 +46,8 @@ export type ChartId =
   | "wlgenres"
   | "wlkeywords"
   | "wlorigin"
-  | "wlbarcode";
+  | "wlbarcode"
+  | "wlscores";
 
 /**
  * Which group of charts a story puts on the page.
@@ -739,6 +740,8 @@ function computeWatchlist(
             )}% of the watchlist.`,
           }
         : {}),
+      wlscores:
+        "Not my ratings — nothing here has been watched. This is TMDB's crowd, on my scale, so the shape can be read against How I rate.",
       wlorigin:
         "",
       // The blurb explains the encoding, so the note carries what the shape

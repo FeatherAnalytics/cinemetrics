@@ -90,8 +90,18 @@ export function ratingDeltaByKey(
   return out;
 }
 
-/** Signed rating points, e.g. "+4" / "−7" / "0". */
+/**
+ * Signed, with a percent sign: "+4%" / "−7%" / "0%".
+ *
+ * The rating scale is 0-100, so a four-point gap IS four percentage points of
+ * it, and writing the unit matches how the other deviation on the site — the
+ * heart rate on "What travels well" — already reads. A bare "+4" beside it left
+ * two deviations in two notations for no reason a reader could see.
+ *
+ * Same shape as `ppLabel` in heartLens, including the true minus sign rather
+ * than a hyphen, so the two are indistinguishable at a glance.
+ */
 export function deltaLabel(delta: number): string {
   const r = Math.round(delta);
-  return `${r > 0 ? "+" : r < 0 ? "−" : ""}${Math.abs(r)}`;
+  return `${r > 0 ? "+" : r < 0 ? "−" : ""}${Math.abs(r)}%`;
 }

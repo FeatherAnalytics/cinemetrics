@@ -36,6 +36,7 @@ import { StatBar } from "@/components/StatBar";
 import { StoryAnnotation } from "@/components/StoryAnnotation";
 import { StoryChartNote } from "@/components/StoryChartNote";
 import { WatchlistBarcode } from "@/components/watchlist/WatchlistBarcode";
+import { WatchlistScores } from "@/components/watchlist/WatchlistScores";
 import { WatchlistGenres } from "@/components/watchlist/WatchlistGenres";
 import { WatchlistKeywords } from "@/components/watchlist/WatchlistKeywords";
 import { WatchlistOrigin } from "@/components/watchlist/WatchlistOrigin";
@@ -379,6 +380,20 @@ const CHART_SECTIONS: ChartSection[] = [
       </>
     ),
     Chart: WatchlistBarcode,
+  },
+  {
+    id: "wlscores",
+    sets: ["watchlist"],
+    title: "How the watchlist is rated",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        TMDB&rsquo;s audience score for each film on the list, halved onto my own
+        half-star axis so the shape reads against &ldquo;How I rate&rdquo;. Not my
+        ratings &mdash; nothing here has been watched yet.
+      </>
+    ),
+    Chart: WatchlistScores,
   },
   {
     id: "wlgenres",

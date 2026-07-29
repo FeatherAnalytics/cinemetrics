@@ -4,7 +4,9 @@ import {
   genreBars,
   keywordBars,
   languageBars,
+  medianTmdbStars,
   rankMulti,
+  tmdbStarBins,
   watchlistSummary,
 } from "../watchlistChart";
 import { filterWatchlist, type Filters } from "../store";
@@ -27,6 +29,8 @@ function film(over: Partial<WatchlistFilm> = {}): WatchlistFilm {
     director: null,
     imdb_rating: null,
     imdb_votes: null,
+    tmdb_rating: null,
+    tmdb_votes: null,
     ...over,
   };
 }
@@ -249,5 +253,54 @@ describe("filterWatchlist", () => {
   it("drops a film with no release year when a year range is set", () => {
     const undated = [film({ tmdb_id: 9, year: null })];
     expect(filterWatchlist(undated, { ...EMPTY, releaseYearRange: [1900, 2030] })).toHaveLength(0);
+  });
+});
+
+describe("tmdbStarBins", () => {
+  const at = (bins: ReturnType<typeof tmdbStarBins>, stars: number) =>
+    bins.find((b) => b.stars === stars)!.count;
+
+  it("halves the 0-10 score onto the half-star axis", () => {
+    // 7.0 out of 10 is 3.5 stars, which is the bin a 70 of mine would land in.
+    const bins = tmdbStarBins([film({ tmdb_rating: 7 })]);
+    expect(at(bins, 3.5)).toBe(1);
+  });
+
+  it("rounds to the nearest half star rather than dropping odd scores", () => {
+    // 7.17 -> 3.585 stars -> 3.5. A film must never vanish for scoring awkwardly.
+    const bins = tmdbStarBins([film({ tmdb_rating: 7.17 }), film({ tmdb_rating: 7.4 })]);
+    expect(at(bins, 3.5)).toBe(2);
+  });
+
+  it("keeps every bin, including the empty ones", () => {
+    // The axis is the full scale whatever the data does, so a gap reads as a gap.
+    const bins = tmdbStarBins([film({ tmdb_rating: 8 })]);
+    expect(bins).toHaveLength(9);
+    expect(at(bins, 1)).toBe(0);
+  });
+
+  it("drops films with no score instead of binning them at zero", () => {
+    // A film nobody has voted on has no opinion attached, and half a star is one.
+    const bins = tmdbStarBins([film({ tmdb_rating: null }), film({ tmdb_rating: 8 })]);
+    expect(bins.reduce((s, b) => s + b.count, 0)).toBe(1);
+  });
+
+  it("clamps a perfect 10 into the top bin rather than off the end", () => {
+    expect(at(tmdbStarBins([film({ tmdb_rating: 10 })]), 5)).toBe(1);
+  });
+});
+
+describe("medianTmdbStars", () => {
+  it("returns the median in stars, ignoring unscored films", () => {
+    const films = [
+      film({ tmdb_rating: 6 }),
+      film({ tmdb_rating: 8 }),
+      film({ tmdb_rating: null }),
+    ];
+    expect(medianTmdbStars(films)).toBe(3.5); // median score 7 -> 3.5 stars
+  });
+
+  it("is null when nothing carries a score", () => {
+    expect(medianTmdbStars([film({ tmdb_rating: null })])).toBeNull();
   });
 });

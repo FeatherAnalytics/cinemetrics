@@ -58,6 +58,8 @@ seeds:
       +schema: enrichment
       +column_types:
         tmdb_id: bigint
+        tmdb_rating: double
+        tmdb_votes: bigint
         imdb_id: varchar
         runtime: integer
         budget: bigint

@@ -98,7 +98,9 @@ def main() -> None:
             nullif(original_language, '') as language,
             director,
             imdb_rating,
-            imdb_votes
+            imdb_votes,
+            tmdb_rating,
+            tmdb_votes
         from marts.dim_watchlist
         order by added_date
         """,
