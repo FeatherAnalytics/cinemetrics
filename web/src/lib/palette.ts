@@ -96,8 +96,10 @@ export const INK = {
   muted: "#67655f",
   grid: "#b3b1a6",
   axis: "#7c7a71",
-  surface: "#f7f6f3",
-  plane: "#f7f6f3",
+  // Chart marks sit on the CARD, not the page ground — these are the fills that
+  // punch a hole in a mark, so they have to match what is behind it.
+  surface: SURFACE.card,
+  plane: SURFACE.card,
 };
 
 // The single accent — crimson. Used only for emphasis: selection, active

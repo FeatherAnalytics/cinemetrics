@@ -625,7 +625,15 @@ function Explorer() {
                       note block on secondary charts. Charts keep full width. */}
                   <StoryAnnotation target={id} />
                   <StoryChartNote target={id} />
-                  <Chart />
+                  <div
+                    className="rounded-md border p-4"
+                    style={{
+                      background: "var(--surface-card)",
+                      borderColor: "rgba(11,11,11,0.09)",
+                    }}
+                  >
+                    <Chart />
+                  </div>
                 </div>
               </section>
             ))}

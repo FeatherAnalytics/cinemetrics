@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
-/* Committed to a light surface (the Explorer is a tool; legibility wins). */
+/* Committed to a light surface (the Explorer is a tool; legibility wins).
+   Page ground is the recessed "well" tone; chart sections sit on the raised
+   "card" tone (--surface-card) so the page has depth without any chart
+   needing a colour. */
 :root {
-  --background: #f7f6f3;
+  --background: #eeece4;
+  --surface-card: #fdfdfb;
   --foreground: #0b0b0b;
   color-scheme: light;
 }
