@@ -263,7 +263,7 @@ export function RecommendDrawer() {
       ? `More like ${sourceFilm.title}`
       : state.mode === "genre-recommend" && state.genre
         ? `Recommended · ${state.genre}`
-        : "Recommended for you";
+        : "Recommended for me";
 
   const langActive = state.filters.language != null;
   const pill = (active: boolean) => ({

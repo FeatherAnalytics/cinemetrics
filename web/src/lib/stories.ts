@@ -740,7 +740,6 @@ function computeWatchlist(
             )}% of the watchlist.`,
           }
         : {}),
-      wlscores: "TMDB ratings scaled to 5 stars",
       wlorigin:
         "",
     },

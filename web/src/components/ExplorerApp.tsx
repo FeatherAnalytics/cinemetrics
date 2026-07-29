@@ -374,9 +374,7 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        One column per year at equal width, one brick per film, colored by genre. Column
-        height is the count, so years compare directly; a blank column is a year the
-        watchlist skips entirely.
+        One brick per film, colored by genre.
       </>
     ),
     Chart: WatchlistBarcode,
@@ -384,13 +382,11 @@ const CHART_SECTIONS: ChartSection[] = [
   {
     id: "wlscores",
     sets: ["watchlist"],
-    title: "How the watchlist is rated",
+    title: "Watchlist ratings",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        TMDB&rsquo;s audience score for each film on the list, halved onto my own
-        half-star axis so the shape reads against &ldquo;How I rate&rdquo;. Not my
-        ratings &mdash; nothing here has been watched yet.
+        TMDB&rsquo;s audience score for each film on the watchlist.
       </>
     ),
     Chart: WatchlistScores,
@@ -402,8 +398,7 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        How many watchlist films carry each genre. A film counts once in every genre
-        it carries, so the bars add up to more than the number of films.
+        How many watchlist films carry each genre.
       </>
     ),
     Chart: WatchlistGenres,
@@ -415,9 +410,7 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        Production country or original language. The left bar is
-        how many films are on the watchlist; the right is how far my rating for films I&rsquo;ve
-        already seen from there sits from my average.
+        Production country or original language.
       </>
     ),
     Chart: WatchlistOrigin,
@@ -429,8 +422,7 @@ const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        Keywords shared by three or more films on the list. The right track is how I
-        rate the films I&rsquo;ve already seen carrying that tag, against my average.
+        Keywords shared by three or more films on the list.
       </>
     ),
     Chart: WatchlistKeywords,
