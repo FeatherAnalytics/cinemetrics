@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useExplorer } from "@/lib/store";
 import { useRecommend } from "@/lib/recommendStore";
-import { ACCENT, GENRE_COLORS, GENRE_KEYS, UI } from "@/lib/palette";
+import { ACCENT, GENRE_COLORS, GENRE_KEYS, INK, UI } from "@/lib/palette";
 import { RangeSlider } from "./RangeSlider";
 import type { TextField } from "@/lib/store";
 
@@ -434,14 +434,17 @@ function FieldGroup({
         aria-expanded={open}
         className="flex items-center gap-1.5 text-left"
       >
-        <span aria-hidden className="text-[9px]" style={{ color: ACCENT }}>
+        <span aria-hidden className="text-[9px]" style={{ color: INK.muted }}>
           {open ? "▾" : "▸"}
         </span>
         {header}
         {!open && active && (
+          // Ink, not the accent. A small crimson dot here would sit in the same
+          // panel as the genre chips' small crimson dot, where crimson means
+          // Horror — two dots the same size and colour meaning different things.
           <span
             className="inline-block h-1.5 w-1.5 rounded-full"
-            style={{ background: ACCENT }}
+            style={{ background: UI.active }}
             aria-label="filter active"
           />
         )}
