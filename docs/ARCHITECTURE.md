@@ -95,16 +95,21 @@ flowchart LR
   subgraph marts[marts]
     dim_candidate
     dim_film
+    dim_watchlist
     fct_watches
   end
   candidate_enrichment --> stg_candidate_enrichment
   dim_film --> dim_candidate
+  fct_watches --> dim_watchlist
   film_enrichment --> stg_film_enrichment
   film_log --> stg_film_log
   stg_candidate_enrichment --> dim_candidate
+  stg_candidate_enrichment --> dim_watchlist
   stg_film_enrichment --> dim_film
+  stg_film_enrichment --> dim_watchlist
   stg_film_log --> dim_film
   stg_film_log --> fct_watches
+  stg_watchlist --> dim_watchlist
   watchlist --> stg_watchlist
 ```
 <!--lineage:end-->
@@ -115,7 +120,7 @@ selects from it, [`export_web.py`](../scripts/export_web.py) does not export it,
 [`build_watchlist_seed.py`](../scripts/build_watchlist_seed.py) and the model is typed and tested,
 but the branch stops there — it is staged and ready rather than in use.
 
-Current scale: <!--stat:watches-->795<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->7,692<!--/stat--> recommendation candidates, <!--stat:dbt_models-->7<!--/stat--> dbt models, <!--stat:dbt_seeds-->4<!--/stat--> seeds, <!--stat:dbt_tests-->24<!--/stat--> data tests.
+Current scale: <!--stat:watches-->795<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->7,770<!--/stat--> recommendation candidates, <!--stat:dbt_models-->8<!--/stat--> dbt models, <!--stat:dbt_seeds-->4<!--/stat--> seeds, <!--stat:dbt_tests-->30<!--/stat--> data tests.
 
 Those figures are generated — see [Keeping the figures honest](#keeping-the-figures-honest). The
 dashboard header and the share card derive their own counts separately at build time, from
@@ -190,7 +195,7 @@ Everything is free-tier and stateless except the object store.
 
 **[`ci.yml`](../.github/workflows/ci.yml)** — on pull requests to `main`. Three independent
 jobs: `lint` (ruff + eslint), `data` (`dbt deps` then `dbt build`, which runs all
-<!--stat:dbt_tests-->24<!--/stat--> tests), and `web` (vitest + Next.js build).
+<!--stat:dbt_tests-->30<!--/stat--> tests), and `web` (vitest + Next.js build).
 
 **[`deploy.yml`](../.github/workflows/deploy.yml)** — on push to `main` and on manual dispatch.
 Builds the web bundle and publishes to Pages. Concurrency group `pages`, no
@@ -336,16 +341,21 @@ flowchart LR
   subgraph marts[marts]
     dim_candidate
     dim_film
+    dim_watchlist
     fct_watches
   end
   candidate_enrichment --> stg_candidate_enrichment
   dim_film --> dim_candidate
+  fct_watches --> dim_watchlist
   film_enrichment --> stg_film_enrichment
   film_log --> stg_film_log
   stg_candidate_enrichment --> dim_candidate
+  stg_candidate_enrichment --> dim_watchlist
   stg_film_enrichment --> dim_film
+  stg_film_enrichment --> dim_watchlist
   stg_film_log --> dim_film
   stg_film_log --> fct_watches
+  stg_watchlist --> dim_watchlist
   watchlist --> stg_watchlist
 ```
 <!--lineage:end-->`) and is regenerated wholesale.
