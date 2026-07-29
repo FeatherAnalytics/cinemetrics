@@ -4,7 +4,9 @@ The column was added to ingest/enrich.py after the catalogue was already built,
 so every existing row is missing it. Reads poster_path from TMDB for each film
 that has no value yet and rewrites the seed in place.
 
-TMDB only. This must never call OMDb — see the note on the API budget below.
+TMDB only, and deliberately never OMDb: OMDb's free tier allows 1,000 calls a
+day and does not serve poster art at all, so reaching for it here would spend
+two thirds of the daily budget on a field it cannot answer.
 
 Dry run by default; pass --apply to write.
 
@@ -23,7 +25,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from ingest.csvio import write_rows  # noqa: E402
-from ingest.enrich import FILM_CSV_COLUMNS as COLUMNS  # noqa: E402
+from ingest.enrich import FILM_CSV_COLUMNS  # noqa: E402
 from ingest.http import tmdb_get  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -69,7 +71,7 @@ def main() -> None:
         print("dry run — pass --apply to write")
         return
 
-    write_rows(SEED, [{c: row.get(c, "") for c in COLUMNS} for row in rows], COLUMNS)
+    write_rows(SEED, rows, FILM_CSV_COLUMNS)
     print(f"wrote {SEED.relative_to(ROOT)}")
 
 
