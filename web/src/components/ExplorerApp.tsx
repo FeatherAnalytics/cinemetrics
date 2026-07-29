@@ -582,8 +582,15 @@ function Explorer() {
         <aside
           className={`fixed inset-y-0 left-0 z-50 w-[86%] max-w-sm transform overflow-y-auto p-4 shadow-xl transition-transform duration-300 lg:static lg:z-auto lg:mb-0 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:p-0 lg:shadow-none ${
             drawerOpen ? "translate-x-0" : "-translate-x-full"
-          } ${collapsed ? "lg:hidden" : "lg:w-72"}`}
-          style={{ background: tokens.surface.paper }}
+          } ${collapsed ? "lg:hidden" : "lg:w-72"} bg-[var(--surface-paper)] lg:bg-transparent`}
+          /* Opaque only as a drawer. At lg the aside is a flex child that
+             stretches to the height of the chart column beside it, so a
+             background here painted a tall block below the panel's own card.
+             The inner card supplies the desktop surface; this only has to hide
+             the page behind the mobile drawer.
+
+             Set through a class rather than `style`, because an inline
+             background would win over the lg: reset. */
           aria-label="Filters"
           role={drawerOpen ? "dialog" : undefined}
           aria-modal={drawerOpen || undefined}

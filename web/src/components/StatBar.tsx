@@ -13,6 +13,27 @@ import { fmt1 } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
 import type { WatchlistFilm } from "@/lib/types";
 
+/**
+ * The tiles' third subtext line, which only has content while a filter is on.
+ *
+ * Always rendered, so the line's height is reserved whether or not it says
+ * anything. Rendering it conditionally made the whole sidebar grow a few pixels
+ * the moment a filter was applied, which shifted every control below it — the
+ * panel jumping under the cursor as you click a genre chip.
+ *
+ * A non-breaking space rather than `visibility: hidden`, so the reserved height
+ * is exactly one line of this type at this size and cannot drift from the real
+ * line's.
+ */
+function PctLine({ children }: { children: string | null }) {
+  const { tokens } = useTheme();
+  return (
+    <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>
+      {children ?? " "}
+    </div>
+  );
+}
+
 export function StatBar() {
   const { all, filtered, activeStory, watchlist, filteredWatchlist } = useExplorer();
   const { tokens } = useTheme();
@@ -75,9 +96,7 @@ export function StatBar() {
             {Math.round(stats.avgRuntime)} min avg
           </div>
         )}
-        {stats.isFiltered && (
-          <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>{stats.screenPct}% of total</div>
-        )}
+        <PctLine>{stats.isFiltered ? `${stats.screenPct}% of total` : null}</PctLine>
       </div>
       <div className="min-w-0">
         <div className="text-lg font-bold leading-tight lg:text-xl" style={{ color: tokens.ink.primary }}>{stats.watchCount}</div>
@@ -89,9 +108,7 @@ export function StatBar() {
             {Math.round(stats.rewatchShare * 100)}% rewatches
           </div>
         )}
-        {stats.isFiltered && (
-          <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>{stats.watchPct}% of total</div>
-        )}
+        <PctLine>{stats.isFiltered ? `${stats.watchPct}% of total` : null}</PctLine>
       </div>
       <div className="min-w-0">
         <div className="text-lg font-bold leading-tight lg:text-xl" style={{ color: tokens.ink.primary }}>{ratingDisplay}</div>
@@ -99,6 +116,7 @@ export function StatBar() {
           avg rating
         </div>
         {spread && <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>{spread}</div>}
+        <PctLine>{null}</PctLine>
       </div>
     </div>
   );
@@ -169,11 +187,9 @@ function WatchlistStats({ films, total }: { films: WatchlistFilm[]; total: numbe
         {watched > 0 && (
           <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>{watched} seen</div>
         )}
-        {isFiltered && (
-          <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>
-            {Math.round((100 * films.length) / total)}% of total
-          </div>
-        )}
+        <PctLine>
+          {isFiltered ? `${Math.round((100 * films.length) / total)}% of total` : null}
+        </PctLine>
       </div>
       <div className="min-w-0">
         <div className="text-lg font-bold leading-tight lg:text-xl" style={{ color: tokens.ink.primary }}>{countries}</div>

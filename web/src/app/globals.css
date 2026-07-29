@@ -10,6 +10,7 @@
 :root {
   --background: #eeece4;
   --surface-card: #fdfdfb;
+  --surface-paper: #f7f6f3;
   --foreground: #0b0b0b;
   color-scheme: light;
 }
@@ -18,6 +19,7 @@
   :root {
     --background: #131210;
     --surface-card: #1c1b17;
+    --surface-paper: #171613;
     --foreground: #f2f0ea;
     color-scheme: dark;
   }
@@ -25,12 +27,14 @@
 :root[data-theme="light"] {
   --background: #eeece4;
   --surface-card: #fdfdfb;
+  --surface-paper: #f7f6f3;
   --foreground: #0b0b0b;
   color-scheme: light;
 }
 :root[data-theme="dark"] {
   --background: #131210;
   --surface-card: #1c1b17;
+  --surface-paper: #171613;
   --foreground: #f2f0ea;
   color-scheme: dark;
 }
