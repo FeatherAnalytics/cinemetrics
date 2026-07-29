@@ -70,6 +70,7 @@ select
     e.production_countries,
     e.rated,
     e.original_language,
+    e.poster_path,
     -- The umbrella franchise when mapped, the raw TMDB collection otherwise.
     -- Kept under the `collection` name because it is the grouping the site
     -- exposes as "franchise runs".

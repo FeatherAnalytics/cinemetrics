@@ -21,6 +21,10 @@ select
     rated,
     production_countries,
     original_language,
-    collection
+    collection,
+    -- The seed has no poster_path column yet -- Task 1.4 backfills it. A
+    -- literal NULL lets every downstream model depend on the column now;
+    -- swap for `nullif(poster_path, '')` once the seed carries real values.
+    cast(null as varchar)            as poster_path
 from {{ ref('film_enrichment') }}
 where tmdb_id is not null

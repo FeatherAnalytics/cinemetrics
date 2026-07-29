@@ -54,6 +54,7 @@ seeds:
         imdb_rating: double
         imdb_votes: bigint
         box_office: bigint
+        poster_path: varchar
     candidate_enrichment:
       +schema: enrichment
       +column_types:
