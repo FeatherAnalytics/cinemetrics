@@ -27,7 +27,7 @@ flowchart LR
   R2 -.fetched at runtime.-> PAGES
 ```
 
-Two artifacts leave the pipeline. A ~645 KB JSON file ships inside the site bundle. R2 serves the embeddings in a ~1 MB gzipped file.
+Two artifacts leave the pipeline. A ~735 KB JSON file ships inside the site bundle. R2 serves the embeddings in a ~1 MB gzipped file.
 
 ## Layers
 
@@ -49,8 +49,8 @@ The database mirrors the layers, so the **Database** tab of the
 ```
 movies.duckdb
   letterboxd/   film_log, watchlist
-  enrichment/   film_enrichment, candidate_enrichment
-  staging/      stg_film_log, stg_watchlist, stg_film_enrichment, stg_candidate_enrichment
+  enrichment/   film_enrichment, candidate_enrichment, poster_slices
+  staging/      stg_film_log, stg_watchlist, stg_film_enrichment, stg_candidate_enrichment, stg_poster_slices
   marts/        dim_film, fct_watches, dim_candidate
 ```
 
@@ -85,11 +85,13 @@ flowchart LR
   subgraph enrichment[enrichment]
     candidate_enrichment
     film_enrichment
+    poster_slices
   end
   subgraph staging[staging]
     stg_candidate_enrichment
     stg_film_enrichment
     stg_film_log
+    stg_poster_slices
     stg_watchlist
   end
   subgraph marts[marts]
@@ -103,12 +105,14 @@ flowchart LR
   fct_watches --> dim_watchlist
   film_enrichment --> stg_film_enrichment
   film_log --> stg_film_log
+  poster_slices --> stg_poster_slices
   stg_candidate_enrichment --> dim_candidate
   stg_candidate_enrichment --> dim_watchlist
   stg_film_enrichment --> dim_film
   stg_film_enrichment --> dim_watchlist
   stg_film_log --> dim_film
   stg_film_log --> fct_watches
+  stg_poster_slices --> dim_film
   stg_watchlist --> dim_watchlist
   watchlist --> stg_watchlist
 ```
@@ -120,7 +124,7 @@ selects from it, [`export_web.py`](../scripts/export_web.py) does not export it,
 [`build_watchlist_seed.py`](../scripts/build_watchlist_seed.py) and the model is typed and tested,
 but the branch stops there — it is staged and ready rather than in use.
 
-Current scale: <!--stat:watches-->795<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->7,770<!--/stat--> recommendation candidates, <!--stat:dbt_models-->8<!--/stat--> dbt models, <!--stat:dbt_seeds-->4<!--/stat--> seeds, <!--stat:dbt_tests-->31<!--/stat--> data tests.
+Current scale: <!--stat:watches-->795<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->7,770<!--/stat--> recommendation candidates, <!--stat:dbt_models-->9<!--/stat--> dbt models, <!--stat:dbt_seeds-->5<!--/stat--> seeds, <!--stat:dbt_tests-->33<!--/stat--> data tests.
 
 Those figures are generated — see [Keeping the figures honest](#keeping-the-figures-honest). The
 dashboard header and the share card derive their own counts separately at build time, from
@@ -132,11 +136,12 @@ The DuckDB file (`data/movies.duckdb`) is gitignored and disposable. Every run r
 from the seeds. So the entire dataset is a diffable set of CSVs in git history, and any build
 (local, CI, or deploy) starts from identical inputs.
 
-The four seeds: [`film_log.csv`](../transform/seeds/film_log.csv) (watch events),
+The five seeds: [`film_log.csv`](../transform/seeds/film_log.csv) (watch events),
 [`film_enrichment.csv`](../transform/seeds/film_enrichment.csv) (attributes for watched films),
 [`candidate_enrichment.csv`](../transform/seeds/candidate_enrichment.csv) (the recommendation
-pool), and [`watchlist.csv`](../transform/seeds/watchlist.csv). Their column types are pinned in
-[`dbt_project.yml`](../transform/dbt_project.yml).
+pool), [`watchlist.csv`](../transform/seeds/watchlist.csv), and
+[`poster_slices.csv`](../transform/seeds/poster_slices.csv) (20-stop colour columns sampled from
+each poster). Their column types are pinned in [`dbt_project.yml`](../transform/dbt_project.yml).
 
 Two rules protect this:
 
@@ -195,7 +200,7 @@ Everything is free-tier and stateless except the object store.
 
 **[`ci.yml`](../.github/workflows/ci.yml)** — on pull requests to `main`. Three independent
 jobs: `lint` (ruff + eslint), `data` (`dbt deps` then `dbt build`, which runs all
-<!--stat:dbt_tests-->31<!--/stat--> tests), and `web` (vitest + Next.js build).
+<!--stat:dbt_tests-->33<!--/stat--> tests), and `web` (vitest + Next.js build).
 
 **[`deploy.yml`](../.github/workflows/deploy.yml)** — on push to `main` and on manual dispatch.
 Builds the web bundle and publishes to Pages. Concurrency group `pages`, no
@@ -331,11 +336,13 @@ flowchart LR
   subgraph enrichment[enrichment]
     candidate_enrichment
     film_enrichment
+    poster_slices
   end
   subgraph staging[staging]
     stg_candidate_enrichment
     stg_film_enrichment
     stg_film_log
+    stg_poster_slices
     stg_watchlist
   end
   subgraph marts[marts]
@@ -349,12 +356,14 @@ flowchart LR
   fct_watches --> dim_watchlist
   film_enrichment --> stg_film_enrichment
   film_log --> stg_film_log
+  poster_slices --> stg_poster_slices
   stg_candidate_enrichment --> dim_candidate
   stg_candidate_enrichment --> dim_watchlist
   stg_film_enrichment --> dim_film
   stg_film_enrichment --> dim_watchlist
   stg_film_log --> dim_film
   stg_film_log --> fct_watches
+  stg_poster_slices --> dim_film
   stg_watchlist --> dim_watchlist
   watchlist --> stg_watchlist
 ```

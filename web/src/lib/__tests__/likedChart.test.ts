@@ -36,6 +36,7 @@ function film(over: Partial<Film> = {}): Film {
     language: null,
     collection: null,
     poster: null,
+    slice: null,
     ...over,
   };
 }

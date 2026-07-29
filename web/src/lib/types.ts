@@ -24,6 +24,12 @@ export type Film = {
    * segment are a rendering choice, not data.
    */
   poster: string | null;
+  /**
+   * 20 RGB stops sampled down the poster, packed as 120 hex characters with no
+   * separators. Drawn by the landing-page barcode. Null when the film has no
+   * poster.
+   */
+  slice: string | null;
 };
 
 export type Watch = {

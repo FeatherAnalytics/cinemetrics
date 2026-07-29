@@ -23,6 +23,7 @@ describe("data type parsing", () => {
     language: "en",
     collection: null,
     poster: null,
+    slice: null,
   };
 
   const sampleWatch: Watch = {
@@ -78,6 +79,7 @@ describe("data type parsing", () => {
       language: null,
       collection: null,
       poster: null,
+      slice: null,
     };
     expect(sparse.director).toBeNull();
     expect(sparse.metascore).toBeNull();

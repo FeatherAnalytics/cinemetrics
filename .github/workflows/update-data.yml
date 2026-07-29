@@ -53,6 +53,9 @@ jobs:
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
+      - name: Repair any missing poster slices
+        if: steps.diff.outputs.changed == 'true'
+        run: uv run python scripts/backfill_poster_slices.py --apply
       # Validates the candidate seed that `Fetch candidates` just appended, via the
       # unique/not_null tests on stg_candidate_enrichment and dim_candidate. Scoped
       # to that path rather than a full build: update.py already built and tested
@@ -84,7 +87,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add transform/seeds/film_log.csv transform/seeds/film_enrichment.csv transform/seeds/candidate_enrichment.csv web/public/data/cinemetrics.json
+          git add transform/seeds/film_log.csv transform/seeds/film_enrichment.csv transform/seeds/candidate_enrichment.csv transform/seeds/poster_slices.csv web/public/data/cinemetrics.json
           # Figures quoted in the docs move with the data, so they land in the
           # same commit. overview.md feeds the published dbt docs landing page.
           git add docs/ARCHITECTURE.md transform/models/overview.md

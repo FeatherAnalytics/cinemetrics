@@ -16,11 +16,14 @@ sys.path.insert(0, str(ROOT))
 from ingest.csvio import append_rows  # noqa: E402
 from ingest.enrich import FILM_CSV_COLUMNS, build_enrichment_row  # noqa: E402
 from ingest.http import omdb_get, tmdb_get  # noqa: E402
+from ingest.poster_slice import slice_for_poster  # noqa: E402
 
 SEEDS = ROOT / "transform" / "seeds"
 TRANSFORM = ROOT / "transform"
 LOG_PATH = SEEDS / "film_log.csv"
 ENRICH_PATH = SEEDS / "film_enrichment.csv"
+SLICES_PATH = SEEDS / "poster_slices.csv"
+SLICE_COLUMNS = ["tmdb_id", "slice"]
 
 TMDB_KEY = os.environ.get("TMDB_API_KEY", "")
 OMDB_KEY = os.environ.get("OMDB_API_KEY", "")
@@ -97,6 +100,28 @@ def append_to_enrichment(rows: list[dict[str, str]]) -> None:
     append_rows(ENRICH_PATH, rows, FILM_CSV_COLUMNS, strict=True)
 
 
+def append_to_slices(rows: list[dict[str, str]]) -> None:
+    """Append a poster slice for each newly enriched film.
+
+    Without this the barcode draws a blank stripe for everything watched after
+    the backfill ran. A failure here must NOT hold the watch back: the film is
+    fully enriched either way, and backfill_poster_slices.py is idempotent, so a
+    missing slice is repaired on the next run rather than lost.
+    """
+    new: list[dict[str, str]] = []
+    for row in rows:
+        try:
+            encoded = slice_for_poster(row.get("poster_path", ""))
+        except Exception as e:  # noqa: BLE001
+            print(f"  WARNING: poster slice failed for tmdb_id={row['tmdb_id']}: {e}")
+            continue
+        if encoded:
+            new.append({"tmdb_id": row["tmdb_id"], "slice": encoded})
+    if new:
+        append_rows(SLICES_PATH, new, SLICE_COLUMNS)
+        print(f"  appended {len(new)} poster slices")
+
+
 def append_to_log(watches: list[dict]) -> None:
     append_rows(LOG_PATH, watches, LOG_COLUMNS)
 
@@ -147,6 +172,7 @@ def main() -> None:
     # its enrichment. Only log watches whose film enrichment is present.
     if new_films:
         append_to_enrichment(new_films)
+        append_to_slices(new_films)
 
     watches_to_log = loggable_watches(new_watches, existing_tmdb, enriched_ids)
 
