@@ -61,5 +61,11 @@ export function useAnimatedValues(target: number[]): number[] {
     };
   }, [target]);
 
-  return values;
+  // A length change is handled in the effect, which runs after the render that
+  // brought the new target in. That one render would otherwise hand back the
+  // previous series, and a caller indexing by its own mark index reads
+  // undefined off the end of it: NaN in an SVG geometry attribute, committed
+  // and painted before the effect corrects it. Serve the target until the
+  // effect has caught up.
+  return values.length === target.length ? values : target;
 }

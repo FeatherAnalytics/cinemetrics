@@ -55,10 +55,17 @@ export function MonthlyPace() {
     return { counts, byMonth, exposure, avg };
   }, [all, filtered]);
 
-  const bars: CategoryBar[] = MONTH_ABBR.map((label, i) => ({
-    label,
-    value: model.exposure[i] ? model.counts[i] / model.exposure[i] : 0,
-  }));
+  // Memoised because `CategoryBars` tweens these and compares the array by
+  // identity, and this component re-renders on every hover. The value stays
+  // the RATE: only the label inverts it. See the note above.
+  const bars: CategoryBar[] = useMemo(
+    () =>
+      MONTH_ABBR.map((label, i) => ({
+        label,
+        value: model.exposure[i] ? model.counts[i] / model.exposure[i] : 0,
+      })),
+    [model],
+  );
 
   const activeIndex = model.byMonth.findIndex((ws) => isPicked(ws, filters.selection));
 

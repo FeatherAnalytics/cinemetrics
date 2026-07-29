@@ -1,9 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import { ACCENT } from "@/lib/palette";
 import { useTheme } from "@/lib/theme";
 import { valueLabelFill } from "@/lib/barChart";
 import { quantile } from "@/lib/statsChart";
+import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import { useWidth } from "@/lib/useWidth";
 
 const W0 = 720; // pre-measurement width, matching the usual desktop column
@@ -24,6 +26,13 @@ export type CategoryBar = {
  *
  * Clicking a bar cross-filters to the watches behind it, the same contract the
  * main-page charts use. Clicking the active bar again clears.
+ *
+ * CALLER REQUIREMENT: `bars` must keep its identity while its contents are
+ * unchanged, so memoise it. The heights tween through `useAnimatedValues`,
+ * which compares its target by identity, and a fresh array every render
+ * restarts the tween every frame: the chart burns a render loop and never
+ * moves. Hover state in a caller is enough to trigger this, since a hover
+ * re-renders the caller without changing a single count.
  */
 export function CategoryBars({
   bars,
@@ -94,6 +103,28 @@ export function CategoryBars({
   const MR = 12;
   const MB = 30;
 
+  /**
+   * The heights on screen, which lag the values on a filter change.
+   *
+   * Only the geometry reads these. Every NUMBER stays on the target: the axis
+   * ticks, the median, and the label riding each bar. Counting a label up
+   * through its intermediate values would be noise at best, and on the pace
+   * chart it would be wrong — that chart's `fmt` is a reciprocal, so a rate
+   * easing up through nearly zero prints as thousands of days between films
+   * for the first few frames.
+   */
+  const values = useMemo(() => bars.map((b) => b.value), [bars]);
+  const drawn = useAnimatedValues(values);
+
+  /**
+   * The scale is pinned to the TARGET, so it does not move while the bars do.
+   *
+   * A domain tweening alongside its own bars is a domain that cancels them: a
+   * genre filter cuts almost every category by about the same factor, so peak
+   * and bars would shrink together and the columns would sit almost still
+   * while the axis label alone changed. Pinning costs a few frames of overflow
+   * when the new peak is far below the old one, which the SVG clips.
+   */
   const peak = Math.max(...bars.map((b) => b.value), 0.0001);
   /**
    * Median over categories that actually had a watch.
@@ -151,9 +182,9 @@ export function CategoryBars({
           <g key={`bar-${i}`}>
             <rect
               x={cx(i) - barW / 2}
-              y={y(b.value)}
+              y={y(drawn[i])}
               width={barW}
-              height={H - MB - y(b.value)}
+              height={H - MB - y(drawn[i])}
               fill={active === i ? accent : FADE}
             />
             {/* Full-height hit area: a short bar is a small target, and the reader
@@ -179,13 +210,15 @@ export function CategoryBars({
                 had no watches, which is noise dressed as a finding. */}
             {b.value > 0 &&
               (() => {
-                const barH = H - MB - y(b.value);
+                // Rides the bar it belongs to, so position follows the tween
+                // while the text stays on the settled value.
+                const barH = H - MB - y(drawn[i]);
                 const inside = barH > 24;
                 const pct = median > 0 ? Math.round((100 * (b.value - median)) / median) : 0;
                 return (
                   <text
                     x={cx(i)}
-                    y={inside ? y(b.value) + 15 : y(b.value) - 6}
+                    y={inside ? y(drawn[i]) + 15 : y(drawn[i]) - 6}
                     textAnchor="middle"
                     fontSize={11}
                     fontWeight={700}

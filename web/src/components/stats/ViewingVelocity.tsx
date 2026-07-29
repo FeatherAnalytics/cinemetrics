@@ -5,6 +5,7 @@ import { useExplorer } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import { hasKnownRewatchState, insetRect, NO_DATA_STROKE, quantile } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
+import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import { useWidth } from "@/lib/useWidth";
 import { accentFor, isPicked, pickWatches } from "./pick";
 import { Toggle } from "./Toggle";
@@ -115,9 +116,29 @@ export function ViewingVelocity() {
   }, [all, filtered, grain, kind]);
 
   const { keys, counted, unknown } = model;
+
+  /**
+   * The two stacked series tween separately rather than as one interleaved
+   * array, so the recorded run and the unrecorded band each ease toward their
+   * own value. Both hooks share a duration and an easing, so the stack stays
+   * welded together for the whole tween.
+   *
+   * Memoised on `model`, which is itself memoised: `useAnimatedValues`
+   * compares its target by identity, and the grain and kind toggles re-render
+   * this component. A grain change also changes the bucket COUNT, which the
+   * hook treats as a different chart and snaps.
+   */
+  const countedN = useMemo(() => model.counted.map((c) => c.length), [model]);
+  const unknownN = useMemo(() => model.unknown.map((u) => u.length), [model]);
+  const drawnCounted = useAnimatedValues(countedN);
+  const drawnUnknown = useAnimatedValues(unknownN);
+
   if (!keys.length) return null;
 
-  const totals = keys.map((_, i) => counted[i].length + unknown[i].length);
+  const totals = keys.map((_, i) => countedN[i] + unknownN[i]);
+  // Peak and median are pinned to the TARGET, not to the tweening heights. A
+  // scale easing along with its own bars cancels them: a filter that halves
+  // every bucket halves the peak too, and the bars would barely move.
   const peak = Math.max(...totals, 1);
   // Median over buckets that actually had something: including the empty ones
   // would report the median as zero for any sparse filter, which describes the
@@ -162,14 +183,15 @@ export function ViewingVelocity() {
           const u = unknown[i];
           const x = ML + i * step;
           const wpx = Math.max(step - 0.6, 0.7);
-          const hU = h(u.length);
+          const hU = h(drawnUnknown[i]);
           const picked = isPicked(c, filters.selection);
           const ins = NO_DATA_STROKE / 2;
           // The unrecorded run is traced as a staircase off the bars' own edges:
           // outlining each bar as a box put strokes down both sides of every gap
-          // and filled them into a solid block.
-          const hPrev = h(unknown[i - 1]?.length ?? 0);
-          const hNext = h(unknown[i + 1]?.length ?? 0);
+          // and filled them into a solid block. The risers read the TWEENED
+          // neighbours, so the staircase stays welded to the band it traces.
+          const hPrev = h(drawnUnknown[i - 1] ?? 0);
+          const hNext = h(drawnUnknown[i + 1] ?? 0);
           return (
             <g key={k}>
               {u.length > 0 && (
@@ -207,9 +229,9 @@ export function ViewingVelocity() {
               )}
               <rect
                 x={x}
-                y={base - hU - h(c.length)}
+                y={base - hU - h(drawnCounted[i])}
                 width={wpx}
-                height={h(c.length)}
+                height={h(drawnCounted[i])}
                 fill={picked ? accent : FADE}
               />
               <rect

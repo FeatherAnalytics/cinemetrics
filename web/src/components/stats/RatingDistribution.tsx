@@ -29,7 +29,12 @@ export function RatingDistribution() {
   const [hover, setHover] = useState<number | null>(null);
 
   const groups = useMemo(() => ratingsByStarBin(filtered), [filtered]);
-  const bars = groups.map((ws, i) => ({ label: starLabel(STAR_BINS[i]), value: ws.length }));
+  // Memoised, not built inline: `CategoryBars` tweens these and compares the
+  // array by identity, and this component re-renders on every hover.
+  const bars = useMemo(
+    () => groups.map((ws, i) => ({ label: starLabel(STAR_BINS[i]), value: ws.length })),
+    [groups],
+  );
   const total = groups.reduce((s, g) => s + g.length, 0);
 
   if (total === 0) {

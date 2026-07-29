@@ -32,6 +32,13 @@ export function WatchlistScores() {
 
   const bins = useMemo(() => tmdbStarBins(filteredWatchlist), [filteredWatchlist]);
   const median = useMemo(() => medianTmdbStars(filteredWatchlist), [filteredWatchlist]);
+  // Above the empty-state return, and memoised: `CategoryBars` tweens these
+  // and compares the array by identity, and a hover re-renders this component
+  // without changing a single count.
+  const bars = useMemo(
+    () => bins.map((b) => ({ label: starLabel(b.stars), value: b.count })),
+    [bins],
+  );
 
   const scored = bins.reduce((s, b) => s + b.count, 0);
   const unscored = filteredWatchlist.length - scored;
@@ -44,7 +51,6 @@ export function WatchlistScores() {
     );
   }
 
-  const bars = bins.map((b) => ({ label: starLabel(b.stars), value: b.count }));
   const shown = hover != null ? bins[hover] : null;
 
   return (

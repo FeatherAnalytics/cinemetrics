@@ -8,6 +8,7 @@ import { watchKey } from "@/lib/brush";
 import { computeResiduals } from "@/lib/stats";
 import { BAR_H, GAP } from "@/lib/barChart";
 import { heartByFilm, heartDeltaPP, ppLabel } from "@/lib/heartLens";
+import { useAnimatedValues } from "@/lib/useAnimatedValues";
 
 const LABEL_W = 200;
 const BAR_W = 400;
@@ -125,6 +126,14 @@ export function KeywordBars() {
 
   // Bars are filtered to a measurable delta above, so the fallback never fires.
   const valueOf = (b: KeywordBar) => b.heartDelta ?? 0;
+  // Memoised on `bars`, which is memoised: `useAnimatedValues` compares its
+  // target by identity, and a hover re-renders this component without moving
+  // a single deviation.
+  const values = useMemo(() => bars.map(valueOf), [bars]);
+  const drawn = useAnimatedValues(values);
+  // Pinned to the TARGET, so the track does not rescale under the bars while
+  // they move. A filter that shrinks every deviation would otherwise shrink
+  // the denominator with them and the bars would hold still.
   const maxAbs = useMemo(() => {
     if (bars.length === 0) return 10;
     return Math.max(...bars.map((b) => Math.abs(valueOf(b))));
@@ -171,8 +180,12 @@ export function KeywordBars() {
         {bars.map((bar, i) => {
           const y = 20 + i * (BAR_H + GAP);
           const value = valueOf(bar);
-          const barLen = (Math.abs(value) / maxAbs) * (BAR_W / 2 - 10);
-          const barX = value > 0 ? zeroX : zeroX - barLen;
+          // Length AND side come from the tweened value, so a bar whose sign
+          // flipped sweeps across the zero line instead of jumping it. The
+          // printed number stays on the settled value throughout.
+          const shown = drawn[i];
+          const barLen = (Math.abs(shown) / maxAbs) * (BAR_W / 2 - 10);
+          const barX = shown > 0 ? zeroX : zeroX - barLen;
           const isHover = hover === bar.keyword;
 
           return (

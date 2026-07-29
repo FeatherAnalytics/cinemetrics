@@ -66,6 +66,26 @@ describe("useAnimatedValues", () => {
     expect(result.current).toEqual([5, 5]);
   });
 
+  it("never returns a series of a different length than the one asked for", () => {
+    // The reset happens in an effect, so the render BETWEEN the new target
+    // arriving and that effect firing is the one at risk. A chart indexing the
+    // result by its own bar index reads undefined there, and undefined lands in
+    // an SVG geometry attribute as NaN. Every render is checked, not just the
+    // last one, because only the last one is settled.
+    const seen: string[] = [];
+    const { rerender } = renderHook(
+      ({ v }: { v: number[] }) => {
+        const got = useAnimatedValues(v);
+        seen.push(`${v.length}->${got.length}`);
+        return got;
+      },
+      { initialProps: { v: [1, 2, 3] } },
+    );
+    rerender({ v: [5, 5] });
+    rerender({ v: [7, 7, 7, 7] });
+    expect(seen.filter((s) => s.split("->")[0] !== s.split("->")[1])).toEqual([]);
+  });
+
   it("hands an interrupted tween its position on screen, not its origin", async () => {
     vi.useFakeTimers();
     const { result, rerender } = renderHook(({ v }) => useAnimatedValues(v), {

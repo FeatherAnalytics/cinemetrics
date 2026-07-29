@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTheme } from "@/lib/theme";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { deltaLabel, type RatingDelta } from "@/lib/ratingDelta";
+import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import type { RankedBar } from "@/lib/watchlistChart";
 
 const LABEL_W = 150;
@@ -32,6 +33,13 @@ const INSIDE_MIN = 34;
  * watchlist has been rated, so the only honest reading is "how I have rated the
  * films I ALREADY SAW that share this tag". The column header says so, because
  * two tracks on one row otherwise read as two measurements of one set.
+ *
+ * CALLER REQUIREMENT: `bars` and `deltas` must keep their identity while their
+ * contents are unchanged, so memoise both. The two tracks tween through
+ * `useAnimatedValues`, which compares its target by identity, and a fresh
+ * array every render restarts the tween every frame: the chart burns a render
+ * loop and never moves. A hover re-renders this component, so it is not an
+ * edge case.
  */
 export function RankedBars({
   bars,
@@ -64,6 +72,17 @@ export function RankedBars({
   const { tokens } = useTheme();
   const [hover, setHover] = useState<string | null>(null);
 
+  // Above the empty-state return, because hooks cannot sit behind one. A row
+  // count change is a length change, which the hook snaps rather than pairing
+  // row 3 of one ranking with row 3 of another.
+  const counts = useMemo(() => bars.map((b) => b.count), [bars]);
+  const devs = useMemo(
+    () => bars.map((b) => deltas?.get(b.key)?.delta ?? 0),
+    [bars, deltas],
+  );
+  const drawnCounts = useAnimatedValues(counts);
+  const drawnDevs = useAnimatedValues(devs);
+
   if (bars.length === 0) {
     return (
       <div
@@ -80,6 +99,9 @@ export function RankedBars({
 
   const hasDev = deltas != null && bars.some((b) => deltas.has(b.key));
   const width = hasDev ? WIDTH : LABEL_W + BAR_W + 40;
+  // Both denominators are pinned to the TARGET, so neither track rescales
+  // under its own bars while they move. A scale easing alongside the bars it
+  // measures cancels them, and the reader sees nothing respond.
   const peak = Math.max(...bars.map((b) => b.count));
   // Scaled against its own maximum, so the longest deviation fills the track.
   const devMax = Math.max(
@@ -128,15 +150,20 @@ export function RankedBars({
 
         {bars.map((bar, i) => {
           const y = top + i * (BAR_H + GAP);
-          const barLen = (bar.count / peak) * BAR_W;
+          // Geometry follows the tween, the printed counts stay on the settled
+          // values.
+          const barLen = (drawnCounts[i] / peak) * BAR_W;
           const isActive = active === bar.key;
           const isHover = hover === bar.key;
           // The count rides inside its own bar when the bar is long enough to
           // hold it, and steps outside when it is not — the same flip every other
           // bar chart here uses, so a short bar never hides its number.
           const inside = barLen > INSIDE_MIN;
+          // Whether a second bar exists at all is a question about the data,
+          // so it reads the target. Only its length and side tween.
           const d = deltas?.get(bar.key) ?? null;
-          const devLen = d == null ? 0 : (Math.abs(d.delta) / devMax) * DEV_HALF;
+          const shownDev = drawnDevs[i];
+          const devLen = d == null ? 0 : (Math.abs(shownDev) / devMax) * DEV_HALF;
           const devInside = devLen > INSIDE_MIN;
 
           const dim = active != null && !isActive;
@@ -193,7 +220,7 @@ export function RankedBars({
               {hasDev && d != null && (
                 <>
                   <rect
-                    x={d.delta > 0 ? DEV_ZERO : DEV_ZERO - devLen}
+                    x={shownDev > 0 ? DEV_ZERO : DEV_ZERO - devLen}
                     y={y}
                     width={devLen}
                     height={BAR_H}
@@ -204,7 +231,7 @@ export function RankedBars({
                   />
                   <text
                     x={
-                      d.delta > 0
+                      shownDev > 0
                         ? DEV_ZERO + devLen + (devInside ? -6 : 6)
                         : DEV_ZERO - devLen + (devInside ? 6 : -6)
                     }
@@ -213,7 +240,7 @@ export function RankedBars({
                     fontSize={11}
                     fontWeight={700}
                     textAnchor={
-                      d.delta > 0 ? (devInside ? "end" : "start") : devInside ? "start" : "end"
+                      shownDev > 0 ? (devInside ? "end" : "start") : devInside ? "start" : "end"
                     }
                     dominantBaseline="middle"
                     pointerEvents="none"

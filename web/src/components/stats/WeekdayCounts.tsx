@@ -37,10 +37,12 @@ export function WeekdayCounts() {
 
   // No hover. The bar, its value and its percentage against the median are all
   // already on screen, so there is nothing left for a hover to say.
-  const bars: CategoryBar[] = DAY_ABBR.map((label, i) => ({
-    label,
-    value: model.counts[i],
-  }));
+  // Memoised because `CategoryBars` tweens these and compares the array by
+  // identity.
+  const bars: CategoryBar[] = useMemo(
+    () => DAY_ABBR.map((label, i) => ({ label, value: model.counts[i] })),
+    [model],
+  );
 
   const activeIndex = model.byDay.findIndex((ws) => isPicked(ws, filters.selection));
 
