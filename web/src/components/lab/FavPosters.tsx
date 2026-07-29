@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { INK } from "@/lib/palette";
 import { favColor, StarMarker } from "@/lib/favMarker";
-import { FOUR_FAVS, posterUrl } from "@/lib/fourFavs";
+import { favPosterPath, FOUR_FAVS, posterUrl } from "@/lib/fourFavs";
 import { isPicked, pickWatches } from "@/components/stats/pick";
 import type { EnrichedWatch } from "@/lib/types";
 
@@ -58,7 +58,7 @@ export function FavPosters() {
         // The short link the id was resolved FROM, so it cannot drift from the film
         // this card is about the way a rebuilt slug could.
         href: `https://boxd.it/${f.letterboxd}`,
-        src: posterUrl(watches[0]?.film?.poster),
+        src: posterUrl(favPosterPath(f.tmdb_id, watches[0]?.film?.poster ?? null)),
         watches,
       };
     });
