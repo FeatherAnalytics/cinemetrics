@@ -7,7 +7,9 @@ extrasaction="ignore"), and LF-only line endings.
 
 import csv
 
-from ingest.csvio import LINE_TERMINATOR, append_rows, dict_writer
+import pytest
+
+from ingest.csvio import LINE_TERMINATOR, append_rows, dict_writer, write_rows
 
 COLS = ["tmdb_id", "imdb_id", "title"]
 
@@ -121,3 +123,57 @@ def test_preserves_existing_content_atomically(tmp_path):
     assert rows[2] == ["1", "tt1", "New"]
     # No leftover temp files in the directory.
     assert [p.name for p in tmp_path.iterdir()] == ["film_log.csv"]
+
+
+class TestWriteRows:
+    """``write_rows`` is the whole-file counterpart to ``append_rows``: it
+    replaces a committed seed instead of adding to it, for the scripts that
+    rebuild a seed from scratch rather than appending new watches.
+    """
+
+    def test_replaces_existing_content_and_writes_header(self, tmp_path):
+        path = tmp_path / "film_enrichment.csv"
+        path.write_text("tmdb_id,imdb_id,title\n9,tt9,Old\n", encoding="utf-8")
+        write_rows(path, [{"tmdb_id": "1", "imdb_id": "tt1", "title": "New"}], COLS)
+        rows = _read(path)
+        assert rows == [COLS, ["1", "tt1", "New"]]
+
+    def test_output_is_lf_terminated(self, tmp_path):
+        path = tmp_path / "film_enrichment.csv"
+        write_rows(path, [{"tmdb_id": "1", "imdb_id": "tt1", "title": "A"}], COLS)
+        raw = path.read_bytes()
+        assert b"\r\n" not in raw
+        assert raw == b"tmdb_id,imdb_id,title\n1,tt1,A\n"
+
+    def test_strict_raises_on_a_key_with_no_column(self, tmp_path):
+        path = tmp_path / "film_enrichment.csv"
+        with pytest.raises(ValueError):
+            write_rows(
+                path,
+                [{"tmdb_id": "1", "imdb_id": "tt1", "title": "A", "extra": "x"}],
+                COLS,
+                strict=True,
+            )
+
+    def test_a_mid_write_failure_leaves_the_original_file_intact(self, tmp_path):
+        """The point of the whole change: a raise partway through the write must
+        not touch the committed seed, and must not leave a stray .tmp file
+        behind for the next run to trip over.
+        """
+        path = tmp_path / "film_enrichment.csv"
+        original = "tmdb_id,imdb_id,title\n9,tt9,Old\n"
+        path.write_text(original, encoding="utf-8")
+
+        with pytest.raises(ValueError):
+            write_rows(
+                path,
+                [
+                    {"tmdb_id": "1", "imdb_id": "tt1", "title": "New"},
+                    {"tmdb_id": "2", "imdb_id": "tt2", "title": "Bad", "extra": "x"},
+                ],
+                COLS,
+                strict=True,
+            )
+
+        assert path.read_text(encoding="utf-8") == original
+        assert [p.name for p in tmp_path.iterdir()] == ["film_enrichment.csv"]

@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ingest.csvio import dict_writer  # noqa: E402
+from ingest.csvio import write_rows  # noqa: E402
 from ingest.enrich import FILM_CSV_COLUMNS as COLUMNS  # noqa: E402
 from ingest.http import tmdb_get  # noqa: E402
 
@@ -69,14 +69,7 @@ def main() -> None:
         print("dry run — pass --apply to write")
         return
 
-    # dict_writer, never csv.DictWriter: the stdlib writer emits CRLF on every
-    # platform and .gitattributes checks these seeds out as LF. Mixing the two
-    # makes DuckDB's sniffer fail the dbt build.
-    with open(SEED, "w", encoding="utf-8", newline="") as fh:
-        w = dict_writer(fh, COLUMNS)
-        w.writeheader()
-        for row in rows:
-            w.writerow({c: row.get(c, "") for c in COLUMNS})
+    write_rows(SEED, [{c: row.get(c, "") for c in COLUMNS} for row in rows], COLUMNS)
     print(f"wrote {SEED.relative_to(ROOT)}")
 
 
