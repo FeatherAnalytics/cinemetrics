@@ -42,6 +42,7 @@ import { WatchlistGenres } from "@/components/watchlist/WatchlistGenres";
 import { WatchlistKeywords } from "@/components/watchlist/WatchlistKeywords";
 import { WatchlistOrigin } from "@/components/watchlist/WatchlistOrigin";
 import { StoryChips } from "@/components/StoryChips";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { CopyChartLink } from "@/components/CopyChartLink";
 import { Footer } from "@/components/Footer";
 import {
@@ -519,8 +520,12 @@ function Explorer() {
         <p className="mt-2 max-w-2xl text-sm text-[#3d3c38]">
           {summaryLine(years, films.length)}
         </p>
-        <div className="mt-3">
+        {/* flex-wrap here, not a fixed corner position: at 390px the chip list
+            alone can run to two lines, and a pinned toggle would sit on top of
+            it. Wrapping lets the toggle drop to its own line instead. */}
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <StoryChips />
+          <ThemeToggle />
         </div>
       </header>
 

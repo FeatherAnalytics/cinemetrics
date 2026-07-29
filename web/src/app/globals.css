@@ -1,14 +1,38 @@
 @import "tailwindcss";
 
-/* Committed to a light surface (the Explorer is a tool; legibility wins).
+/* Light by default, dark on request (system preference, or the toggle).
    Page ground is the recessed "well" tone; chart sections sit on the raised
    "card" tone (--surface-card) so the page has depth without any chart
-   needing a colour. */
+   needing a colour. `data-theme` (set by ThemeProvider) wins over the media
+   query in both directions, so an explicit choice always beats the OS. Charts
+   still read their own JS token set (lib/palette.ts) rather than these
+   variables — the two are kept in step by hand, not by a shared source. */
 :root {
   --background: #eeece4;
   --surface-card: #fdfdfb;
   --foreground: #0b0b0b;
   color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #131210;
+    --surface-card: #1c1b17;
+    --foreground: #f2f0ea;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="light"] {
+  --background: #eeece4;
+  --surface-card: #fdfdfb;
+  --foreground: #0b0b0b;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --background: #131210;
+  --surface-card: #1c1b17;
+  --foreground: #f2f0ea;
+  color-scheme: dark;
 }
 
 @theme inline {
