@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
+import { primaryGenre } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { ceilingFilms } from "@/lib/fourFavs";
 import { favColor, StarMarker } from "@/lib/favMarker";
@@ -58,6 +59,7 @@ function clipTitle(t: string): string {
  */
 export function FavsAmongTheBest() {
   const { filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<number | null>(null);
 
   const { rating, films } = useMemo(() => ceilingFilms(filtered), [filtered]);
@@ -78,7 +80,7 @@ export function FavsAmongTheBest() {
 
   if (rating == null || rows.length === 0) {
     return (
-      <p className="text-sm" style={{ color: INK.muted }}>
+      <p className="text-sm" style={{ color: tokens.ink.muted }}>
         Nothing in view is rated.
       </p>
     );
@@ -98,7 +100,7 @@ export function FavsAmongTheBest() {
         <text
           x={LABEL_W}
           y={8}
-          fill={INK.muted}
+          fill={tokens.ink.muted}
           fontSize={9}
           letterSpacing="0.1em"
           fontFamily="var(--font-mono)"
@@ -108,7 +110,7 @@ export function FavsAmongTheBest() {
         <text
           x={0}
           y={8}
-          fill={INK.muted}
+          fill={tokens.ink.muted}
           fontSize={9}
           letterSpacing="0.1em"
           fontFamily="var(--font-mono)"
@@ -139,14 +141,14 @@ export function FavsAmongTheBest() {
                   x={STAR_X}
                   y={y + BAR_H / 2}
                   r={6}
-                  fill={favColor(f.watches[0].film)}
+                  fill={favColor(f.watches[0].film, tokens)}
                 />
               )}
 
               <text
                 x={TITLE_X}
                 y={y + BAR_H / 2}
-                fill={f.fav ? INK.primary : INK.secondary}
+                fill={f.fav ? tokens.ink.primary : tokens.ink.secondary}
                 fontSize={12}
                 fontWeight={f.fav || on ? 700 : 400}
                 textAnchor="end"
@@ -164,16 +166,16 @@ export function FavsAmongTheBest() {
                 y={y}
                 width={barLen}
                 height={BAR_H}
-                fill={GENRE_COLORS[primaryGenre(f.watches[0].film)]}
+                fill={tokens.genre[primaryGenre(f.watches[0].film)]}
                 fillOpacity={isHover || on ? 0.9 : 0.72}
-                stroke={on ? INK.primary : "none"}
+                stroke={on ? tokens.ink.primary : "none"}
                 strokeWidth={on ? 1.75 : 0}
               />
 
               <text
                 x={inside ? LABEL_W + barLen - 6 : LABEL_W + barLen + 6}
                 y={y + BAR_H / 2}
-                fill={valueLabelFill(inside)}
+                fill={valueLabelFill(inside, tokens.ink)}
                 fontSize={11}
                 fontWeight={700}
                 textAnchor={inside ? "end" : "start"}
@@ -191,7 +193,7 @@ export function FavsAmongTheBest() {
           <text
             x={TITLE_X}
             y={20 + rows.length * (BAR_H + GAP) + BAR_H / 2}
-            fill={INK.muted}
+            fill={tokens.ink.muted}
             fontSize={11}
             textAnchor="end"
             dominantBaseline="middle"
@@ -214,12 +216,13 @@ export function FavsAmongTheBest() {
  */
 export function FavsAmongTheBestBlurb() {
   const { filtered } = useExplorer();
+  const { tokens } = useTheme();
   const { rating, films } = useMemo(() => ceilingFilms(filtered), [filtered]);
   if (rating == null || films.length === 0) return null;
 
   const favs = films.filter((f) => f.fav).length;
   return (
-    <p className="text-sm" style={{ color: INK.secondary }}>
+    <p className="text-sm" style={{ color: tokens.ink.secondary }}>
       {films.length} {films.length === 1 ? "film shares" : "films share"} my highest rating
       in view. {favs} {favs === 1 ? "is" : "are"} on the profile.
     </p>

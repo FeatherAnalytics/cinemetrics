@@ -2,14 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK, type GenreKey } from "@/lib/palette";
+import { type GenreKey } from "@/lib/palette";
+import { useTheme, type Tokens } from "@/lib/theme";
 import { insetRect, lerpHex, mean, NO_DATA_STROKE } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
 import { accentFor, isPicked, pickWatches } from "./pick";
 
-const FADE = "#b3b1a6";
-const MID = "#eceae3";
 const BASE_FONT = 9;
 
 // The matrix is square, so the cell size sets both dimensions: letting it run
@@ -29,25 +28,25 @@ const PAD = 96; // gutter for the genre labels, rotated on top and flush right
  * axis ties this chart to those without inventing twelve more colors nobody
  * could tell apart.
  */
-function axisFill(genre: string): string {
-  return genre in GENRE_COLORS && genre !== "Other"
-    ? GENRE_COLORS[genre as GenreKey]
-    : INK.muted;
+function axisFill(genre: string, tokens: Tokens): string {
+  return genre in tokens.genre && genre !== "Other"
+    ? tokens.genre[genre as GenreKey]
+    : tokens.ink.muted;
 }
 
 const MIN_FILMS_PER_GENRE = 10;
 
 // Below this many films a pair's mean rating is one film's opinion. Those cells
-// still render, but in MID, and they are held OUT of the color and font domains:
-// singleton pairs span 50 to 80 and were stretching the ramp so every ordinary
-// pair landed mid-scale.
+// still render, but in the surface's well tint (from the active theme), and they
+// are held OUT of the color and font domains: singleton pairs span 50 to 80 and
+// were stretching the ramp so every ordinary pair landed mid-scale.
 const MIN_FILMS_PER_PAIR = 2;
 
 type Pair = { n: number; rating: number; watches: EnrichedWatch[] };
 
 /** Crimson at the top of the range, fading to chrome gray at the bottom. */
-function densityColor(share: number): string {
-  return lerpHex(ACCENT, FADE, 1 - Math.max(0, Math.min(1, share)));
+function densityColor(share: number, accent: string, fade: string): string {
+  return lerpHex(accent, fade, 1 - Math.max(0, Math.min(1, share)));
 }
 
 /**
@@ -60,8 +59,11 @@ function densityColor(share: number): string {
  */
 export function GenrePairing() {
   const { filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
+  const FADE = tokens.ink.grid;
+  const MID = tokens.surface.well;
   const [ref, W] = useWidth(720);
-  const accent = accentFor(filters.genres);
+  const accent = accentFor(filters.genres, tokens);
   const [hover, setHover] = useState<{ a: string; b: string; n: number; rating: number } | null>(
     null,
   );
@@ -122,7 +124,7 @@ export function GenrePairing() {
     return (
       <div
         className="rounded-md border border-dashed px-4 py-6 text-sm"
-        style={{ borderColor: "rgba(11,11,11,0.15)", color: INK.muted }}
+        style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 15%, transparent)`, color: tokens.ink.muted }}
       >
         A pairing needs two genres of {MIN_FILMS_PER_GENRE}+ rated films, which is the
         threshold a pair needs before its mean rating means anything. This filter does not
@@ -156,8 +158,8 @@ export function GenrePairing() {
    *
    * Applying it only to single-film cells left the region's edge outlined in
    * patches, which read as those cells being special in a way the perimeter
-   * never meant. Low confidence is carried by the pale `#eceae3` fill alone,
-   * which is what that color is for.
+   * never meant. Low confidence is carried by the pale surface-well tint
+   * alone (from the active theme), which is what that color is for.
    */
   const isCell = (r: number, c: number): boolean => {
     if (r < 0 || c < 0 || r >= genres.length || c >= genres.length) return false;
@@ -169,18 +171,18 @@ export function GenrePairing() {
     <div ref={ref}>
       <div
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
-        style={{ color: INK.muted }}
+        style={{ color: tokens.ink.muted }}
       >
         {/* Hover reads out in the strip, in the site's own type, rather than in
             a browser `<title>` tooltip. The pair is named with a plain "+"
             because the cell is a combination, not a direction. */}
         {hover ? (
           <>
-            <span style={{ color: axisFill(hover.a) }}>{hover.a}</span>
+            <span style={{ color: axisFill(hover.a, tokens) }}>{hover.a}</span>
             {" + "}
-            <span style={{ color: axisFill(hover.b) }}>{hover.b}</span>
+            <span style={{ color: axisFill(hover.b, tokens) }}>{hover.b}</span>
             {" · "}
-            <span style={{ color: INK.primary }}>
+            <span style={{ color: tokens.ink.primary }}>
               {hover.n} film{hover.n === 1 ? "" : "s"} · {(hover.rating / 20).toFixed(1)}★
             </span>
           </>
@@ -201,7 +203,7 @@ export function GenrePairing() {
             x={pad}
             y={12}
             fontSize={8}
-            fill={INK.muted}
+            fill={tokens.ink.muted}
             letterSpacing="0.1em"
             fontFamily="var(--font-mono)"
           >
@@ -211,7 +213,7 @@ export function GenrePairing() {
             x={0}
             y={0}
             fontSize={8}
-            fill={INK.muted}
+            fill={tokens.ink.muted}
             letterSpacing="0.1em"
             fontFamily="var(--font-mono)"
             textAnchor="middle"
@@ -225,8 +227,8 @@ export function GenrePairing() {
               x={pad + i * cell + cell / 2}
               y={pad - 6}
               fontSize={9}
-              fill={axisFill(g)}
-              fontWeight={axisFill(g) === INK.muted ? 400 : 700}
+              fill={axisFill(g, tokens)}
+              fontWeight={axisFill(g, tokens) === tokens.ink.muted ? 400 : 700}
               textAnchor="start"
               transform={`rotate(-55 ${pad + i * cell + cell / 2} ${pad - 6})`}
             >
@@ -239,8 +241,8 @@ export function GenrePairing() {
               x={pad - 6}
               y={pad + r * cell + cell / 2 + 3}
               fontSize={9}
-              fill={axisFill(g)}
-              fontWeight={axisFill(g) === INK.muted ? 400 : 700}
+              fill={axisFill(g, tokens)}
+              fontWeight={axisFill(g, tokens) === tokens.ink.muted ? 400 : 700}
               textAnchor="end"
             >
               {g}
@@ -270,7 +272,7 @@ export function GenrePairing() {
                     y={yy}
                     width={cell}
                     height={cell}
-                    fill={thin ? MID : densityColor(v.n / maxN)}
+                    fill={thin ? MID : densityColor(v.n / maxN, tokens.accent, FADE)}
                   />
                   {/* Perimeter edges, drawn per side and INSET so an outlined
                       cell measures exactly the same as a plain one. An edge
@@ -293,7 +295,7 @@ export function GenrePairing() {
                           y1={ay}
                           x2={bx}
                           y2={by}
-                          stroke={INK.primary}
+                          stroke={tokens.ink.primary}
                           strokeWidth={NO_DATA_STROKE}
                         />
                       ));
@@ -312,7 +314,7 @@ export function GenrePairing() {
                     textAnchor="middle"
                     fontSize={BASE_FONT * (1.1 + 0.9 * share(v.rating))}
                     fontWeight={700}
-                    fill={thin ? INK.muted : v.n / maxN > 0.55 ? "#fff" : INK.primary}
+                    fill={thin ? tokens.ink.muted : v.n / maxN > 0.55 ? "#fff" : tokens.ink.primary}
                     pointerEvents="none"
                   >
                     {Math.round(v.rating)}

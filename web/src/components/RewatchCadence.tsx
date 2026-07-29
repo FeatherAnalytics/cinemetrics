@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
-import { GENRE_COLORS, INK, primaryGenre, UI } from "@/lib/palette";
+import { primaryGenre } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { isSolstice, SunMarker } from "@/lib/solstice";
 import { trunc } from "@/lib/format";
@@ -31,6 +33,7 @@ type Band = { label: string; rows: Row[]; headerY: number; startY: number };
 
 export function RewatchCadence() {
   const { all, filters, selectedId, setSelected, setSelection, heartLens } = useExplorer();
+  const { tokens } = useTheme();
   const [showUnchanged, setShowUnchanged] = useState(false);
   const [hover, setHover] = useState<{ x: number; y: number; row: Row; w: EnrichedWatch } | null>(
     null,
@@ -162,8 +165,8 @@ export function RewatchCadence() {
           const xx = x(Date.UTC(Y, 0, 1));
           return (
             <g key={Y}>
-              <line x1={xx} y1={TOP - 4} x2={xx} y2={H - 6} stroke={INK.grid} strokeWidth={0.5} />
-              <text x={xx} y={TOP - 8} fill={INK.muted} fontSize={10} textAnchor="middle">{Y}</text>
+              <line x1={xx} y1={TOP - 4} x2={xx} y2={H - 6} stroke={tokens.ink.grid} strokeWidth={0.5} />
+              <text x={xx} y={TOP - 8} fill={tokens.ink.muted} fontSize={10} textAnchor="middle">{Y}</text>
             </g>
           );
         })}
@@ -173,7 +176,7 @@ export function RewatchCadence() {
             <text
               x={0}
               y={band.headerY + HEADER_H / 2 + 4}
-              fill={INK.secondary}
+              fill={tokens.ink.secondary}
               fontSize={10}
               fontFamily="var(--font-mono)"
               letterSpacing="0.1em"
@@ -185,14 +188,14 @@ export function RewatchCadence() {
               y1={band.headerY + HEADER_H / 2}
               x2={W - 4}
               y2={band.headerY + HEADER_H / 2}
-              stroke={INK.grid}
+              stroke={tokens.ink.grid}
               strokeWidth={0.5}
             />
 
             {band.rows.map((r, i) => {
               const rowTop = band.startY + i * ROWH;
               const sel = r.tmdb_id === selectedId;
-              const color = sel ? UI.selected : GENRE_COLORS[primaryGenre(r.film)];
+              const color = sel ? tokens.ui.selected : tokens.genre[primaryGenre(r.film)];
               const dim = selectedId != null && !sel;
               const pts = r.watches.map((w) => ({
                 x: x(w.d.getTime()),
@@ -203,11 +206,11 @@ export function RewatchCadence() {
               const labelY = rowTop + ROWH / 2;
               return (
                 <g key={r.tmdb_id} style={{ cursor: "pointer" }} onClick={() => setSelected(r.tmdb_id)}>
-                  {sel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={UI.selected} fillOpacity={0.06} />}
+                  {sel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={tokens.ui.selected} fillOpacity={0.06} />}
                   <text
                     x={LABEL - 8}
                     y={labelY}
-                    fill={sel ? INK.primary : INK.muted}
+                    fill={sel ? tokens.ink.primary : tokens.ink.muted}
                     fontSize={9}
                     textAnchor="end"
                     dominantBaseline="middle"
@@ -229,7 +232,7 @@ export function RewatchCadence() {
                         onMouseEnter={() => setHover({ x: p.x, y: p.y, row: r, w: p.w })}
                         onMouseLeave={() => setHover(null)}
                       >
-                        <SunMarker x={p.x} y={p.y} r={2.6} />
+                        <SunMarker x={p.x} y={p.y} r={2.6} accent={tokens.accent} />
                       </g>
                     ) : (
                       <circle
@@ -237,9 +240,9 @@ export function RewatchCadence() {
                         cx={p.x}
                         cy={p.y}
                         r={sel ? 3.4 : 2.6}
-                        fill={p.w.rating == null ? INK.surface : color}
+                        fill={p.w.rating == null ? tokens.ink.surface : color}
                         fillOpacity={dim ? 0.3 : 0.9}
-                        stroke={p.w.rating == null ? INK.muted : INK.surface}
+                        stroke={p.w.rating == null ? tokens.ink.muted : tokens.ink.surface}
                         strokeWidth={p.w.rating == null ? 1 : 0.5}
                         onMouseEnter={() => setHover({ x: p.x, y: p.y, row: r, w: p.w })}
                         onMouseLeave={() => setHover(null)}
@@ -250,7 +253,7 @@ export function RewatchCadence() {
                     <text
                       x={W - 4}
                       y={labelY}
-                      fill={i === 0 ? INK.primary : INK.muted}
+                      fill={i === 0 ? tokens.ink.primary : tokens.ink.muted}
                       fontSize={9}
                       fontWeight={i === 0 ? 700 : 400}
                       textAnchor="end"
@@ -265,15 +268,19 @@ export function RewatchCadence() {
           </g>
         ))}
 
-        <BrushRectOverlay rect={rect} />
+        <BrushRectOverlay rect={rect} accent={tokens.accent} />
       </svg>
 
-      <figcaption className="mt-1 flex items-center gap-3 font-mono text-xs text-[#67655f]">
+      <figcaption
+        className="mt-1 flex items-center gap-3 font-mono text-xs"
+        style={{ color: tokens.ink.muted }}
+      >
         <span>higher dot = higher rating</span>
         {unchanged.length > 0 && (
           <button
             onClick={() => setShowUnchanged((v) => !v)}
-            className="underline decoration-dotted underline-offset-2 hover:text-[#0b0b0b]"
+            className="underline decoration-dotted underline-offset-2 hover:text-[color:var(--hover-ink)]"
+            style={{ "--hover-ink": tokens.ink.primary } as CSSProperties}
           >
             {showUnchanged ? "hide" : "show"} {unchanged.length} unchanged
           </button>
@@ -287,15 +294,15 @@ export function RewatchCadence() {
             left: `${(hover.x / W) * 100}%`,
             top: `${(hover.y / H) * 100}%`,
             transform: "translate(-50%, -150%)",
-            background: INK.primary,
-            color: INK.surface,
+            background: tokens.ink.primary,
+            color: tokens.ink.surface,
           }}
         >
           <div className="font-medium">
             {hover.row.film?.title ?? hover.row.tmdb_id}
             {hover.row.film?.year != null ? ` (${hover.row.film.year})` : ""}
           </div>
-          <div style={{ color: "#c3c2b7" }}>
+          <div style={{ color: tokens.ink.surface, opacity: 0.75 }}>
             {hover.w.d.toISOString().slice(0, 10)}
             {hover.w.rating != null ? ` · ${Math.round(hover.w.rating)}` : " · unrated"}
             {hover.w.rewatch ? " · rewatch" : " · first"}

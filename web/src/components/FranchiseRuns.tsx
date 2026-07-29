@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
-import { GENRE_COLORS, INK, primaryGenre, UI } from "@/lib/palette";
+import { primaryGenre } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { trunc, fmt1 } from "@/lib/format";
+import type { CSSProperties } from "react";
 import type { EnrichedWatch } from "@/lib/types";
 import { heartDim } from "@/lib/heartLens";
 
@@ -25,6 +27,7 @@ type Row = {
 
 export function FranchiseRuns() {
   const { all, filters, selectedId, setSelected, setSelection, heartLens } = useExplorer();
+  const { tokens } = useTheme();
   const [showAll, setShowAll] = useState(false);
   const [hover, setHover] = useState<{ x: number; y: number; w: EnrichedWatch } | null>(null);
 
@@ -117,8 +120,11 @@ export function FranchiseRuns() {
   if (rows.length === 0) {
     return (
       <div
-        className="rounded-md border border-dashed px-4 py-6 text-sm text-[#67655f]"
-        style={{ borderColor: "rgba(11,11,11,0.15)" }}
+        className="rounded-md border border-dashed px-4 py-6 text-sm"
+        style={{
+          color: tokens.ink.muted,
+          borderColor: `color-mix(in srgb, ${tokens.ink.primary} 15%, transparent)`,
+        }}
       >
         No franchise with two or more watched films under the current filters.
       </div>
@@ -139,8 +145,8 @@ export function FranchiseRuns() {
           const xx = x(Date.UTC(Y, 0, 1));
           return (
             <g key={Y}>
-              <line x1={xx} y1={TOP - 4} x2={xx} y2={H - 6} stroke={INK.grid} strokeWidth={0.5} />
-              <text x={xx} y={TOP - 8} fill={INK.muted} fontSize={10} textAnchor="middle">{Y}</text>
+              <line x1={xx} y1={TOP - 4} x2={xx} y2={H - 6} stroke={tokens.ink.grid} strokeWidth={0.5} />
+              <text x={xx} y={TOP - 8} fill={tokens.ink.muted} fontSize={10} textAnchor="middle">{Y}</text>
             </g>
           );
         })}
@@ -158,11 +164,11 @@ export function FranchiseRuns() {
           const labelY = rowTop + ROWH / 2;
           return (
             <g key={r.name}>
-              {rowSel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={UI.selected} fillOpacity={0.06} />}
+              {rowSel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={tokens.ui.selected} fillOpacity={0.06} />}
               <text
                 x={LABEL - 8}
                 y={labelY}
-                fill={rowSel ? INK.primary : INK.muted}
+                fill={rowSel ? tokens.ink.primary : tokens.ink.muted}
                 fontSize={9}
                 textAnchor="end"
                 dominantBaseline="middle"
@@ -172,7 +178,7 @@ export function FranchiseRuns() {
               <polyline
                 points={poly}
                 fill="none"
-                stroke={INK.grid}
+                stroke={tokens.ink.grid}
                 strokeWidth={1}
                 strokeOpacity={dim ? 0.25 : 0.8}
               />
@@ -183,10 +189,16 @@ export function FranchiseRuns() {
                   cy={p.y}
                   r={p.w.tmdb_id === selectedId ? 3.4 : 2.6}
                   fill={
-                    p.w.rating == null ? INK.surface : GENRE_COLORS[primaryGenre(p.w.film)]
+                    p.w.rating == null ? tokens.ink.surface : tokens.genre[primaryGenre(p.w.film)]
                   }
                   fillOpacity={(dim ? 0.3 : 0.9) * (heartLens ? heartDim(p.w) : 1)}
-                  stroke={p.w.tmdb_id === selectedId ? UI.selected : p.w.rating == null ? INK.muted : INK.surface}
+                  stroke={
+                    p.w.tmdb_id === selectedId
+                      ? tokens.ui.selected
+                      : p.w.rating == null
+                        ? tokens.ink.muted
+                        : tokens.ink.surface
+                  }
                   strokeWidth={p.w.tmdb_id === selectedId ? 1.5 : p.w.rating == null ? 1 : 0.5}
                   style={{ cursor: "pointer" }}
                   onMouseEnter={() => setHover({ x: p.x, y: p.y, w: p.w })}
@@ -198,7 +210,7 @@ export function FranchiseRuns() {
                 <text
                   x={W - 4}
                   y={labelY}
-                  fill={i === 0 ? INK.primary : INK.muted}
+                  fill={i === 0 ? tokens.ink.primary : tokens.ink.muted}
                   fontSize={9}
                   fontWeight={i === 0 ? 700 : 400}
                   textAnchor="end"
@@ -211,15 +223,19 @@ export function FranchiseRuns() {
           );
         })}
 
-        <BrushRectOverlay rect={rect} />
+        <BrushRectOverlay rect={rect} accent={tokens.accent} />
       </svg>
 
-      <figcaption className="mt-1 flex items-center gap-3 font-mono text-xs text-[#67655f]">
+      <figcaption
+        className="mt-1 flex items-center gap-3 font-mono text-xs"
+        style={{ color: tokens.ink.muted }}
+      >
         <span>row = franchise · dot = watch, height = rating</span>
         {minor.length > 0 && (
           <button
             onClick={() => setShowAll((v) => !v)}
-            className="underline decoration-dotted underline-offset-2 hover:text-[#0b0b0b]"
+            className="underline decoration-dotted underline-offset-2 hover:text-[color:var(--hover-ink)]"
+            style={{ "--hover-ink": tokens.ink.primary } as CSSProperties}
           >
             {showAll ? "hide" : "show"} {minor.length} two-watch franchises
           </button>
@@ -233,15 +249,15 @@ export function FranchiseRuns() {
             left: `${(hover.x / W) * 100}%`,
             top: `${(hover.y / H) * 100}%`,
             transform: "translate(-50%, -150%)",
-            background: INK.primary,
-            color: INK.surface,
+            background: tokens.ink.primary,
+            color: tokens.ink.surface,
           }}
         >
           <div className="font-medium">
             {hover.w.film?.title ?? hover.w.tmdb_id}
             {hover.w.film?.year != null ? ` (${hover.w.film.year})` : ""}
           </div>
-          <div style={{ color: "#c3c2b7" }}>
+          <div style={{ color: tokens.ink.surface, opacity: 0.75 }}>
             {hover.w.d.toISOString().slice(0, 10)}
             {hover.w.rating != null ? ` · ${Math.round(hover.w.rating)}` : " · unrated"}
             {hover.w.rewatch ? " · rewatch" : " · first"}

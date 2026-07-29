@@ -1,4 +1,4 @@
-import { ACCENT, GENRE_COLORS } from "./palette";
+import { ACCENT, GENRE_COLORS, type GenreKey } from "./palette";
 import type { EnrichedWatch } from "./types";
 
 /**
@@ -13,9 +13,20 @@ import type { EnrichedWatch } from "./types";
  * Reuses colors already in the palette rather than introducing any. Crimson is
  * the house accent, the blue is Drama's, and the pale is the same "no data" tint
  * every other chart uses, so nothing here needed the all-pairs validation re-run.
+ *
+ * Takes the caller's active theme tokens; defaults to the light set so pure
+ * callers (tests, anything not yet wired to `useTheme`) see the same colors this
+ * module always returned.
  */
-export const HEART_LIKED = ACCENT;
-export const HEART_COOL = GENRE_COLORS.Drama;
+export function heartPalette(
+  tokens: { accent: string; genre: Record<GenreKey, string> } = {
+    accent: ACCENT,
+    genre: GENRE_COLORS,
+  },
+): { liked: string; cool: string; unknown: string } {
+  return { liked: tokens.accent, cool: tokens.genre.Drama, unknown: HEART_UNKNOWN };
+}
+
 /**
  * Unknown, which is NOT "not liked".
  *
@@ -27,6 +38,10 @@ export const HEART_COOL = GENRE_COLORS.Drama;
  * `#eceae3` no-data tint. That tint is designed to be read as a region with an ink
  * outline around it, and these charts draw 3px dots and 2px stripes with no room
  * for one: on an off-white page the pale version simply vanished.
+ *
+ * Fixed rather than themed: it is already independent of the palette (a literal,
+ * not a re-export of an ink token), and it needs the same "reads on either
+ * surface" property the barcode's own NEUTRAL constant documents.
  */
 export const HEART_UNKNOWN = "#b3b1a6";
 
@@ -37,9 +52,13 @@ function heartState(w: EnrichedWatch): HeartState {
   return w.heart ? "liked" : "not";
 }
 
-export function heartColor(w: EnrichedWatch): string {
+export function heartColor(
+  w: EnrichedWatch,
+  tokens?: { accent: string; genre: Record<GenreKey, string> },
+): string {
   const s = heartState(w);
-  return s === "liked" ? HEART_LIKED : s === "not" ? HEART_COOL : HEART_UNKNOWN;
+  const { liked, cool, unknown } = heartPalette(tokens);
+  return s === "liked" ? liked : s === "not" ? cool : unknown;
 }
 
 /**

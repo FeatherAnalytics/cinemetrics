@@ -12,8 +12,21 @@ export function isSolstice(w: EnrichedWatch): boolean {
 /**
  * A crimson sun: core dot plus eight rays. Sized by `r` (the core radius);
  * rays reach r + 3.8. Pointer handlers belong on the parent group.
+ *
+ * `accent` defaults to the light constant so pure callers (tests) see the same
+ * color this always drew; the chart passes the active theme's.
  */
-export function SunMarker({ x, y, r = 3.2 }: { x: number; y: number; r?: number }) {
+export function SunMarker({
+  x,
+  y,
+  r = 3.2,
+  accent = ACCENT,
+}: {
+  x: number;
+  y: number;
+  r?: number;
+  accent?: string;
+}) {
   const rays = Array.from({ length: 8 }, (_, k) => {
     const a = (k * Math.PI) / 4;
     return (
@@ -23,7 +36,7 @@ export function SunMarker({ x, y, r = 3.2 }: { x: number; y: number; r?: number 
         y1={y + (r + 1.3) * Math.sin(a)}
         x2={x + (r + 3.8) * Math.cos(a)}
         y2={y + (r + 3.8) * Math.sin(a)}
-        stroke={ACCENT}
+        stroke={accent}
         strokeWidth={1.3}
         strokeLinecap="round"
       />
@@ -32,7 +45,7 @@ export function SunMarker({ x, y, r = 3.2 }: { x: number; y: number; r?: number 
   return (
     <>
       {rays}
-      <circle cx={x} cy={y} r={r} fill={ACCENT} />
+      <circle cx={x} cy={y} r={r} fill={accent} />
     </>
   );
 }

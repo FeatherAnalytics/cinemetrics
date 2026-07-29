@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { hasKnownRewatchState, insetRect, NO_DATA_STROKE, quantile } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
@@ -23,9 +23,7 @@ const H = 170;
 // the text is right-anchored at ML - 4, so a label wider than that runs off the
 // left edge of the SVG rather than pushing the plot over.
 const ML = 44;
-const FADE = "#b3b1a6";
 const MB = 16;
-const MID = "#eceae3";
 
 /** Bucket key for a date at the chosen grain. Weeks are ISO-ish: Monday start. */
 function bucketKey(date: string, grain: Grain): string {
@@ -83,10 +81,13 @@ function bucketSpan(dates: string[], grain: Grain): string[] {
  */
 export function ViewingVelocity() {
   const { all, filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
+  const FADE = tokens.ink.grid;
+  const MID = tokens.surface.well;
   const [grain, setGrain] = useState<Grain>("month");
   const [kind, setKind] = useState<Kind>("all");
   const [ref, W] = useWidth(W0, W_MIN);
-  const accent = accentFor(filters.genres);
+  const accent = accentFor(filters.genres, tokens);
 
   const model = useMemo(() => {
     // The axis spans the FULL history so the chart keeps its shape under a
@@ -146,10 +147,11 @@ export function ViewingVelocity() {
               y1={y(t.v)}
               x2={W}
               y2={y(t.v)}
-              stroke={i === 0 ? "#eee" : INK.muted}
+              stroke={i === 0 ? tokens.ink.grid : tokens.ink.muted}
+              strokeOpacity={i === 0 ? 0.4 : undefined}
               strokeDasharray={i === 0 ? undefined : "4 3"}
             />
-            <text x={ML - 4} y={y(t.v) + 3} textAnchor="end" fontSize={8} fill={INK.muted}>
+            <text x={ML - 4} y={y(t.v) + 3} textAnchor="end" fontSize={8} fill={tokens.ink.muted}>
               {t.label}
             </text>
           </g>
@@ -178,7 +180,7 @@ export function ViewingVelocity() {
                     y1={base - hU + ins}
                     x2={x + wpx}
                     y2={base - hU + ins}
-                    stroke={INK.primary}
+                    stroke={tokens.ink.primary}
                     strokeWidth={NO_DATA_STROKE}
                   />
                   {hU > hPrev && (
@@ -187,7 +189,7 @@ export function ViewingVelocity() {
                       y1={base - hU}
                       x2={x + ins}
                       y2={base - hPrev}
-                      stroke={INK.primary}
+                      stroke={tokens.ink.primary}
                       strokeWidth={NO_DATA_STROKE}
                     />
                   )}
@@ -197,7 +199,7 @@ export function ViewingVelocity() {
                       y1={base - hU}
                       x2={x + wpx - ins}
                       y2={base - hNext}
-                      stroke={INK.primary}
+                      stroke={tokens.ink.primary}
                       strokeWidth={NO_DATA_STROKE}
                     />
                   )}
@@ -232,7 +234,7 @@ export function ViewingVelocity() {
               x={ML + i * step}
               y={H - 3}
               fontSize={8}
-              fill={INK.muted}
+              fill={tokens.ink.muted}
               pointerEvents="none"
             >
               {k.slice(0, 4)}

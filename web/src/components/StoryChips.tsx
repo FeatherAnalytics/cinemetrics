@@ -1,7 +1,7 @@
 "use client";
 
 import { useExplorer } from "@/lib/store";
-import { INK, UI } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 
 // The computed findings as clickable invitations. Each chip carries the
 // headline the story would print on its primary chart; clicking one activates
@@ -9,6 +9,7 @@ import { INK, UI } from "@/lib/palette";
 // free exploration.
 export function StoryChips() {
   const { storyHeadlines, activeStory, setStory } = useExplorer();
+  const { tokens } = useTheme();
   if (storyHeadlines.length === 0) return null;
 
   return (
@@ -22,9 +23,11 @@ export function StoryChips() {
             aria-pressed={active}
             className="group inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-left text-xs transition"
             style={{
-              borderColor: active ? UI.active : "rgba(11,11,11,0.18)",
-              background: active ? UI.active : "transparent",
-              color: active ? UI.activeText : INK.secondary,
+              borderColor: active
+                ? tokens.ui.active
+                : `color-mix(in srgb, ${tokens.ink.primary} 18%, transparent)`,
+              background: active ? tokens.ui.active : "transparent",
+              color: active ? tokens.ui.activeText : tokens.ink.secondary,
             }}
           >
             <span>{chip}</span>

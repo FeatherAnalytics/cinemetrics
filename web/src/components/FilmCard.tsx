@@ -2,7 +2,8 @@
 
 import type { CandidateMetadata } from "@/lib/recommend";
 import type { Reason } from "@/lib/explainClient";
-import { ACCENT, GENRE_COLORS, GENRE_ORDER, INK, type GenreKey } from "@/lib/palette";
+import { GENRE_ORDER, type GenreKey } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 
 type Props = {
   metadata: CandidateMetadata;
@@ -12,6 +13,9 @@ type Props = {
   onWatchlist?: boolean;
 };
 
+// Letterboxd's own three-circle mark, reproduced at its real brand colors.
+// Fixed rather than themed: this identifies a third-party site, not our ink
+// scale, and stays recognizable regardless of which theme is active.
 function LetterboxdIcon({ size = 14 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 500 500" style={{ opacity: 0.7 }}>
@@ -45,6 +49,7 @@ function letterboxdUrl(m: CandidateMetadata): string {
 const GENRE_KEY_SET = new Set<string>(GENRE_ORDER);
 
 export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
+  const { tokens } = useTheme();
   const m = metadata;
   const genres = m.genres ? m.genres.split(", ").filter(Boolean) : [];
   const isEnglish = m.language === "en";
@@ -56,13 +61,16 @@ export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
   return (
     <div
       className="overflow-hidden rounded-lg border"
-      style={{ background: "#fff", borderColor: "rgba(11,11,11,0.12)" }}
+      style={{
+        background: tokens.surface.card,
+        borderColor: `color-mix(in srgb, ${tokens.ink.primary} 12%, transparent)`,
+      }}
     >
       <div className="p-3">
         <div className="mb-1.5 flex items-start justify-between gap-2">
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-semibold" style={{ color: INK.primary }}>
+              <span className="text-sm font-semibold" style={{ color: tokens.ink.primary }}>
                 {m.title}
               </span>
               <a href={filmUrl} target="_blank" rel="noopener noreferrer" title="View on Letterboxd">
@@ -75,8 +83,11 @@ export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
                 <span
                   className="rounded px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase"
                   style={{
-                    background: ACCENT,
-                    color: "#f7f6f3",
+                    background: tokens.accent,
+                    // The hole-punch ink, not a fixed light gray: it has to read
+                    // against the accent fill in both themes, and INK.surface
+                    // already flips to whichever tone contrasts with it.
+                    color: tokens.ink.surface,
                     letterSpacing: "0.12em",
                     // The tracking pushes the last letter off-centre inside the
                     // pill, so the right pad absorbs it back.
@@ -89,14 +100,17 @@ export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
                 </span>
               )}
             </div>
-            <div className="text-[11px]" style={{ color: INK.muted }}>
+            <div className="text-[11px]" style={{ color: tokens.ink.muted }}>
               {m.year}
               {runtimeStr ? ` · ${runtimeStr}` : ""}
               {m.rated ? ` · ${m.rated}` : ""}
             </div>
           </div>
           {score > 0 && (
-            <span className="whitespace-nowrap font-mono text-[10px] font-medium" style={{ color: ACCENT }}>
+            <span
+              className="whitespace-nowrap font-mono text-[10px] font-medium"
+              style={{ color: tokens.accent }}
+            >
               {Math.round(score * 100)}% match
             </span>
           )}
@@ -109,12 +123,15 @@ export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
               <span
                 key={g}
                 className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px]"
-                style={{ background: "rgba(11,11,11,0.05)", color: INK.secondary }}
+                style={{
+                  background: `color-mix(in srgb, ${tokens.ink.primary} 5%, transparent)`,
+                  color: tokens.ink.secondary,
+                }}
               >
                 {key && (
                   <span
                     className="inline-block h-1.5 w-1.5 rounded-full"
-                    style={{ background: GENRE_COLORS[key] }}
+                    style={{ background: tokens.genre[key] }}
                   />
                 )}
                 {g}
@@ -123,17 +140,20 @@ export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
           })}
           <span
             className="rounded-full border px-1.5 py-0.5 text-[10px]"
-            style={{ borderColor: "rgba(11,11,11,0.18)", color: INK.muted }}
+            style={{
+              borderColor: `color-mix(in srgb, ${tokens.ink.primary} 18%, transparent)`,
+              color: tokens.ink.muted,
+            }}
           >
             {langLabel}
           </span>
         </div>
 
         {reasons.length > 0 && (
-          <div className="rounded-md p-2" style={{ background: INK.surface }}>
+          <div className="rounded-md p-2" style={{ background: tokens.ink.surface }}>
             <div
               className="mb-1 font-mono text-[9px] font-semibold uppercase tracking-[0.15em]"
-              style={{ color: ACCENT }}
+              style={{ color: tokens.accent }}
             >
               Why this film
             </div>
@@ -142,9 +162,9 @@ export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
                 <div key={i} className="flex items-center gap-1.5">
                   <div
                     className="h-1 w-1 flex-shrink-0 rounded-full"
-                    style={{ background: ACCENT }}
+                    style={{ background: tokens.accent }}
                   />
-                  <span className="text-[11px]" style={{ color: INK.secondary }}>
+                  <span className="text-[11px]" style={{ color: tokens.ink.secondary }}>
                     {r.text}
                   </span>
                 </div>

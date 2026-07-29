@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
+import { primaryGenre, type GenreKey } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { watchKey } from "@/lib/brush";
 import { computeResiduals } from "@/lib/stats";
 import { BAR_H, GAP } from "@/lib/barChart";
@@ -27,6 +28,7 @@ type KeywordBar = {
 
 export function KeywordBars() {
   const { all, filtered, byId, setSelection } = useExplorer();
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<string | null>(null);
 
   const hearts = useMemo(() => heartByFilm(all), [all]);
@@ -133,8 +135,11 @@ export function KeywordBars() {
   if (bars.length === 0) {
     return (
       <div
-        className="rounded-md border border-dashed px-4 py-6 text-sm text-[#67655f]"
-        style={{ borderColor: "rgba(11,11,11,0.15)" }}
+        className="rounded-md border border-dashed px-4 py-6 text-sm"
+        style={{
+          color: tokens.ink.muted,
+          borderColor: `color-mix(in srgb, ${tokens.ink.primary} 15%, transparent)`,
+        }}
       >
         Not enough data for keyword analysis: it needs a keyword shared by{" "}
         {MIN_FILMS}+ rated films. Widen the filters to bring more films in.
@@ -161,7 +166,7 @@ export function KeywordBars() {
         aria-label="Keywords whose heart rate sits furthest above and below my overall heart rate"
       >
         {/* Zero line */}
-        <line x1={zeroX} y1={20} x2={zeroX} y2={HEIGHT - 20} stroke={INK.axis} strokeWidth={1.5} />
+        <line x1={zeroX} y1={20} x2={zeroX} y2={HEIGHT - 20} stroke={tokens.ink.axis} strokeWidth={1.5} />
 
         {bars.map((bar, i) => {
           const y = 20 + i * (BAR_H + GAP);
@@ -176,7 +181,7 @@ export function KeywordBars() {
               <text
                 x={LABEL_W - 8}
                 y={y + BAR_H / 2}
-                fill={INK.secondary}
+                fill={tokens.ink.secondary}
                 fontSize={12}
                 textAnchor="end"
                 dominantBaseline="middle"
@@ -190,7 +195,7 @@ export function KeywordBars() {
                 y={y}
                 width={barLen}
                 height={BAR_H}
-                fill={GENRE_COLORS[bar.genre]}
+                fill={tokens.genre[bar.genre]}
                 fillOpacity={isHover ? 0.9 : 0.72}
                 style={{ cursor: "pointer" }}
                 onMouseEnter={() => setHover(bar.keyword)}
@@ -206,7 +211,7 @@ export function KeywordBars() {
               <text
                 x={value > 0 ? zeroX - 6 : zeroX + 6}
                 y={y + BAR_H / 2}
-                fill={INK.primary}
+                fill={tokens.ink.primary}
                 fontSize={11}
                 fontWeight={700}
                 textAnchor={value > 0 ? "end" : "start"}
@@ -223,13 +228,13 @@ export function KeywordBars() {
                     y={y - 10}
                     width={240}
                     height={BAR_H + 20}
-                    fill={INK.primary}
+                    fill={tokens.ink.primary}
                     rx={4}
                   />
                   <text
                     x={LABEL_W + BAR_W + VALUE_W + 20}
                     y={y + BAR_H / 2}
-                    fill={INK.surface}
+                    fill={tokens.ink.surface}
                     fontSize={11}
                     dominantBaseline="middle"
                   >

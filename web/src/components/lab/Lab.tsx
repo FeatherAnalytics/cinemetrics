@@ -2,7 +2,7 @@
 
 import { ExplorerProvider, useExplorer } from "@/lib/store";
 import { RecommendProvider } from "@/lib/recommendStore";
-import { INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { SelectionPanel } from "@/components/SelectionPanel";
 import { FilterBar } from "@/components/FilterBar";
 import type { Dataset } from "@/lib/types";
@@ -123,6 +123,7 @@ const GROUPS: Group[] = [
 
 function Body() {
   const { filtered } = useExplorer();
+  const { tokens } = useTheme();
   // All three counted IN VIEW, so the sentence describes the charts beside it
   // instead of films the filter has already removed. `unknown` in particular is
   // "the remaining" of `inView`, so taking it from the whole library made the note
@@ -135,7 +136,7 @@ function Body() {
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-10">
       <header className="mb-8">
-        <h1 className="text-2xl font-bold" style={{ color: INK.primary }}>
+        <h1 className="text-2xl font-bold" style={{ color: tokens.ink.primary }}>
           Prototypes
         </h1>
       </header>
@@ -154,10 +155,10 @@ function Body() {
         {GROUPS.map((g) => (
           <div key={g.id} className="grid grid-cols-1 gap-12">
             <header>
-              <h2 className="text-xl font-bold" style={{ color: INK.primary }}>
+              <h2 className="text-xl font-bold" style={{ color: tokens.ink.primary }}>
                 {g.title}
               </h2>
-              <p className="mt-1 text-sm" style={{ color: INK.muted }}>
+              <p className="mt-1 text-sm" style={{ color: tokens.ink.muted }}>
                 {g.note({ known, inView: filtered.length, unknown, recovered })}
               </p>
               {g.Lead && (
@@ -169,7 +170,7 @@ function Body() {
 
             {g.sections.map(({ id, title, blurb, Blurb, Chart }) => (
               <section key={id}>
-                <h3 className="text-lg font-bold" style={{ color: INK.primary }}>
+                <h3 className="text-lg font-bold" style={{ color: tokens.ink.primary }}>
                   {title}
                 </h3>
                 {Blurb ? (
@@ -178,7 +179,7 @@ function Body() {
                   </div>
                 ) : (
                   blurb && (
-                    <p className="mt-1 mb-3 text-sm" style={{ color: INK.secondary }}>
+                    <p className="mt-1 mb-3 text-sm" style={{ color: tokens.ink.secondary }}>
                       {blurb}
                     </p>
                   )

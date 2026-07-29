@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
+import { primaryGenre } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { mean } from "@/lib/statsChart";
 import { favDirectorCohorts, type CohortFilm } from "@/lib/fourFavs";
@@ -48,6 +49,7 @@ function clipTitle(t: string): string {
  */
 export function FavDirectors() {
   const { filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<string | null>(null);
 
   const cohorts = useMemo(() => favDirectorCohorts(filtered), [filtered]);
@@ -58,7 +60,7 @@ export function FavDirectors() {
 
   if (cohorts.length === 0) {
     return (
-      <p className="text-sm" style={{ color: INK.muted }}>
+      <p className="text-sm" style={{ color: tokens.ink.muted }}>
         No favorite is in view under this filter.
       </p>
     );
@@ -96,7 +98,7 @@ export function FavDirectors() {
         <text
           x={LABEL_W}
           y={8}
-          fill={INK.muted}
+          fill={tokens.ink.muted}
           fontSize={9}
           letterSpacing="0.1em"
           fontFamily="var(--font-mono)"
@@ -114,14 +116,14 @@ export function FavDirectors() {
               y1={14}
               x2={LABEL_W + len(baseline)}
               y2={HEIGHT - 4}
-              stroke={INK.muted}
+              stroke={tokens.ink.muted}
               strokeDasharray="4 3"
               pointerEvents="none"
             />
             <text
               x={LABEL_W + len(baseline)}
               y={HEIGHT - 6}
-              fill={INK.muted}
+              fill={tokens.ink.muted}
               fontSize={8}
               textAnchor="middle"
               pointerEvents="none"
@@ -136,7 +138,7 @@ export function FavDirectors() {
             key={c.director}
             x={TITLE_X}
             y={c.y + CAPTION_H - 5}
-            fill={INK.muted}
+            fill={tokens.ink.muted}
             fontSize={9}
             letterSpacing="0.08em"
             textAnchor="end"
@@ -169,14 +171,14 @@ export function FavDirectors() {
                   x={STAR_X}
                   y={r.y + BAR_H / 2}
                   r={6}
-                  fill={favColor(r.film.watches[0].film)}
+                  fill={favColor(r.film.watches[0].film, tokens)}
                 />
               )}
 
               <text
                 x={TITLE_X}
                 y={r.y + BAR_H / 2}
-                fill={r.fav ? INK.primary : INK.secondary}
+                fill={r.fav ? tokens.ink.primary : tokens.ink.secondary}
                 fontSize={12}
                 fontWeight={r.fav || on ? 700 : 400}
                 textAnchor="end"
@@ -191,9 +193,9 @@ export function FavDirectors() {
                 y={r.y}
                 width={barLen}
                 height={BAR_H}
-                fill={GENRE_COLORS[primaryGenre(r.film.watches[0].film)]}
+                fill={tokens.genre[primaryGenre(r.film.watches[0].film)]}
                 fillOpacity={isHover || on ? 0.9 : 0.72}
-                stroke={on ? INK.primary : "none"}
+                stroke={on ? tokens.ink.primary : "none"}
                 strokeWidth={on ? 1.75 : 0}
               />
 
@@ -201,7 +203,7 @@ export function FavDirectors() {
                 <text
                   x={inside ? LABEL_W + barLen - 6 : LABEL_W + barLen + 6}
                   y={r.y + BAR_H / 2}
-                  fill={valueLabelFill(inside)}
+                  fill={valueLabelFill(inside, tokens.ink)}
                   fontSize={11}
                   fontWeight={700}
                   textAnchor={inside ? "end" : "start"}
@@ -225,6 +227,7 @@ export function FavDirectors() {
  */
 export function FavDirectorsBlurb() {
   const { filtered } = useExplorer();
+  const { tokens } = useTheme();
   const cohorts = useMemo(() => favDirectorCohorts(filtered), [filtered]);
   if (cohorts.length === 0) return null;
 
@@ -232,7 +235,7 @@ export function FavDirectorsBlurb() {
   if (companions === 0) return null;
 
   return (
-    <p className="text-sm" style={{ color: INK.secondary }}>
+    <p className="text-sm" style={{ color: tokens.ink.secondary }}>
       Each favorite arrived with {companions === cohorts.length ? "one other film" : "company"} by
       the same director.
     </p>

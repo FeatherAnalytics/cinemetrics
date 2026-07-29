@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useExplorer } from "@/lib/store";
-import { INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { chicagoParts, DAY_ABBR, WEEKEND } from "@/lib/statsChart";
 import { CategoryBars, type CategoryBar } from "./CategoryBars";
 import { accentFor, isPicked, pickWatches } from "./pick";
@@ -22,6 +22,7 @@ import { accentFor, isPicked, pickWatches } from "./pick";
  */
 export function WeekdayCounts() {
   const { filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
 
   const model = useMemo(() => {
     const counts = Array(7).fill(0) as number[];
@@ -47,7 +48,7 @@ export function WeekdayCounts() {
     <div>
       <div
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
-        style={{ color: INK.muted }}
+        style={{ color: tokens.ink.muted }}
       >
         watches
       </div>
@@ -55,7 +56,7 @@ export function WeekdayCounts() {
         bars={bars}
         highlight={WEEKEND}
         barLabel="share"
-        accent={accentFor(filters.genres)}
+        accent={accentFor(filters.genres, tokens)}
         active={activeIndex >= 0 ? activeIndex : null}
         onPick={(i) => pickWatches(model.byDay[i], filters.selection, setSelection)}
       />

@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import { interpolateRgb } from "d3";
 import { useExplorer } from "@/lib/store";
-import { HEART_COOL, HEART_LIKED, HEART_UNKNOWN, heartColor } from "@/lib/heartLens";
+import { heartColor, heartPalette } from "@/lib/heartLens";
 import { GEM_MAX_VOTES, GEM_MIN_RATING, LONG_MIN } from "@/lib/stories";
-import { DIVERGE_COOL, DIVERGE_MID, DIVERGE_WARM, INK, primaryGenre } from "@/lib/palette";
+import { primaryGenre } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { computeMedianRating } from "@/lib/stats";
 import type { EnrichedWatch } from "@/lib/types";
 
@@ -15,9 +16,6 @@ const ML = 16;
 const MR = 16;
 const MB = 22;
 
-const WARM = DIVERGE_WARM;
-const COOL = DIVERGE_COOL;
-const MID = DIVERGE_MID;
 /**
  * The middle state under a story lens.
  *
@@ -25,71 +23,94 @@ const MID = DIVERGE_MID;
  * a region with an outline around it; on a two-pixel stripe against an off-white
  * page it disappears, which is what made the Double features barcode look like a
  * handful of crimson bars on an empty field.
+ *
+ * Fixed rather than themed: it is a literal chrome gray, not a re-export of a
+ * palette color, and (like `HEART_UNKNOWN`) reads on either surface as-is.
  */
 const NEUTRAL = "#b3b1a6";
 
 type LegendKey = { color: string; label: string };
 
-/** Every encoding the stripes can carry, with the words that name it. */
-const LEGENDS: Record<
-  "rating" | "binges" | "gems" | "runtime" | "heart" | "spooktober",
-  { aria: string; keys: (median: number) => LegendKey[] }
-> = {
-  rating: {
-    aria: "One stripe per rated watch in order, colored by how far the rating sat above or below my median",
-    keys: (median) => [
-      { color: WARM, label: `above my median (${median})` },
-      { color: MID, label: "at par" },
-      { color: COOL, label: "below" },
-    ],
-  },
-  binges: {
-    aria: "One stripe per rated watch in order, colored by how many films I watched that day",
-    keys: () => [
-      { color: WARM, label: "three or more films that day" },
-      { color: NEUTRAL, label: "a double feature" },
-      { color: COOL, label: "a single film" },
-    ],
-  },
-  gems: {
-    aria: "One stripe per rated watch in order, marking the watches of films that are hidden gems",
-    keys: () => [
-      { color: WARM, label: "a hidden gem" },
-      { color: NEUTRAL, label: "rated 80+, widely seen" },
-      { color: COOL, label: "rated under 80" },
-    ],
-  },
-  runtime: {
-    aria: "One stripe per rated watch in order, marking long films and how I rated them",
-    keys: (median) => [
-      { color: WARM, label: `${LONG_MIN} min or more, rated ${median}+` },
-      { color: COOL, label: `${LONG_MIN} min or more, rated under ${median}` },
-      { color: NEUTRAL, label: "shorter" },
-    ],
-  },
-  spooktober: {
-    aria: "One stripe per rated watch in order, marking the horror I watched in October",
-    keys: () => [
-      { color: WARM, label: "horror, in October" },
-      { color: NEUTRAL, label: "horror, other months" },
-      { color: COOL, label: "not horror" },
-    ],
-  },
-  heart: {
-    aria: "One stripe per rated watch in order, colored by the Letterboxd heart",
-    keys: () => [
-      { color: HEART_LIKED, label: "hearted" },
-      { color: HEART_COOL, label: "not hearted" },
-      { color: HEART_UNKNOWN, label: "no heart recorded" },
-    ],
-  },
-};
-
-const lerpToWarm = interpolateRgb(MID, WARM);
-const lerpToCool = interpolateRgb(MID, COOL);
-
 export function StreakStripes() {
   const { all, filtered, selectedId, setSelected, heartLens, activeStory } = useExplorer();
+  const { tokens } = useTheme();
+
+  // Diverging poles for the barcode. Derived from the active theme, so they must
+  // be recomputed on toggle rather than fixed at module load; kept inside a
+  // `useMemo` keyed on the tokens they read so a same-theme rerender does not
+  // rebuild them.
+  const { WARM, COOL, lerpToWarm, lerpToCool, LEGENDS } = useMemo(() => {
+    const WARM = tokens.accent;
+    const COOL = tokens.genre.Drama;
+    // A neutral tint of the paper surface, so "we agree" recedes toward the page
+    // background rather than drawing an outline — the same rule in both themes.
+    const MID = tokens.surface.well;
+    const heart = heartPalette(tokens);
+
+    /** Every encoding the stripes can carry, with the words that name it. */
+    const LEGENDS: Record<
+      "rating" | "binges" | "gems" | "runtime" | "heart" | "spooktober",
+      { aria: string; keys: (median: number) => LegendKey[] }
+    > = {
+      rating: {
+        aria: "One stripe per rated watch in order, colored by how far the rating sat above or below my median",
+        keys: (median) => [
+          { color: WARM, label: `above my median (${median})` },
+          { color: MID, label: "at par" },
+          { color: COOL, label: "below" },
+        ],
+      },
+      binges: {
+        aria: "One stripe per rated watch in order, colored by how many films I watched that day",
+        keys: () => [
+          { color: WARM, label: "three or more films that day" },
+          { color: NEUTRAL, label: "a double feature" },
+          { color: COOL, label: "a single film" },
+        ],
+      },
+      gems: {
+        aria: "One stripe per rated watch in order, marking the watches of films that are hidden gems",
+        keys: () => [
+          { color: WARM, label: "a hidden gem" },
+          { color: NEUTRAL, label: "rated 80+, widely seen" },
+          { color: COOL, label: "rated under 80" },
+        ],
+      },
+      runtime: {
+        aria: "One stripe per rated watch in order, marking long films and how I rated them",
+        keys: (median) => [
+          { color: WARM, label: `${LONG_MIN} min or more, rated ${median}+` },
+          { color: COOL, label: `${LONG_MIN} min or more, rated under ${median}` },
+          { color: NEUTRAL, label: "shorter" },
+        ],
+      },
+      spooktober: {
+        aria: "One stripe per rated watch in order, marking the horror I watched in October",
+        keys: () => [
+          { color: WARM, label: "horror, in October" },
+          { color: NEUTRAL, label: "horror, other months" },
+          { color: COOL, label: "not horror" },
+        ],
+      },
+      heart: {
+        aria: "One stripe per rated watch in order, colored by the Letterboxd heart",
+        keys: () => [
+          { color: heart.liked, label: "hearted" },
+          { color: heart.cool, label: "not hearted" },
+          { color: heart.unknown, label: "no heart recorded" },
+        ],
+      },
+    };
+
+    return {
+      WARM,
+      COOL,
+      MID,
+      lerpToWarm: interpolateRgb(MID, WARM),
+      lerpToCool: interpolateRgb(MID, COOL),
+      LEGENDS,
+    };
+  }, [tokens]);
 
   /**
    * Which encoding the stripes carry.
@@ -177,7 +198,10 @@ export function StreakStripes() {
 
   if (rated.length === 0 || med == null) {
     return (
-      <div className="flex h-24 items-center justify-center text-sm text-[#67655f]">
+      <div
+        className="flex h-24 items-center justify-center text-sm"
+        style={{ color: tokens.ink.muted }}
+      >
         No rated watches to plot.
       </div>
     );
@@ -230,7 +254,7 @@ export function StreakStripes() {
       if ((w.film?.runtime ?? 0) < LONG_MIN) return NEUTRAL;
       return (w.rating as number) >= med ? WARM : COOL;
     }
-    if (lens === "heart") return heartColor(w);
+    if (lens === "heart") return heartColor(w, tokens);
     const t = Math.max(-1, Math.min(1, ((w.rating as number) - med) / devMax));
     return t < 0 ? lerpToCool(-t) : lerpToWarm(t);
   };
@@ -267,13 +291,13 @@ export function StreakStripes() {
         })}
         {/* Unlabeled month ticks under the block; year starts get the label. */}
         {monthStarts.map((x, i) => (
-          <line key={`m-${i}`} x1={x} y1={H - MB} x2={x} y2={H - MB + 3} stroke={INK.grid} strokeWidth={0.75} />
+          <line key={`m-${i}`} x1={x} y1={H - MB} x2={x} y2={H - MB + 3} stroke={tokens.ink.grid} strokeWidth={0.75} />
         ))}
         {yearStarts.map(({ x, year }) => (
           <g key={year}>
-            <line x1={x} y1={8} x2={x} y2={H - MB + 2} stroke={INK.surface} strokeWidth={1} />
-            <line x1={x} y1={H - MB} x2={x} y2={H - MB + 5} stroke={INK.axis} strokeWidth={1} />
-            <text x={x + 2} y={H - 6} fill={INK.muted} fontSize={10} textAnchor="start">
+            <line x1={x} y1={8} x2={x} y2={H - MB + 2} stroke={tokens.ink.surface} strokeWidth={1} />
+            <line x1={x} y1={H - MB} x2={x} y2={H - MB + 5} stroke={tokens.ink.axis} strokeWidth={1} />
+            <text x={x + 2} y={H - 6} fill={tokens.ink.muted} fontSize={10} textAnchor="start">
               {year}
             </text>
           </g>
@@ -282,7 +306,7 @@ export function StreakStripes() {
 
       {/* The legend names whichever encoding is live. A swatch for a color the chart
           is not drawing is worse than no legend, since it teaches the wrong reading. */}
-      <figcaption className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" style={{ color: INK.muted }}>
+      <figcaption className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" style={{ color: tokens.ink.muted }}>
         {LEGENDS[lens ?? "rating"].keys(Math.round(med)).map((k) => (
           <span key={k.label} className="inline-flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-4" style={{ background: k.color }} /> {k.label}
@@ -297,12 +321,15 @@ export function StreakStripes() {
             left: `${Math.min(88, Math.max(8, ((ML + hover.i * stripeW) / W) * 100))}%`,
             top: 0,
             transform: "translate(-50%, -110%)",
-            background: INK.primary,
-            color: INK.surface,
+            background: tokens.ink.primary,
+            color: tokens.ink.surface,
           }}
         >
           <span className="font-medium">{hover.w.film?.title ?? hover.w.tmdb_id}</span>
-          <span style={{ color: "#c3c2b7" }}>
+          {/* A dimmed version of the tooltip's own text color, not a fixed gray:
+              the tooltip's background is INK.primary (inverted relative to the
+              page), so the muted tone has to invert with it too. */}
+          <span style={{ color: tokens.ink.surface, opacity: 0.75 }}>
             {" "}
             · {hover.w.d.toISOString().slice(0, 10)} · {Math.round(hover.w.rating as number)} (
             {(hover.w.rating as number) >= med ? "+" : ""}

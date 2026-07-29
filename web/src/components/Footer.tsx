@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useExplorer } from "@/lib/store";
+import { useTheme } from "@/lib/theme";
 
 const REPO_URL = "https://github.com/FeatherAnalytics/cinemetrics";
 // A plain anchor, not <Link>, because the dbt docs page is a static file dropped
@@ -14,6 +15,7 @@ const DBT_DOCS_URL = `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/dbt/index.html`
 
 export function Footer() {
   const { all } = useExplorer();
+  const { tokens } = useTheme();
 
   const updated = useMemo(() => {
     let max = 0;
@@ -29,8 +31,11 @@ export function Footer() {
 
   return (
     <footer
-      className="mt-12 border-t pt-6 text-xs text-[#67655f]"
-      style={{ borderColor: "rgba(11,11,11,0.12)" }}
+      className="mt-12 border-t pt-6 text-xs"
+      style={{
+        color: tokens.ink.muted,
+        borderColor: `color-mix(in srgb, ${tokens.ink.primary} 12%, transparent)`,
+      }}
     >
       <p className="max-w-2xl">
         Built from my Letterboxd history: an RSS feed feeds a dbt / DuckDB pipeline that
@@ -43,7 +48,8 @@ export function Footer() {
           href={REPO_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline underline-offset-2 hover:text-[#0b0b0b]"
+          className="underline underline-offset-2 hover:text-[color:var(--footer-hover-ink)]"
+          style={{ "--footer-hover-ink": tokens.ink.primary } as React.CSSProperties}
         >
           Source on GitHub
         </a>
@@ -51,7 +57,8 @@ export function Footer() {
           href={DBT_DOCS_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline underline-offset-2 hover:text-[#0b0b0b]"
+          className="underline underline-offset-2 hover:text-[color:var(--footer-hover-ink)]"
+          style={{ "--footer-hover-ink": tokens.ink.primary } as React.CSSProperties}
         >
           Data model docs
         </a>

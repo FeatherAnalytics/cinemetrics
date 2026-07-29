@@ -2,7 +2,8 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK, primaryGenre, UI } from "@/lib/palette";
+import { primaryGenre } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { isSolstice, SunMarker } from "@/lib/solstice";
 import { isFav } from "@/lib/fourFavs";
@@ -42,6 +43,7 @@ export function SwimLaneChart() {
     heartLens,
     activeStory,
   } = useExplorer();
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<{ x: number; y: number; w: EnrichedWatch } | null>(null);
   const monthFocus = storyResult?.monthFocus ?? null;
   const showYearMeans = storyResult?.yearMeans ?? false;
@@ -88,7 +90,7 @@ export function SwimLaneChart() {
     // Ghosts first
     for (const w of ghosts) {
       const { x, y } = place(w);
-      pts.push({ w, x, y, color: INK.muted, op: 0.08, r: 3.5, sel: false, unrated: w.rating == null });
+      pts.push({ w, x, y, color: tokens.ink.muted, op: 0.08, r: 3.5, sel: false, unrated: w.rating == null });
     }
 
     // Under the heart lens the dot KEEPS its genre color and fades when the film
@@ -96,7 +98,7 @@ export function SwimLaneChart() {
     // the encoding they already learned. Unrecorded hearts fade with the rest: all
     // 129 of them sit in 2019, and giving them a gray turned the whole first row
     // into chrome.
-    const dotColor = (w: EnrichedWatch) => GENRE_COLORS[primaryGenre(w.film)];
+    const dotColor = (w: EnrichedWatch) => tokens.genre[primaryGenre(w.film)];
     const dotFade = (w: EnrichedWatch) => (heartLens ? heartDim(w) : 1);
 
     // Active dots
@@ -135,7 +137,7 @@ export function SwimLaneChart() {
     // Selected on top
     pts.sort((a, b) => Number(a.sel) - Number(b.sel) || a.op - b.op);
     return pts;
-  }, [all, filtered, hasSel, selectedId, monthFocus, place, heartLens]);
+  }, [all, filtered, hasSel, selectedId, monthFocus, place, heartLens, tokens]);
 
   // The circle elements are memoized as JSX so a tooltip show/hide (hover
   // state) doesn't rebuild ~1,500 SVG nodes.
@@ -153,7 +155,7 @@ export function SwimLaneChart() {
           const op = p.op < 0.3 ? 0.35 : Math.max(p.op, 0.9);
           return (
             <g key={i} opacity={op} style={{ cursor: "pointer" }} {...handlers}>
-              <SunMarker x={p.x} y={p.y} />
+              <SunMarker x={p.x} y={p.y} accent={tokens.accent} />
             </g>
           );
         }
@@ -163,7 +165,7 @@ export function SwimLaneChart() {
         if (isFav(p.w.tmdb_id)) {
           return (
             <g key={i} opacity={p.op} style={{ cursor: "pointer" }} {...handlers}>
-              <StarMarker x={p.x} y={p.y} r={p.r + 2.4} fill={favColor(p.w.film)} />
+              <StarMarker x={p.x} y={p.y} r={p.r + 2.4} fill={favColor(p.w.film, tokens)} />
             </g>
           );
         }
@@ -176,7 +178,7 @@ export function SwimLaneChart() {
             r={p.r}
             fill={ring ? "none" : p.color}
             fillOpacity={ring ? 0 : p.op}
-            stroke={p.sel ? UI.selected : ring ? p.color : "none"}
+            stroke={p.sel ? tokens.ui.selected : ring ? p.color : "none"}
             strokeWidth={p.sel ? 2 : ring ? 1 : 0}
             strokeOpacity={ring ? p.op : 1}
             style={{ cursor: "pointer" }}
@@ -184,7 +186,7 @@ export function SwimLaneChart() {
           />
         );
       }),
-    [points, setSelected],
+    [points, setSelected, tokens],
   );
 
   // Per-year average markers, shown only when a story asks for them (the
@@ -211,7 +213,7 @@ export function SwimLaneChart() {
             y1={y}
             x2={MARGIN_LEFT + CHART_WIDTH}
             y2={y}
-            stroke={ACCENT}
+            stroke={tokens.accent}
             strokeWidth={1.5}
             strokeOpacity={0.45}
             strokeDasharray="7 5"
@@ -219,7 +221,7 @@ export function SwimLaneChart() {
           <text
             x={MARGIN_LEFT + CHART_WIDTH - 4}
             y={y + 12}
-            fill={ACCENT}
+            fill={tokens.accent}
             fontSize={10}
             fontWeight="bold"
             textAnchor="end"
@@ -229,7 +231,7 @@ export function SwimLaneChart() {
         </g>
       );
     });
-  }, [showYearMeans, filtered, startYear, CHART_WIDTH]);
+  }, [showYearMeans, filtered, startYear, CHART_WIDTH, tokens]);
 
   const { rect, handlers } = useDragRect(
     () => ({ w: BASE_WIDTH, h: viewBoxHeight }),
@@ -261,7 +263,7 @@ export function SwimLaneChart() {
             y={MARGIN_TOP + i * LANE_H}
             width={CHART_WIDTH}
             height={LANE_H}
-            fill={i % 2 === 0 ? "#f7f6f3" : "white"}
+            fill={i % 2 === 0 ? tokens.surface.paper : tokens.surface.card}
           />
         ))}
 
@@ -272,7 +274,7 @@ export function SwimLaneChart() {
             y={MARGIN_TOP}
             width={CHART_WIDTH / 12}
             height={nYears * LANE_H}
-            fill={ACCENT}
+            fill={tokens.accent}
             fillOpacity={0.08}
           />
         )}
@@ -289,7 +291,7 @@ export function SwimLaneChart() {
               y1={laneTop + (1 - rating / 100) * LANE_H}
               x2={MARGIN_LEFT + CHART_WIDTH}
               y2={laneTop + (1 - rating / 100) * LANE_H}
-              stroke={INK.grid}
+              stroke={tokens.ink.grid}
               strokeWidth={0.5}
               strokeOpacity={0.55}
               strokeDasharray="2 3"
@@ -307,7 +309,7 @@ export function SwimLaneChart() {
               y1={MARGIN_TOP}
               x2={x}
               y2={MARGIN_TOP + nYears * LANE_H}
-              stroke={INK.grid}
+              stroke={tokens.ink.grid}
               strokeWidth={1}
             />
           );
@@ -321,7 +323,7 @@ export function SwimLaneChart() {
               key={`month-label-${i}`}
               x={x}
               y={MARGIN_TOP + nYears * LANE_H + 18}
-              fill={INK.muted}
+              fill={tokens.ink.muted}
               fontSize={11}
               textAnchor="middle"
               dominantBaseline="middle"
@@ -340,7 +342,7 @@ export function SwimLaneChart() {
               key={`year-label-${i}`}
               x={MARGIN_LEFT - 8}
               y={y}
-              fill={INK.primary}
+              fill={tokens.ink.primary}
               fontSize={13}
               fontWeight="bold"
               textAnchor="end"
@@ -359,7 +361,7 @@ export function SwimLaneChart() {
         {yearMeanLayer}
 
         {/* Brush rect */}
-        <BrushRectOverlay rect={rect} />
+        <BrushRectOverlay rect={rect} accent={tokens.accent} />
       </svg>
 
       {/* Hover tooltip */}
@@ -370,15 +372,18 @@ export function SwimLaneChart() {
             left: `${(hover.x / BASE_WIDTH) * 100}%`,
             top: `${(hover.y / viewBoxHeight) * 100}%`,
             transform: "translate(-50%, -130%)",
-            background: INK.primary,
-            color: INK.surface,
+            background: tokens.ink.primary,
+            color: tokens.ink.surface,
           }}
         >
           <div className="font-medium">
             {hover.w.film?.title ?? hover.w.tmdb_id}
             {hover.w.film?.year != null ? ` (${hover.w.film.year})` : ""}
           </div>
-          <div style={{ color: "#c3c2b7" }}>
+          {/* A dimmed version of the tooltip's own text color, not a fixed gray:
+              the tooltip's background is ink.primary (inverted relative to the
+              page), so the muted tone has to invert with it too. */}
+          <div style={{ color: tokens.ink.surface, opacity: 0.75 }}>
             {hover.w.d.toISOString().slice(0, 10)} · {primaryGenre(hover.w.film)}
             {hover.w.rating != null ? ` · ${Math.round(hover.w.rating)}` : ""}
             {hover.w.rewatch ? " · rewatch" : ""}

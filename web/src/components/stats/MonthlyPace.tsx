@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import {
   chicagoParts,
   calendarDaysPerMonth,
@@ -31,6 +31,7 @@ import { accentFor, isPicked, pickWatches } from "./pick";
  */
 export function MonthlyPace() {
   const { all, filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<number | null>(null);
 
   const model = useMemo(() => {
@@ -73,12 +74,12 @@ export function MonthlyPace() {
           cumulative chart. There is no `<title>` anywhere in this chart. */}
       <div
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
-        style={{ color: INK.muted }}
+        style={{ color: tokens.ink.muted }}
       >
         {hover != null && model.avg[hover] != null ? (
           <>
             {MONTH_ABBR[hover]} avg{" "}
-            <span style={{ color: INK.primary }}>
+            <span style={{ color: tokens.ink.primary }}>
               {(model.avg[hover]! / 20).toFixed(1)}★
             </span>
           </>
@@ -89,7 +90,7 @@ export function MonthlyPace() {
       <CategoryBars
         bars={bars}
         fmt={paceLabel}
-        accent={accentFor(filters.genres)}
+        accent={accentFor(filters.genres, tokens)}
         active={activeIndex >= 0 ? activeIndex : null}
         onHover={setHover}
         onPick={(i) => pickWatches(model.byMonth[i], filters.selection, setSelection)}

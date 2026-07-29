@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
-import { GENRE_COLORS, INK, UI } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { countryName } from "@/lib/countries";
 import { languageName } from "@/lib/languages";
 import { aggregateOrigin, type CountryRow, type OriginDimension } from "@/lib/countryStats";
@@ -37,6 +37,7 @@ const INSIDE_MIN = 44;
 
 export function CountryBars() {
   const { all, byId, filters, setCountry, setLanguage } = useExplorer();
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<string | null>(null);
   const [dimension, setDimension] = useState<OriginDimension>("country");
   const isLang = dimension === "language";
@@ -109,7 +110,10 @@ export function CountryBars() {
 
   if (agg.rows.length === 0) {
     return (
-      <div className="flex h-48 items-center justify-center text-sm text-[#67655f]">
+      <div
+        className="flex h-48 items-center justify-center text-sm"
+        style={{ color: tokens.ink.muted }}
+      >
         No films match the current filters.
       </div>
     );
@@ -139,7 +143,7 @@ export function CountryBars() {
         <text
           x={LABEL_W}
           y={8}
-          fill={INK.muted}
+          fill={tokens.ink.muted}
           fontSize={9}
           letterSpacing="0.1em"
           fontFamily="var(--font-mono)"
@@ -151,7 +155,7 @@ export function CountryBars() {
         <text
           x={DEV_ZERO}
           y={8}
-          fill={INK.muted}
+          fill={tokens.ink.muted}
           fontSize={9}
           letterSpacing="0.1em"
           textAnchor="middle"
@@ -165,7 +169,7 @@ export function CountryBars() {
           y1={20}
           x2={DEV_ZERO}
           y2={HEIGHT - 20}
-          stroke={INK.axis}
+          stroke={tokens.ink.axis}
           strokeWidth={1.5}
         />
 
@@ -199,7 +203,7 @@ export function CountryBars() {
               <text
                 x={LABEL_W - 8}
                 y={y + BAR_H / 2}
-                fill={sel ? INK.primary : INK.secondary}
+                fill={sel ? tokens.ink.primary : tokens.ink.secondary}
                 fontSize={12}
                 fontWeight={sel ? 700 : 400}
                 textAnchor="end"
@@ -213,9 +217,9 @@ export function CountryBars() {
                 y={y}
                 width={barLen}
                 height={BAR_H}
-                fill={GENRE_COLORS[row.genre]}
+                fill={tokens.genre[row.genre]}
                 fillOpacity={isHover || sel ? 0.9 : 0.72}
-                stroke={sel ? UI.selected : "none"}
+                stroke={sel ? tokens.ui.selected : "none"}
                 strokeWidth={sel ? 1.75 : 0}
               />
 
@@ -223,7 +227,7 @@ export function CountryBars() {
               <text
                 x={countInside ? LABEL_W + barLen - 6 : LABEL_W + barLen + 6}
                 y={y + BAR_H / 2}
-                fill={valueLabelFill(countInside)}
+                fill={valueLabelFill(countInside, tokens.ink)}
                 fontSize={11}
                 fontWeight={700}
                 textAnchor={countInside ? "end" : "start"}
@@ -243,9 +247,9 @@ export function CountryBars() {
                     y={y}
                     width={devLen}
                     height={BAR_H}
-                    fill={GENRE_COLORS[row.genre]}
+                    fill={tokens.genre[row.genre]}
                     fillOpacity={isHover || sel ? 0.9 : 0.72}
-                    stroke={sel ? UI.selected : "none"}
+                    stroke={sel ? tokens.ui.selected : "none"}
                     strokeWidth={sel ? 1.75 : 0}
                   />
                   {/* At the growing end of its own bar, whichever way that is, so the
@@ -259,7 +263,7 @@ export function CountryBars() {
                         : DEV_ZERO - devLen + (devInside ? 6 : -6)
                     }
                     y={y + BAR_H / 2}
-                    fill={valueLabelFill(devInside)}
+                    fill={valueLabelFill(devInside, tokens.ink)}
                     fontSize={11}
                     fontWeight={700}
                     textAnchor={dev > 0 ? (devInside ? "end" : "start") : devInside ? "start" : "end"}
@@ -278,7 +282,7 @@ export function CountryBars() {
           <text
             x={LABEL_W - 8}
             y={20 + agg.rows.length * (BAR_H + GAP) + BAR_H / 2}
-            fill={INK.muted}
+            fill={tokens.ink.muted}
             fontSize={11}
             textAnchor="end"
             dominantBaseline="middle"

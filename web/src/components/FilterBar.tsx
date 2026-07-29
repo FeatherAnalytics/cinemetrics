@@ -3,7 +3,8 @@
 import { useState, type ReactNode } from "react";
 import { useExplorer } from "@/lib/store";
 import { useRecommend } from "@/lib/recommendStore";
-import { ACCENT, GENRE_COLORS, GENRE_KEYS, INK, UI } from "@/lib/palette";
+import { GENRE_KEYS } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { RangeSlider } from "./RangeSlider";
 import type { TextField } from "@/lib/store";
 
@@ -19,6 +20,7 @@ function SearchInput({
   options: string[];
 }) {
   const { filters, setText } = useExplorer();
+  const { tokens } = useTheme();
   const listId = `opts-${field}`;
   return (
     <>
@@ -27,8 +29,15 @@ function SearchInput({
         onChange={(e) => setText(field, e.target.value)}
         placeholder={placeholder}
         list={listId}
-        className="w-full rounded-md border px-2.5 py-1 text-sm text-[#0b0b0b] outline-none focus:border-[#c01023]"
-        style={{ borderColor: "rgba(11,11,11,0.2)", background: "transparent" }}
+        className="w-full rounded-md border px-2.5 py-1 text-sm outline-none focus:border-[color:var(--fb-accent)]"
+        style={
+          {
+            borderColor: `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)`,
+            background: "transparent",
+            color: tokens.ink.primary,
+            "--fb-accent": tokens.accent,
+          } as React.CSSProperties
+        }
       />
       <datalist id={listId}>
         {options.map((o) => (
@@ -53,21 +62,25 @@ function SelectFilter({
   placeholder: string;
   options: { value: string; label: string }[];
 }) {
+  const { tokens } = useTheme();
   return (
     <select
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value || null)}
       aria-label={label}
-      className="w-full rounded-md border px-2.5 py-1 text-sm outline-none focus:border-[#c01023]"
-      style={{
-        borderColor: "rgba(11,11,11,0.2)",
-        background: "transparent",
-        color: value ? "#0b0b0b" : "#67655f",
-      }}
+      className="w-full rounded-md border px-2.5 py-1 text-sm outline-none focus:border-[color:var(--fb-accent)]"
+      style={
+        {
+          borderColor: `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)`,
+          background: "transparent",
+          color: value ? tokens.ink.primary : tokens.ink.muted,
+          "--fb-accent": tokens.accent,
+        } as React.CSSProperties
+      }
     >
       <option value="">{placeholder}</option>
       {options.map((o) => (
-        <option key={o.value} value={o.value} style={{ color: "#0b0b0b" }}>
+        <option key={o.value} value={o.value} style={{ color: tokens.ink.primary }}>
           {o.label}
         </option>
       ))}
@@ -110,6 +123,7 @@ export function FilterBar() {
     watchlistOptions,
   } = useExplorer();
   const { dispatch: recDispatch } = useRecommend();
+  const { tokens } = useTheme();
 
   /**
    * The watchlist story reduces the rail rather than hiding it.
@@ -157,15 +171,18 @@ export function FilterBar() {
       {activeStory && (
         <div
           className="flex items-center justify-between rounded-md border px-2.5 py-1.5"
-          style={{ borderColor: ACCENT, background: "rgba(192,16,35,0.06)" }}
+          style={{
+            borderColor: tokens.accent,
+            background: `color-mix(in srgb, ${tokens.accent} 6%, transparent)`,
+          }}
         >
-          <span className="font-mono text-[10px] uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
+          <span className="font-mono text-[10px] uppercase tracking-[0.15em]" style={{ color: tokens.accent }}>
             story active
           </span>
           <button
             onClick={() => setStory(null)}
             className="text-xs underline underline-offset-2"
-            style={{ color: ACCENT }}
+            style={{ color: tokens.accent }}
           >
             clear
           </button>
@@ -175,8 +192,14 @@ export function FilterBar() {
       <FieldGroup label="discover">
         <button
           onClick={() => recDispatch({ type: "OPEN_RECOMMEND" })}
-          className="flex w-fit items-center gap-1.5 rounded-full border px-3 py-1 transition hover:bg-[rgba(11,11,11,0.04)]"
-          style={{ borderColor: "rgba(11,11,11,0.2)", color: "#3d3c38" }}
+          className="flex w-fit items-center gap-1.5 rounded-full border px-3 py-1 transition hover:bg-[color:var(--fb-hover)]"
+          style={
+            {
+              borderColor: `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)`,
+              color: tokens.ink.secondary,
+              "--fb-hover": `color-mix(in srgb, ${tokens.ink.primary} 4%, transparent)`,
+            } as React.CSSProperties
+          }
         >
           <span aria-hidden>🎲</span>
           <span>Recommend films</span>
@@ -246,12 +269,16 @@ export function FilterBar() {
               <button
                 key={g}
                 onClick={() => toggleGenre(g)}
-                className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[#3d3c38] transition"
-                style={{ borderColor: "rgba(11,11,11,0.18)", opacity: active ? 1 : 0.4 }}
+                className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition"
+                style={{
+                  borderColor: `color-mix(in srgb, ${tokens.ink.primary} 18%, transparent)`,
+                  color: tokens.ink.secondary,
+                  opacity: active ? 1 : 0.4,
+                }}
               >
                 <span
                   className="inline-block h-2.5 w-2.5 rounded-full"
-                  style={{ background: GENRE_COLORS[g] }}
+                  style={{ background: tokens.genre[g] }}
                 />
                 {g}
               </button>
@@ -264,7 +291,7 @@ export function FilterBar() {
       <FieldGroup label="watches">
         <div
           className="flex w-fit overflow-hidden rounded-full border"
-          style={{ borderColor: "rgba(11,11,11,0.18)" }}
+          style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 18%, transparent)` }}
         >
           {REWATCH.map((r) => (
             <button
@@ -272,8 +299,8 @@ export function FilterBar() {
               onClick={() => setRewatch(r)}
               className="px-3 py-1 capitalize transition"
               style={{
-                background: filters.rewatch === r ? UI.active : "transparent",
-                color: filters.rewatch === r ? UI.activeText : "#3d3c38",
+                background: filters.rewatch === r ? tokens.ui.active : "transparent",
+                color: filters.rewatch === r ? tokens.ui.activeText : tokens.ink.secondary,
               }}
             >
               {r === "first" ? "first watch" : r}
@@ -352,8 +379,11 @@ export function FilterBar() {
       </FieldGroup>
 
       <div
-        className="flex items-center justify-between border-t pt-3 text-[#67655f]"
-        style={{ borderColor: "rgba(11,11,11,0.12)" }}
+        className="flex items-center justify-between border-t pt-3"
+        style={{
+          borderColor: `color-mix(in srgb, ${tokens.ink.primary} 12%, transparent)`,
+          color: tokens.ink.muted,
+        }}
       >
         {/* The count names what the charts above it are actually plotting. In
             watchlist mode that is films, not watches — reporting watches there
@@ -363,7 +393,11 @@ export function FilterBar() {
             ? `${filteredWatchlist.length} / ${watchlist.length} films`
             : `${filtered.length} / ${all.length} watches`}
         </span>
-        <button onClick={reset} className="underline underline-offset-2 hover:text-[#0b0b0b]">
+        <button
+          onClick={reset}
+          className="underline underline-offset-2 hover:text-[color:var(--fb-hover-ink)]"
+          style={{ "--fb-hover-ink": tokens.ink.primary } as React.CSSProperties}
+        >
           reset
         </button>
       </div>
@@ -389,14 +423,20 @@ function SliderRow({
   display: string;
   children: ReactNode;
 }) {
+  const { tokens } = useTheme();
   return (
     <div className="flex flex-col gap-1">
-      <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#67655f]">
+      <span
+        className="font-mono text-[9px] uppercase tracking-[0.12em]"
+        style={{ color: tokens.ink.muted }}
+      >
         {label}
       </span>
       <div className="flex items-center gap-3">
         {children}
-        <span className="font-mono text-xs text-[#3d3c38]">{display}</span>
+        <span className="font-mono text-xs" style={{ color: tokens.ink.secondary }}>
+          {display}
+        </span>
       </div>
     </div>
   );
@@ -416,8 +456,14 @@ function FieldGroup({
   active?: boolean; // shows a dot on a collapsed header when its filter is set
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const { tokens } = useTheme();
   const header = (
-    <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#67655f]">{label}</span>
+    <span
+      className="font-mono text-[10px] uppercase tracking-[0.15em]"
+      style={{ color: tokens.ink.muted }}
+    >
+      {label}
+    </span>
   );
   if (!collapsible) {
     return (
@@ -434,7 +480,7 @@ function FieldGroup({
         aria-expanded={open}
         className="flex items-center gap-1.5 text-left"
       >
-        <span aria-hidden className="text-[9px]" style={{ color: INK.muted }}>
+        <span aria-hidden className="text-[9px]" style={{ color: tokens.ink.muted }}>
           {open ? "▾" : "▸"}
         </span>
         {header}
@@ -444,7 +490,7 @@ function FieldGroup({
           // Horror — two dots the same size and colour meaning different things.
           <span
             className="inline-block h-1.5 w-1.5 rounded-full"
-            style={{ background: UI.active }}
+            style={{ background: tokens.ui.active }}
             aria-label="filter active"
           />
         )}

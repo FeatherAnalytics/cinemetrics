@@ -1,4 +1,4 @@
-import { ACCENT, GENRE_COLORS, primaryGenre } from "./palette";
+import { ACCENT, GENRE_COLORS, primaryGenre, type GenreKey } from "./palette";
 import type { Film } from "./types";
 
 /**
@@ -39,10 +39,19 @@ export function starPath(cx: number, cy: number, r: number): string {
  * the same reason: its gray sits one step from the FADE used for everything
  * unselected, so a star drawn in it would be a highlight painted almost exactly
  * the color of the things it is supposed to stand out from.
+ *
+ * Takes the caller's active theme tokens; defaults to the light set so pure
+ * callers (tests) see the same colors this function always returned.
  */
-export function favColor(film: Film | undefined): string {
+export function favColor(
+  film: Film | undefined,
+  tokens: { accent: string; genre: Record<GenreKey, string> } = {
+    accent: ACCENT,
+    genre: GENRE_COLORS,
+  },
+): string {
   const g = primaryGenre(film);
-  return g === "Other" ? ACCENT : GENRE_COLORS[g];
+  return g === "Other" ? tokens.accent : tokens.genre[g];
 }
 
 export function StarMarker({

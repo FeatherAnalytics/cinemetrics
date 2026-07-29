@@ -12,8 +12,17 @@ export type BrushRect = { x0: number; y0: number; x1: number; y1: number };
 /**
  * The shared drag-selection overlay: a faint accent rectangle drawn over the
  * brushed region. Null-safe so call sites can render it unconditionally.
+ *
+ * `accent` defaults to the light constant so pure callers (tests) see the same
+ * color this always drew; the chart passes the active theme's.
  */
-export function BrushRectOverlay({ rect }: { rect: BrushRect | null }) {
+export function BrushRectOverlay({
+  rect,
+  accent = ACCENT,
+}: {
+  rect: BrushRect | null;
+  accent?: string;
+}) {
   if (!rect) return null;
   return (
     <rect
@@ -21,9 +30,9 @@ export function BrushRectOverlay({ rect }: { rect: BrushRect | null }) {
       y={rect.y0}
       width={rect.x1 - rect.x0}
       height={rect.y1 - rect.y0}
-      fill={ACCENT}
+      fill={accent}
       fillOpacity={0.08}
-      stroke={ACCENT}
+      stroke={accent}
       strokeOpacity={0.5}
       strokeWidth={1}
       pointerEvents="none"

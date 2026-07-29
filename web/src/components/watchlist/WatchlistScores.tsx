@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { starLabel } from "@/lib/likedChart";
 import { medianTmdbStars, tmdbStarBins } from "@/lib/watchlistChart";
 import { CategoryBars } from "../stats/CategoryBars";
@@ -27,6 +27,7 @@ import { ChartTakeaway } from "../ChartTakeaway";
  */
 export function WatchlistScores() {
   const { filteredWatchlist } = useExplorer();
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<number | null>(null);
 
   const bins = useMemo(() => tmdbStarBins(filteredWatchlist), [filteredWatchlist]);
@@ -37,7 +38,7 @@ export function WatchlistScores() {
 
   if (scored === 0) {
     return (
-      <p className="text-sm" style={{ color: INK.muted }}>
+      <p className="text-sm" style={{ color: tokens.ink.muted }}>
         Nothing in view carries a TMDB score.
       </p>
     );
@@ -50,7 +51,7 @@ export function WatchlistScores() {
     <figure className="m-0">
       {/* Readout above the chart, the way the cumulative chart does it, so the
           columns keep their baseline aligned with the axis below. */}
-      <p className="mb-1 h-4 text-xs text-[#67655f]">
+      <p className="mb-1 h-4 text-xs" style={{ color: tokens.ink.muted }}>
         {shown
           ? shown.count === 0
             ? `${starLabel(shown.stars)}: nothing on the list`

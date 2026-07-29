@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ExplorerProvider, useExplorer } from "@/lib/store";
 import { eyebrow, summaryLine } from "@/lib/summary";
-import { UI } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { RecommendProvider, useRecommend } from "@/lib/recommendStore";
 import { RecommendDrawer } from "@/components/RecommendDrawer";
 import { FilterBar } from "@/components/FilterBar";
@@ -95,7 +95,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "ratings",
     sets: ["landing", "narrative", "heart"],
     title: "How I rate",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: <>Every rated watch, one column per half star.</>,
     Chart: RatingDistribution,
   },
@@ -103,7 +103,7 @@ const CHART_SECTIONS: ChartSection[] = [
   {
     id: "favposters",
     title: "The four favorites",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         The four films on my Letterboxd profile, in the order they sit there.
@@ -115,7 +115,7 @@ const CHART_SECTIONS: ChartSection[] = [
   {
     id: "likedcurve",
     title: "The heart follows the rating",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: <LikedByRatingBlurb />,
     Chart: LikedByRating,
     sets: ["heart"],
@@ -123,7 +123,7 @@ const CHART_SECTIONS: ChartSection[] = [
   {
     id: "heartpredictors",
     title: "Nothing decides the ones in between",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         Every watch with a recorded heart, grouped.
@@ -135,7 +135,7 @@ const CHART_SECTIONS: ChartSection[] = [
   {
     id: "favtie",
     title: "Four of nineteen",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: <FavsAmongTheBestBlurb />,
     Chart: FavsAmongTheBest,
     sets: ["heart"],
@@ -143,7 +143,7 @@ const CHART_SECTIONS: ChartSection[] = [
   {
     id: "favdirectors",
     title: "A favorite brings company",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: <FavDirectorsBlurb />,
     Chart: FavDirectors,
     sets: ["heart"],
@@ -156,7 +156,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "spiral",
     sets: ["landing", "narrative", "heart"],
     title: "When I watch",
-    blurbClass: "mb-2 text-xs text-[#67655f]",
+    blurbClass: "mb-2 text-xs",
     blurb: (
       <>
         One row per year, January to December. Height is my rating.
@@ -173,7 +173,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "ytd",
     sets: ["landing"],
     title: "Viewings to date",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         One line per year, each restarting in January. Lines stop at each year&rsquo;s
@@ -186,7 +186,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "cumulative",
     sets: ["landing"],
     title: "Cumulative watches",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         The running total, stacked by genre.
@@ -198,7 +198,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "velocity",
     sets: ["landing"],
     title: "Viewing velocity",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: <>Every bucket since the first logged watch. No smoothing.</>,
     Chart: ViewingVelocity,
   },
@@ -206,7 +206,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "monthly",
     sets: ["landing"],
     title: "Pace by month",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         Watches per calendar day, so a taller bar is a busier month.
@@ -218,7 +218,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "weekday",
     sets: ["landing"],
     title: "Pace by weekday",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         Watches by day, weekend tinted.
@@ -230,7 +230,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "genrebox",
     sets: ["landing"],
     title: "Ratings by primary genre",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: <>Tukey box plots, one value per film, each film in exactly one genre.</>,
     Chart: RatingsByGenre,
   },
@@ -238,7 +238,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "rewatched",
     sets: ["landing"],
     title: "What I go back to",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: <MostRewatchedBlurb />,
     Chart: MostRewatched,
   },
@@ -246,7 +246,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "rewatch",
     sets: ["landing", "narrative", "heart"],
     title: "Second thoughts",
-    blurbClass: "mb-4 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-4 max-w-2xl text-xs",
     blurb: (
       <>
         Films I returned to, grouped by whether coming back changed my mind. Biggest swings first.
@@ -264,7 +264,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "contrarian",
     sets: ["narrative", "heart"],
     title: "Me versus the critics",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         Each film, placed by how far my rating sits from the critics&rsquo; prediction.
@@ -281,7 +281,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "pairing",
     sets: ["narrative"],
     title: "Genre pairing",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         Which genre combinations I actually watch, and how they rate.
@@ -293,7 +293,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "keywords",
     sets: ["narrative", "heart"],
     title: "The keywords that give me away",
-    blurbClass: "mb-3 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-3 max-w-2xl text-xs",
     blurb: (
       <>
         Keywords I heart more often than I heart anything, and less. Distance from my overall rate, in points.
@@ -305,7 +305,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "countries",
     sets: ["narrative", "heart"],
     title: "What travels well",
-    blurbClass: "mb-2 text-xs text-[#67655f]",
+    blurbClass: "mb-2 text-xs",
     blurb: (
       <>
         Countries by how many of my films they made. The right column is the heart, against
@@ -318,7 +318,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "stripes",
     sets: ["narrative", "heart"],
     title: "Streaks and slumps",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         The whole log as a barcode, one stripe per rated watch, in order.
@@ -335,7 +335,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "rolling",
     sets: ["narrative", "heart"],
     title: "Warming up or wearing out",
-    blurbClass: "mb-3 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-3 max-w-2xl text-xs",
     blurb: (
       <>
         My rolling {10}-watch average within each group, against my overall average.
@@ -353,7 +353,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "franchise",
     sets: ["narrative", "heart"],
     title: "Franchise runs",
-    blurbClass: "mb-4 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-4 max-w-2xl text-xs",
     blurb: (
       <>
         One row per franchise I have seen at least two entries of. Height is my rating.
@@ -373,7 +373,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "wlbarcode",
     sets: ["watchlist"],
     title: "Release year and genre",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         One brick per film, colored by genre.
@@ -385,7 +385,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "wlscores",
     sets: ["watchlist"],
     title: "Watchlist ratings",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         TMDB&rsquo;s audience score for each film on the watchlist.
@@ -397,7 +397,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "wlgenres",
     sets: ["watchlist"],
     title: "Watchlist by genre",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         How many watchlist films carry each genre.
@@ -409,7 +409,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "wlorigin",
     sets: ["watchlist"],
     title: "Origins of the watchlist",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         Production country or original language.
@@ -421,7 +421,7 @@ const CHART_SECTIONS: ChartSection[] = [
     id: "wlkeywords",
     sets: ["watchlist"],
     title: "Watchlist keywords",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: (
       <>
         Keywords shared by three or more films on the list.
@@ -434,6 +434,7 @@ const CHART_SECTIONS: ChartSection[] = [
 function Explorer() {
   const { storyFocus, activeStory, films, yearBounds, heartLens } = useExplorer();
   const { state: recState } = useRecommend();
+  const { tokens } = useTheme();
   const [drawerOpenRaw, setDrawerOpen] = useState(false);
   const drawerOpen = drawerOpenRaw && !recState.open;
 
@@ -507,17 +508,23 @@ function Explorer() {
     // then pin the page to the width it first drew at.
     <main className="mx-auto w-full max-w-7xl px-6 py-10">
       <header className="mb-6">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-[#67655f]">
+        <p
+          className="font-mono text-xs uppercase tracking-[0.2em]"
+          style={{ color: tokens.ink.muted }}
+        >
           {eyebrow(startYear, endYear)}
         </p>
-        <h1 className="font-display text-4xl font-bold tracking-tight text-[#0b0b0b]">
-          cinemetrics<span style={{ color: "#c01023" }}>.</span>
+        <h1
+          className="font-display text-4xl font-bold tracking-tight"
+          style={{ color: tokens.ink.primary }}
+        >
+          cinemetrics<span style={{ color: tokens.accent }}>.</span>
         </h1>
         {/* Same sentence the share preview uses, from lib/summary. No instruction
             and no watch total: the stat bar prints that a few inches below, and
             telling a reader to tap a chip spends a line on something the chip's
             own arrow already says. */}
-        <p className="mt-2 max-w-2xl text-sm text-[#3d3c38]">
+        <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
           {summaryLine(years, films.length)}
         </p>
         {/* flex-wrap here, not a fixed corner position: at 390px the chip list
@@ -533,7 +540,7 @@ function Explorer() {
       <button
         onClick={() => setDrawerOpen(true)}
         className="fixed bottom-4 right-4 z-30 flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium shadow-lg lg:hidden"
-        style={{ background: UI.active, color: UI.activeText }}
+        style={{ background: tokens.ui.active, color: tokens.ui.activeText }}
         aria-label="Open filters"
       >
         <span aria-hidden>☰</span> Filters
@@ -554,8 +561,15 @@ function Explorer() {
           <div className="hidden lg:block lg:shrink-0">
             <button
               onClick={() => setCollapsed(false)}
-              className="lg:sticky lg:top-6 flex h-10 w-10 items-center justify-center rounded-lg border text-[#3d3c38] hover:text-[#0b0b0b]"
-              style={{ borderColor: "rgba(11,11,11,0.14)", background: "#f7f6f3" }}
+              className="lg:sticky lg:top-6 flex h-10 w-10 items-center justify-center rounded-lg border transition hover:text-[color:var(--ea-hover)]"
+              style={
+                {
+                  borderColor: `color-mix(in srgb, ${tokens.ink.primary} 14%, transparent)`,
+                  background: tokens.surface.paper,
+                  color: tokens.ink.secondary,
+                  "--ea-hover": tokens.ink.primary,
+                } as React.CSSProperties
+              }
               aria-label="Expand filters"
               aria-expanded={false}
             >
@@ -569,17 +583,25 @@ function Explorer() {
           className={`fixed inset-y-0 left-0 z-50 w-[86%] max-w-sm transform overflow-y-auto p-4 shadow-xl transition-transform duration-300 lg:static lg:z-auto lg:mb-0 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:p-0 lg:shadow-none ${
             drawerOpen ? "translate-x-0" : "-translate-x-full"
           } ${collapsed ? "lg:hidden" : "lg:w-72"}`}
-          style={{ background: "#f7f6f3" }}
+          style={{ background: tokens.surface.paper }}
           aria-label="Filters"
           role={drawerOpen ? "dialog" : undefined}
           aria-modal={drawerOpen || undefined}
         >
           <div className="mb-3 flex items-center justify-between lg:hidden">
-            <span className="font-mono text-xs uppercase tracking-[0.15em] text-[#67655f]">Filters</span>
+            <span
+              className="font-mono text-xs uppercase tracking-[0.15em]"
+              style={{ color: tokens.ink.muted }}
+            >
+              Filters
+            </span>
             <button
               ref={drawerCloseRef}
               onClick={() => setDrawerOpen(false)}
-              className="rounded-full px-2 py-1 text-lg leading-none text-[#3d3c38] hover:text-[#0b0b0b]"
+              className="rounded-full px-2 py-1 text-lg leading-none transition hover:text-[color:var(--ea-hover)]"
+              style={
+                { color: tokens.ink.secondary, "--ea-hover": tokens.ink.primary } as React.CSSProperties
+              }
               aria-label="Close filters"
             >
               ✕
@@ -587,18 +609,24 @@ function Explorer() {
           </div>
           <div
             className="rounded-lg border p-3 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto"
-            style={{ borderColor: "rgba(11,11,11,0.14)" }}
+            style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 14%, transparent)` }}
           >
             <div className="mb-2 hidden justify-end lg:flex">
               <button
                 onClick={() => setCollapsed(true)}
-                className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#67655f] hover:text-[#0b0b0b]"
+                className="font-mono text-[10px] uppercase tracking-[0.1em] transition hover:text-[color:var(--ea-hover)]"
+                style={
+                  { color: tokens.ink.muted, "--ea-hover": tokens.ink.primary } as React.CSSProperties
+                }
               >
                 <span aria-hidden>« </span>hide
               </button>
             </div>
             <StatBar />
-            <div className="my-3 border-t" style={{ borderColor: "rgba(11,11,11,0.1)" }} />
+            <div
+              className="my-3 border-t"
+              style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 10%, transparent)` }}
+            />
             <FilterBar />
           </div>
         </aside>
@@ -613,7 +641,10 @@ function Explorer() {
             {sections.map(({ id, title, blurbClass, blurb, heartBlurb, Chart }) => (
               <section key={id} id={`chart-${id}`} className="scroll-mt-6" style={chartStyle(id)}>
                 <div className="min-w-0">
-                  <h2 className="group flex items-center gap-2 font-display text-lg font-semibold text-[#0b0b0b]">
+                  <h2
+                    className="group flex items-center gap-2 font-display text-lg font-semibold"
+                    style={{ color: tokens.ink.primary }}
+                  >
                     {title}
                     <CopyChartLink anchor={`chart-${id}`} title={title} />
                   </h2>
@@ -622,7 +653,7 @@ function Explorer() {
                       HTML that the browser silently reparents, which breaks
                       hydration. The class list is margin and text utilities, so
                       nothing about the typography depends on the tag. */}
-                  <div className={blurbClass}>
+                  <div className={blurbClass} style={{ color: tokens.ink.muted }}>
                     {heartLens && heartBlurb ? heartBlurb : blurb}
                   </div>
                   {/* Story prose sits between the blurb and the chart: the
@@ -633,8 +664,11 @@ function Explorer() {
                   <div
                     className="rounded-md border p-4"
                     style={{
+                      // Still the CSS-variable surface, not a JS token: this is
+                      // page chrome (card ground), not a chart mark, and stays
+                      // in step with `--surface-card` by design (see globals.css).
                       background: "var(--surface-card)",
-                      borderColor: "rgba(11,11,11,0.09)",
+                      borderColor: `color-mix(in srgb, ${tokens.ink.primary} 9%, transparent)`,
                     }}
                   >
                     <Chart />

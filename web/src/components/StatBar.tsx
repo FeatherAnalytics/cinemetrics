@@ -10,11 +10,12 @@ import {
   formatScreenTime,
 } from "@/lib/stats";
 import { fmt1 } from "@/lib/format";
-import { ACCENT } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import type { WatchlistFilm } from "@/lib/types";
 
 export function StatBar() {
   const { all, filtered, activeStory, watchlist, filteredWatchlist } = useExplorer();
+  const { tokens } = useTheme();
 
   const stats = useMemo(() => {
     const totalMin = computeScreenTime(filtered);
@@ -63,41 +64,41 @@ export function StatBar() {
       className="flex justify-between gap-2 pt-2"
     >
       <div className="min-w-0">
-        <div className="text-lg font-bold leading-tight lg:text-xl" style={{ color: ACCENT }}>
+        <div className="text-lg font-bold leading-tight lg:text-xl" style={{ color: tokens.accent }}>
           {stats.screen.value}<span className="text-sm font-normal lg:text-base"> {stats.screen.unit}</span>
         </div>
-        <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">
+        <div className="font-mono text-[9px] uppercase tracking-[0.1em]" style={{ color: tokens.ink.muted }}>
           screen time
         </div>
         {stats.avgRuntime != null && (
-          <div className="font-mono text-[9px] text-[#67655f]">
+          <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>
             {Math.round(stats.avgRuntime)} min avg
           </div>
         )}
         {stats.isFiltered && (
-          <div className="font-mono text-[9px] text-[#67655f]">{stats.screenPct}% of total</div>
+          <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>{stats.screenPct}% of total</div>
         )}
       </div>
       <div className="min-w-0">
-        <div className="text-lg font-bold leading-tight text-[#0b0b0b] lg:text-xl">{stats.watchCount}</div>
-        <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">
+        <div className="text-lg font-bold leading-tight lg:text-xl" style={{ color: tokens.ink.primary }}>{stats.watchCount}</div>
+        <div className="font-mono text-[9px] uppercase tracking-[0.1em]" style={{ color: tokens.ink.muted }}>
           watches
         </div>
         {stats.rewatchShare != null && (
-          <div className="font-mono text-[9px] text-[#67655f]">
+          <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>
             {Math.round(stats.rewatchShare * 100)}% rewatches
           </div>
         )}
         {stats.isFiltered && (
-          <div className="font-mono text-[9px] text-[#67655f]">{stats.watchPct}% of total</div>
+          <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>{stats.watchPct}% of total</div>
         )}
       </div>
       <div className="min-w-0">
-        <div className="text-lg font-bold leading-tight text-[#0b0b0b] lg:text-xl">{ratingDisplay}</div>
-        <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">
+        <div className="text-lg font-bold leading-tight lg:text-xl" style={{ color: tokens.ink.primary }}>{ratingDisplay}</div>
+        <div className="font-mono text-[9px] uppercase tracking-[0.1em]" style={{ color: tokens.ink.muted }}>
           avg rating
         </div>
-        {spread && <div className="font-mono text-[9px] text-[#67655f]">{spread}</div>}
+        {spread && <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>{spread}</div>}
       </div>
     </div>
   );
@@ -117,6 +118,7 @@ export function StatBar() {
  * list" and "130 waiting" differ.
  */
 function WatchlistStats({ films, total }: { films: WatchlistFilm[]; total: number }) {
+  const { tokens } = useTheme();
   const withRuntime = films.filter((f) => f.runtime != null);
   const minutes = withRuntime.reduce((sum, f) => sum + (f.runtime ?? 0), 0);
   const screen = formatScreenTime(minutes);
@@ -136,49 +138,49 @@ function WatchlistStats({ films, total }: { films: WatchlistFilm[]; total: numbe
   return (
     <div className="flex justify-between gap-2 pt-2">
       <div className="min-w-0">
-        <div className="text-lg font-bold leading-tight lg:text-xl" style={{ color: ACCENT }}>
+        <div className="text-lg font-bold leading-tight lg:text-xl" style={{ color: tokens.accent }}>
           {screen.value}
           <span className="text-sm font-normal lg:text-base"> {screen.unit}</span>
         </div>
-        <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">
+        <div className="font-mono text-[9px] uppercase tracking-[0.1em]" style={{ color: tokens.ink.muted }}>
           time to clear
         </div>
         {isFiltered ? (
           withRuntime.length < films.length && (
-            <div className="font-mono text-[9px] text-[#67655f]">
+            <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>
               {withRuntime.length} of {films.length} timed
             </div>
           )
         ) : (
           avgRuntime != null && (
-            <div className="font-mono text-[9px] text-[#67655f]">
+            <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>
               {Math.round(avgRuntime)} min avg
             </div>
           )
         )}
       </div>
       <div className="min-w-0">
-        <div className="text-lg font-bold leading-tight text-[#0b0b0b] lg:text-xl">
+        <div className="text-lg font-bold leading-tight lg:text-xl" style={{ color: tokens.ink.primary }}>
           {films.length}
         </div>
-        <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">
+        <div className="font-mono text-[9px] uppercase tracking-[0.1em]" style={{ color: tokens.ink.muted }}>
           on the list
         </div>
         {watched > 0 && (
-          <div className="font-mono text-[9px] text-[#67655f]">{watched} seen</div>
+          <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>{watched} seen</div>
         )}
         {isFiltered && (
-          <div className="font-mono text-[9px] text-[#67655f]">
+          <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>
             {Math.round((100 * films.length) / total)}% of total
           </div>
         )}
       </div>
       <div className="min-w-0">
-        <div className="text-lg font-bold leading-tight text-[#0b0b0b] lg:text-xl">{countries}</div>
-        <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#67655f]">
+        <div className="text-lg font-bold leading-tight lg:text-xl" style={{ color: tokens.ink.primary }}>{countries}</div>
+        <div className="font-mono text-[9px] uppercase tracking-[0.1em]" style={{ color: tokens.ink.muted }}>
           countries
         </div>
-        <div className="font-mono text-[9px] text-[#67655f]">
+        <div className="font-mono text-[9px]" style={{ color: tokens.ink.muted }}>
           {languages} language{languages === 1 ? "" : "s"}
         </div>
       </div>

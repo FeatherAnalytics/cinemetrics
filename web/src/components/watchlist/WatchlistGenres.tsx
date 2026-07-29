@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { filterWatches, useExplorer } from "@/lib/store";
+import { useTheme } from "@/lib/theme";
 import { ratingDeltaByKey } from "@/lib/ratingDelta";
 import { canonicalGenre } from "@/lib/palette";
 import { genreBars } from "@/lib/watchlistChart";
@@ -28,7 +29,11 @@ import { RankedBars } from "./RankedBars";
  */
 export function WatchlistGenres() {
   const { filteredWatchlist, all, filters, setGenreTag } = useExplorer();
-  const bars = useMemo(() => genreBars(filteredWatchlist), [filteredWatchlist]);
+  const { tokens } = useTheme();
+  const bars = useMemo(
+    () => genreBars(filteredWatchlist, 10, tokens.genre),
+    [filteredWatchlist, tokens.genre],
+  );
 
 /**
  * Watches the deviation baseline is measured against.

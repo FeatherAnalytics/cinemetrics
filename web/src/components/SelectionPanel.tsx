@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
+import { primaryGenre, type GenreKey } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { countryName } from "@/lib/countries";
 import { watchKey } from "@/lib/brush";
 import { fmt1 } from "@/lib/format";
@@ -87,6 +88,7 @@ export function SelectionPanel() {
     selectedId,
     setSelected,
   } = useExplorer();
+  const { tokens } = useTheme();
   const [sort, setSort] = useState<Sort>({ key: "date", dir: 1 }); // oldest → most recent
   const watchlistMode = activeStory === "watchlist";
   /**
@@ -218,12 +220,15 @@ export function SelectionPanel() {
   return (
     <section
       className="min-w-0 rounded-lg border p-4"
-      style={{ borderColor: ACCENT, background: "rgba(192,16,35,0.03)" }}
+      style={{
+        borderColor: tokens.accent,
+        background: `color-mix(in srgb, ${tokens.accent} 3%, transparent)`,
+      }}
       aria-label="Current selection"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
-          <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">
+          <h2 className="font-display text-lg font-semibold" style={{ color: tokens.ink.primary }}>
             {watchlistMode
               ? selectedId != null
                 ? "Film"
@@ -233,15 +238,15 @@ export function SelectionPanel() {
                 : filters.country
                 ? countryName(filters.country)
                 : "Selection"}{" "}
-            <span style={{ color: ACCENT }}>·</span> {films} {films === 1 ? "film" : "films"}
+            <span style={{ color: tokens.accent }}>·</span> {films} {films === 1 ? "film" : "films"}
           </h2>
           {!watchlistMode && !heartMode && (
-            <span className="font-mono text-xs" style={{ color: INK.muted }}>
+            <span className="font-mono text-xs" style={{ color: tokens.ink.muted }}>
               {rows.length} watches
             </span>
           )}
           {avgMe != null && (
-            <span className="text-xs" style={{ color: INK.secondary }}>
+            <span className="text-xs" style={{ color: tokens.ink.secondary }}>
               avg me <b>{fmt1(avgMe)}</b>
               {avgCritic != null && (
                 <>
@@ -262,8 +267,14 @@ export function SelectionPanel() {
         {watchlistMode && selectedId != null ? (
           <button
             onClick={() => setSelected(null)}
-            className="rounded-full border px-3 py-1 text-xs text-[#3d3c38] transition hover:text-[#0b0b0b]"
-            style={{ borderColor: "rgba(11,11,11,0.2)" }}
+            className="rounded-full border px-3 py-1 text-xs transition hover:text-[color:var(--sp-hover)]"
+            style={
+              {
+                borderColor: `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)`,
+                color: tokens.ink.secondary,
+                "--sp-hover": tokens.ink.primary,
+              } as React.CSSProperties
+            }
           >
             back to all films
           </button>
@@ -271,16 +282,28 @@ export function SelectionPanel() {
           <button
             onClick={() => setOpenByHand((v) => !v)}
             aria-expanded={open}
-            className="rounded-full border px-3 py-1 text-xs text-[#3d3c38] transition hover:text-[#0b0b0b]"
-            style={{ borderColor: "rgba(11,11,11,0.2)" }}
+            className="rounded-full border px-3 py-1 text-xs transition hover:text-[color:var(--sp-hover)]"
+            style={
+              {
+                borderColor: `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)`,
+                color: tokens.ink.secondary,
+                "--sp-hover": tokens.ink.primary,
+              } as React.CSSProperties
+            }
           >
             {open ? "hide films" : "show films"}
           </button>
         ) : heartMode ? null : (
           <button
             onClick={clear}
-            className="rounded-full border px-3 py-1 text-xs text-[#3d3c38] transition hover:text-[#0b0b0b]"
-            style={{ borderColor: "rgba(11,11,11,0.2)" }}
+            className="rounded-full border px-3 py-1 text-xs transition hover:text-[color:var(--sp-hover)]"
+            style={
+              {
+                borderColor: `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)`,
+                color: tokens.ink.secondary,
+                "--sp-hover": tokens.ink.primary,
+              } as React.CSSProperties
+            }
           >
             clear selection
           </button>
@@ -288,10 +311,13 @@ export function SelectionPanel() {
       </div>
 
       {open && genres.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs" style={{ color: INK.muted }}>
+        <div
+          className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs"
+          style={{ color: tokens.ink.muted }}
+        >
           {genres.map(([g, n]) => (
             <span key={g} className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-2 w-2 rounded-full" style={{ background: GENRE_COLORS[g] }} />
+              <span className="inline-block h-2 w-2 rounded-full" style={{ background: tokens.genre[g] }} />
               {g} {n}
             </span>
           ))}
@@ -299,10 +325,13 @@ export function SelectionPanel() {
       )}
 
       {open && (
-      <div className="mt-3 max-h-72 overflow-x-auto overflow-y-auto rounded border" style={{ borderColor: "rgba(11,11,11,0.1)" }}>
+      <div
+        className="mt-3 max-h-72 overflow-x-auto overflow-y-auto rounded border"
+        style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 10%, transparent)` }}
+      >
         <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0" style={{ background: "#f2f1ec" }}>
-            <tr style={{ color: INK.muted }}>
+          <thead className="sticky top-0" style={{ background: tokens.surface.well }}>
+            <tr style={{ color: tokens.ink.muted }}>
               {columns.map((c) => (
                 <th
                   key={c.key}
@@ -313,7 +342,8 @@ export function SelectionPanel() {
                 >
                   <button
                     onClick={() => toggleSort(c.key)}
-                    className="inline-flex items-center gap-1 font-medium hover:text-[#0b0b0b]"
+                    className="inline-flex items-center gap-1 font-medium hover:text-[color:var(--sp-hover)]"
+                    style={{ "--sp-hover": tokens.ink.primary } as React.CSSProperties}
                     title={`Sort by ${c.label}`}
                   >
                     {c.label}
@@ -327,8 +357,12 @@ export function SelectionPanel() {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.key} className="border-t" style={{ borderColor: "rgba(11,11,11,0.06)" }}>
-                <td className="px-3 py-1.5 font-mono text-xs tabular-nums" style={{ color: INK.secondary }}>
+              <tr
+                key={r.key}
+                className="border-t"
+                style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 6%, transparent)` }}
+              >
+                <td className="px-3 py-1.5 font-mono text-xs tabular-nums" style={{ color: tokens.ink.secondary }}>
                   {r.date}
                 </td>
                 <td className="px-3 py-1.5">
@@ -336,32 +370,38 @@ export function SelectionPanel() {
                     href={letterboxdUrl(r.tmdb_id)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[#0b0b0b] underline decoration-transparent underline-offset-2 transition hover:decoration-[#c01023]"
+                    className="underline decoration-transparent underline-offset-2 transition hover:decoration-[color:var(--sp-accent)]"
+                    style={
+                      {
+                        color: tokens.ink.primary,
+                        "--sp-accent": tokens.accent,
+                      } as React.CSSProperties
+                    }
                     title="View on Letterboxd"
                   >
                     {r.title}
                   </a>
                 </td>
-                <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: INK.secondary }}>
+                <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: tokens.ink.secondary }}>
                   {r.year ?? "—"}
                 </td>
                 {!watchlistMode && (
-                  <td className="px-2 py-1.5 text-right tabular-nums text-[#0b0b0b]">
+                  <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: tokens.ink.primary }}>
                     {r.me != null ? Math.round(r.me) : "—"}
                   </td>
                 )}
-                <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: INK.secondary }}>
+                <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: tokens.ink.secondary }}>
                   {r.mc ?? "—"}
                 </td>
-                <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: INK.secondary }}>
+                <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: tokens.ink.secondary }}>
                   {r.rt ?? "—"}
                 </td>
-                <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: INK.secondary }}>
+                <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: tokens.ink.secondary }}>
                   {r.imdb ?? "—"}
                 </td>
                 <td className="px-3 py-1.5">
-                  <span className="inline-flex items-center gap-1.5" style={{ color: INK.secondary }}>
-                    <span className="inline-block h-2 w-2 rounded-full" style={{ background: GENRE_COLORS[r.genre] }} />
+                  <span className="inline-flex items-center gap-1.5" style={{ color: tokens.ink.secondary }}>
+                    <span className="inline-block h-2 w-2 rounded-full" style={{ background: tokens.genre[r.genre] }} />
                     {r.genre}
                   </span>
                 </td>

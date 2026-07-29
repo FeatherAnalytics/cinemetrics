@@ -25,17 +25,23 @@ export const DIMENSIONS: { key: Dimension; label: string }[] = [
 export const OTHER = "Other";
 export const OVERALL_KEY = "__overall__";
 
+/** The theme-shaped bits `buildSeries` needs to color a plan. */
+type SeriesTokens = { genre: Record<GenreKey, string>; ink: { primary: string } };
+
+const LIGHT_TOKENS: SeriesTokens = { genre: GENRE_COLORS, ink: INK };
+
 // The five validated categorical slots (from palette.ts) reused across every
 // categorical dimension, assigned in a fixed, count-stable order so cross-
 // filtering never repaints a surviving series. "Other" stays neutral gray.
-const SLOT_COLORS = [
-  GENRE_COLORS.Horror, // crimson
-  GENRE_COLORS.Thriller, // amber
-  GENRE_COLORS.Drama, // blue
-  GENRE_COLORS.Comedy, // green
-  GENRE_COLORS.Adventure, // violet
-];
-const OTHER_COLOR = GENRE_COLORS.Other;
+function slotColors(genre: Record<GenreKey, string>): string[] {
+  return [
+    genre.Horror, // crimson
+    genre.Thriller, // amber
+    genre.Drama, // blue
+    genre.Comedy, // green
+    genre.Adventure, // violet
+  ];
+}
 
 // Exported because it is the site's runtime binning, not this chart's: anything
 // that buckets by runtime has to use these cuts and this order or the reader
@@ -161,13 +167,21 @@ type ColorPlan = {
 // Decide, from the full (unfiltered) dataset, which categories get a hue and in
 // what order — computed once against `all` so the mapping is stable while the
 // user cross-filters.
-function planColors(all: EnrichedWatch[], dim: Dimension, opts: Required<BuildOptions>): ColorPlan {
+function planColors(
+  all: EnrichedWatch[],
+  dim: Dimension,
+  opts: Required<BuildOptions>,
+  tokens: SeriesTokens,
+): ColorPlan {
+  const otherColor = tokens.genre.Other;
+  const slots = slotColors(tokens.genre);
+
   if (dim === "genre") {
     const order = GENRE_ORDER.filter((g) =>
       all.some((w) => w.rating != null && primaryGenre(w.film) === g),
     );
     return {
-      color: (c) => GENRE_COLORS[c as GenreKey] ?? OTHER_COLOR,
+      color: (c) => tokens.genre[c as GenreKey] ?? otherColor,
       hued: new Set<string>(order), // genre "Other" is a real residual category, styled gray
       order: [...order],
     };
@@ -178,8 +192,8 @@ function planColors(all: EnrichedWatch[], dim: Dimension, opts: Required<BuildOp
       all.some((w) => w.rating != null && runtimeBucket(w.film?.runtime) === b),
     );
     const map = new Map<string, string>();
-    present.forEach((b, i) => map.set(b, SLOT_COLORS[i % SLOT_COLORS.length]));
-    return { color: (c) => map.get(c) ?? OTHER_COLOR, hued: new Set(present), order: present };
+    present.forEach((b, i) => map.set(b, slots[i % slots.length]));
+    return { color: (c) => map.get(c) ?? otherColor, hued: new Set(present), order: present };
   }
 
   if (dim === "decade") {
@@ -200,7 +214,7 @@ function planColors(all: EnrichedWatch[], dim: Dimension, opts: Required<BuildOp
     const ramp = sequentialRamp(present.length);
     const map = new Map<string, string>();
     present.forEach((c, i) => map.set(c, ramp[i]));
-    return { color: (c) => map.get(c) ?? OTHER_COLOR, hued: new Set(present), order: present };
+    return { color: (c) => map.get(c) ?? otherColor, hued: new Set(present), order: present };
   }
 
   // Dynamic dimensions: rank categories by rated-watch count, keep the top few
@@ -218,8 +232,8 @@ function planColors(all: EnrichedWatch[], dim: Dimension, opts: Required<BuildOp
     .slice(0, opts.maxSeries)
     .map(([c]) => c);
   const map = new Map<string, string>();
-  ranked.forEach((c, i) => map.set(c, SLOT_COLORS[i % SLOT_COLORS.length]));
-  return { color: (c) => map.get(c) ?? OTHER_COLOR, hued: new Set(ranked), order: ranked };
+  ranked.forEach((c, i) => map.set(c, slots[i % slots.length]));
+  return { color: (c) => map.get(c) ?? otherColor, hued: new Set(ranked), order: ranked };
 }
 
 function byDate(a: EnrichedWatch, b: EnrichedWatch): number {
@@ -246,12 +260,16 @@ function label(key: string, dim: Dimension): string {
 /**
  * Build the plotted series from a (possibly cross-filtered) set of watches.
  * `all` seeds the stable color plan; `filtered` supplies the points to draw.
+ *
+ * `tokens` defaults to the light set so pure callers (tests) see the same
+ * colors this function always returned; the chart passes the active theme's.
  */
 export function buildSeries(
   all: EnrichedWatch[],
   filtered: EnrichedWatch[],
   dim: Dimension,
   options: BuildOptions = {},
+  tokens: SeriesTokens = LIGHT_TOKENS,
 ): Series[] {
   const window = options.window ?? 10;
   const opts: Required<BuildOptions> = {
@@ -261,7 +279,7 @@ export function buildSeries(
     minPoints: options.minPoints ?? window + 2, // need a few points past the warm-up
     maxSeries: options.maxSeries ?? 5, // up to 5 hued categories + "Other" = 6 panels
   };
-  const plan = planColors(all, dim, opts);
+  const plan = planColors(all, dim, opts, tokens);
 
   const rated = filtered.filter((w) => w.rating != null).sort(byDate);
   const groups = new Map<string, EnrichedWatch[]>();
@@ -304,11 +322,11 @@ export function buildSeries(
   // Then the "Other" residual, if it cleared the point threshold.
   const other = groups.get(OTHER);
   if (other && other.length >= opts.minPoints) {
-    series.push(toSeries(OTHER, other, { color: OTHER_COLOR, isOther: true }));
+    series.push(toSeries(OTHER, other, { color: tokens.genre.Other, isOther: true }));
   }
   // The overall line spans every rated watch, independent of the dimension.
   if (rated.length >= opts.minPoints) {
-    series.push(toSeries(OVERALL_KEY, rated, { color: INK.primary, isOverall: true }));
+    series.push(toSeries(OVERALL_KEY, rated, { color: tokens.ink.primary, isOverall: true }));
   }
   return series;
 }

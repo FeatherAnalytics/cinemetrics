@@ -1,14 +1,13 @@
 "use client";
 
-import { INK } from "@/lib/palette";
+import { ACCENT } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { valueLabelFill } from "@/lib/barChart";
 import { quantile } from "@/lib/statsChart";
 import { useWidth } from "@/lib/useWidth";
 
 const W0 = 720; // pre-measurement width, matching the usual desktop column
 const W_MIN = 300;
-const FADE = "#b3b1a6";
-const MID = "#eceae3";
 
 export type CategoryBar = {
   label: string;
@@ -32,7 +31,7 @@ export function CategoryBars({
   active,
   onPick,
   fmt = (v: number) => String(Math.round(v)),
-  accent = "#c01023",
+  accent = ACCENT,
   barLabel = "value",
   onHover,
   showMedian = true,
@@ -84,6 +83,10 @@ export function CategoryBars({
    */
   showMedian?: boolean;
 }) {
+  const { tokens } = useTheme();
+  const FADE = tokens.ink.grid;
+  const MID = tokens.surface.well;
+
   // Width tracks the column, height is fixed: there is no viewBox, so one user
   // unit is one pixel and the type stays the same size at every width.
   const [ref, W] = useWidth(W0, W_MIN);
@@ -137,8 +140,8 @@ export function CategoryBars({
 
         {[0, peak].map((v, i) => (
           <g key={`t-${i}`}>
-            <line x1={ML} y1={y(v)} x2={W - MR} y2={y(v)} stroke="#eee" />
-            <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill={INK.muted}>
+            <line x1={ML} y1={y(v)} x2={W - MR} y2={y(v)} stroke={tokens.ink.grid} strokeOpacity={0.4} />
+            <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill={tokens.ink.muted}>
               {fmt(v)}
             </text>
           </g>
@@ -186,7 +189,7 @@ export function CategoryBars({
                     textAnchor="middle"
                     fontSize={11}
                     fontWeight={700}
-                    fill={valueLabelFill(inside)}
+                    fill={valueLabelFill(inside, tokens.ink)}
                     pointerEvents="none"
                   >
                     {barLabel === "share"
@@ -205,7 +208,7 @@ export function CategoryBars({
               y1={y(median)}
               x2={W - MR}
               y2={y(median)}
-              stroke={INK.muted}
+              stroke={tokens.ink.muted}
               strokeWidth={1}
               strokeDasharray="4 3"
               pointerEvents="none"
@@ -215,7 +218,7 @@ export function CategoryBars({
               y={y(median) + 3}
               textAnchor="end"
               fontSize={8}
-              fill={INK.muted}
+              fill={tokens.ink.muted}
               pointerEvents="none"
             >
               median {fmt(median)}
@@ -230,7 +233,7 @@ export function CategoryBars({
             y={H - MB + 14}
             textAnchor="middle"
             fontSize={9}
-            fill={active === i ? accent : INK.primary}
+            fill={active === i ? accent : tokens.ink.primary}
             fontWeight={active === i ? 700 : 400}
             pointerEvents="none"
           >

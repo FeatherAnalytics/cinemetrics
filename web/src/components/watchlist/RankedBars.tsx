@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { INK, UI } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { deltaLabel, type RatingDelta } from "@/lib/ratingDelta";
 import type { RankedBar } from "@/lib/watchlistChart";
@@ -61,13 +61,17 @@ export function RankedBars({
   deltas?: Map<string, RatingDelta>;
   deltaHeader?: string;
 }) {
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<string | null>(null);
 
   if (bars.length === 0) {
     return (
       <div
-        className="rounded-md border border-dashed px-4 py-6 text-sm text-[#67655f]"
-        style={{ borderColor: "rgba(11,11,11,0.15)" }}
+        className="rounded-md border border-dashed px-4 py-6 text-sm"
+        style={{
+          color: tokens.ink.muted,
+          borderColor: `color-mix(in srgb, ${tokens.ink.primary} 15%, transparent)`,
+        }}
       >
         No films match the current filters.
       </div>
@@ -93,7 +97,7 @@ export function RankedBars({
             <text
               x={LABEL_W}
               y={8}
-              fill={INK.muted}
+              fill={tokens.ink.muted}
               fontSize={9}
               letterSpacing="0.1em"
               fontFamily="var(--font-mono)"
@@ -103,7 +107,7 @@ export function RankedBars({
             <text
               x={DEV_ZERO}
               y={8}
-              fill={INK.muted}
+              fill={tokens.ink.muted}
               fontSize={9}
               letterSpacing="0.1em"
               textAnchor="middle"
@@ -116,7 +120,7 @@ export function RankedBars({
               y1={top}
               x2={DEV_ZERO}
               y2={HEIGHT - 8}
-              stroke={INK.axis}
+              stroke={tokens.ink.axis}
               strokeWidth={1.5}
             />
           </>
@@ -142,7 +146,7 @@ export function RankedBars({
               <text
                 x={LABEL_W - 8}
                 y={y + BAR_H / 2}
-                fill={isActive ? UI.selected : INK.secondary}
+                fill={isActive ? tokens.ui.selected : tokens.ink.secondary}
                 fontSize={12}
                 fontWeight={isActive ? 700 : 400}
                 textAnchor="end"
@@ -164,14 +168,14 @@ export function RankedBars({
                 height={BAR_H}
                 fill={bar.color}
                 fillOpacity={isActive || isHover ? 0.95 : 0.72}
-                stroke={isActive ? UI.selected : "none"}
+                stroke={isActive ? tokens.ui.selected : "none"}
                 strokeWidth={isActive ? 1.75 : 0}
               />
 
               <text
                 x={inside ? LABEL_W + barLen - 8 : LABEL_W + barLen + 8}
                 y={y + BAR_H / 2}
-                fill={valueLabelFill(inside)}
+                fill={valueLabelFill(inside, tokens.ink)}
                 fontSize={11}
                 fontWeight={700}
                 textAnchor={inside ? "end" : "start"}
@@ -195,7 +199,7 @@ export function RankedBars({
                     height={BAR_H}
                     fill={bar.color}
                     fillOpacity={isActive || isHover ? 0.95 : 0.72}
-                    stroke={isActive ? UI.selected : "none"}
+                    stroke={isActive ? tokens.ui.selected : "none"}
                     strokeWidth={isActive ? 1.75 : 0}
                   />
                   <text
@@ -205,7 +209,7 @@ export function RankedBars({
                         : DEV_ZERO - devLen + (devInside ? 6 : -6)
                     }
                     y={y + BAR_H / 2}
-                    fill={valueLabelFill(devInside)}
+                    fill={valueLabelFill(devInside, tokens.ink)}
                     fontSize={11}
                     fontWeight={700}
                     textAnchor={
@@ -239,7 +243,7 @@ export function RankedBars({
       {/* The readout lives under the chart, in its own strip, rather than in an
           SVG <title>: the native tooltip is an OS box with its own font and
           half-second delay, matching nothing else on the page. */}
-      <p className="mt-1 h-4 text-xs text-[#67655f]">
+      <p className="mt-1 h-4 text-xs" style={{ color: tokens.ink.muted }}>
         {hover
           ? (() => {
               const b = bars.find((x) => x.key === hover);
