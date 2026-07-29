@@ -27,7 +27,7 @@ flowchart LR
   R2 -.fetched at runtime.-> PAGES
 ```
 
-Two artifacts leave the pipeline. A ~540 KB JSON file ships inside the site bundle. R2 serves the embeddings in a ~1 MB gzipped file.
+Two artifacts leave the pipeline. A ~645 KB JSON file ships inside the site bundle. R2 serves the embeddings in a ~1 MB gzipped file.
 
 ## Layers
 
@@ -120,7 +120,7 @@ selects from it, [`export_web.py`](../scripts/export_web.py) does not export it,
 [`build_watchlist_seed.py`](../scripts/build_watchlist_seed.py) and the model is typed and tested,
 but the branch stops there — it is staged and ready rather than in use.
 
-Current scale: <!--stat:watches-->795<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->7,770<!--/stat--> recommendation candidates, <!--stat:dbt_models-->8<!--/stat--> dbt models, <!--stat:dbt_seeds-->4<!--/stat--> seeds, <!--stat:dbt_tests-->30<!--/stat--> data tests.
+Current scale: <!--stat:watches-->795<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->7,770<!--/stat--> recommendation candidates, <!--stat:dbt_models-->8<!--/stat--> dbt models, <!--stat:dbt_seeds-->4<!--/stat--> seeds, <!--stat:dbt_tests-->31<!--/stat--> data tests.
 
 Those figures are generated — see [Keeping the figures honest](#keeping-the-figures-honest). The
 dashboard header and the share card derive their own counts separately at build time, from
@@ -195,7 +195,7 @@ Everything is free-tier and stateless except the object store.
 
 **[`ci.yml`](../.github/workflows/ci.yml)** — on pull requests to `main`. Three independent
 jobs: `lint` (ruff + eslint), `data` (`dbt deps` then `dbt build`, which runs all
-<!--stat:dbt_tests-->30<!--/stat--> tests), and `web` (vitest + Next.js build).
+<!--stat:dbt_tests-->31<!--/stat--> tests), and `web` (vitest + Next.js build).
 
 **[`deploy.yml`](../.github/workflows/deploy.yml)** — on push to `main` and on manual dispatch.
 Builds the web bundle and publishes to Pages. Concurrency group `pages`, no
