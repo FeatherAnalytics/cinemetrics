@@ -7,7 +7,7 @@ the per-caller differences (which source wins for genres/countries, and which
 columns are emitted).
 """
 
-from ingest.enrich import build_enrichment_row
+from ingest.enrich import BASE_COLUMNS, build_enrichment_row
 
 TMDB = {
     "id": 27205,
@@ -45,7 +45,7 @@ UPDATE_GOLD = {
     "imdb_votes": "2400000", "box_office": "292587330",
     "director": "Christopher Nolan",
     "actors": "Leonardo DiCaprio, Joseph Gordon-Levitt", "rated": "PG-13",
-    "production_countries": "US, GB",
+    "production_countries": "US, GB", "poster_path": "",
 }
 FETCH_GOLD = {
     "tmdb_id": "27205", "imdb_id": "tt1375666",
@@ -55,7 +55,8 @@ FETCH_GOLD = {
     "imdb_votes": "2400000", "box_office": "292587330",
     "director": "Christopher Nolan",
     "actors": "Leonardo DiCaprio, Joseph Gordon-Levitt", "rated": "PG-13",
-    "production_countries": "US, GB", "original_language": "en",
+    "production_countries": "US, GB", "poster_path": "",
+    "original_language": "en",
     "collection": "Inception Collection",
 }
 REBUILD_GOLD = {
@@ -66,7 +67,8 @@ REBUILD_GOLD = {
     "imdb_votes": "2400000", "box_office": "292587330",
     "director": "Christopher Nolan",
     "actors": "Leonardo DiCaprio, Joseph Gordon-Levitt", "rated": "PG-13",
-    "production_countries": "US, GB", "original_language": "en",
+    "production_countries": "US, GB", "poster_path": "",
+    "original_language": "en",
     "collection": "Inception Collection",
 }
 
@@ -138,3 +140,35 @@ def test_column_order_matches_fetch():
         prefer_omdb=False, omdb_countries=False, include_lang_collection=True,
     )
     assert list(row.keys()) == list(FETCH_GOLD.keys())
+
+
+def test_build_enrichment_row_carries_poster_path():
+    row = build_enrichment_row(
+        {"poster_path": "/abc123.jpg"},
+        {},
+        tmdb_id="550",
+        imdb_id="tt0137523",
+        prefer_omdb=True,
+        omdb_countries=True,
+        include_lang_collection=True,
+    )
+    assert row["poster_path"] == "/abc123.jpg"
+
+
+def test_build_enrichment_row_poster_path_missing_is_empty():
+    row = build_enrichment_row(
+        {},
+        {},
+        tmdb_id="550",
+        imdb_id="tt0137523",
+        prefer_omdb=True,
+        omdb_countries=True,
+        include_lang_collection=True,
+    )
+    assert row["poster_path"] == ""
+
+
+def test_poster_path_is_last_base_column():
+    # Column order is load-bearing: the seeds are diffed in git, and a column
+    # inserted mid-row rewrites every line of every enrichment CSV.
+    assert BASE_COLUMNS[-1] == "poster_path"

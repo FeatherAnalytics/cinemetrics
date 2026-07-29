@@ -14,10 +14,12 @@ from ingest.geo import names_to_iso
 from ingest.parse import float_or_empty, int_or_empty, na_clean, na_empty
 
 # Base columns shared by every enrichment CSV, in order.
+# poster_path is LAST so adding it appends to each row rather than rewriting
+# every existing line of the committed seeds.
 BASE_COLUMNS = [
     "tmdb_id", "imdb_id", "genres", "keywords", "runtime", "budget", "revenue",
     "metascore", "rt_rating", "imdb_rating", "imdb_votes", "box_office",
-    "director", "actors", "rated", "production_countries",
+    "director", "actors", "rated", "production_countries", "poster_path",
 ]
 # Extra TMDB-only columns for the candidate/rebuild variants.
 LANG_COLLECTION_COLUMNS = ["original_language", "collection"]
@@ -118,6 +120,9 @@ def build_enrichment_row(
         "actors": text(omdb.get("Actors")),
         "rated": text(omdb.get("Rated")),
         "production_countries": countries,
+        # TMDB image path, e.g. "/abc123.jpg". Stored as the path, not a URL:
+        # the CDN host and size segment belong to the renderer, not the data.
+        "poster_path": tmdb.get("poster_path") or "",
     }
 
     if include_lang_collection:
