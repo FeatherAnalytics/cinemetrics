@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { INK } from "@/lib/palette";
 import { favColor, StarMarker } from "@/lib/favMarker";
-import { favPosterPath, FOUR_FAVS, posterUrl } from "@/lib/fourFavs";
+import { FOUR_FAVS, posterUrl } from "@/lib/fourFavs";
 import { isPicked, pickWatches } from "@/components/stats/pick";
 import type { EnrichedWatch } from "@/lib/types";
 
@@ -58,15 +58,7 @@ export function FavPosters() {
         // The short link the id was resolved FROM, so it cannot drift from the film
         // this card is about the way a rebuilt slug could.
         href: `https://boxd.it/${f.letterboxd}`,
-        // `poster_path` is not in the exported dataset yet, so the fallback
-        // resolves to null for anything without a curated entry. Passing it
-        // anyway means the day it lands, this reads it without a change here.
-        src: posterUrl(
-          favPosterPath(
-            f.tmdb_id,
-            (watches[0]?.film as { poster_path?: string | null } | undefined)?.poster_path,
-          ),
-        ),
+        src: posterUrl(watches[0]?.film?.poster),
         watches,
       };
     });
