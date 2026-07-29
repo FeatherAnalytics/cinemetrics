@@ -10,6 +10,7 @@ function makeFilm(overrides: Partial<Film> = {}): Film {
     revenue: null, director: null, actors: null, metascore: 75,
     rt_rating: 80, imdb_rating: 70, imdb_votes: 50000,
     production_countries: [], rated: null, language: null, collection: null,
+    poster: null,
     ...overrides,
   };
 }

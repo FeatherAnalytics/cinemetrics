@@ -54,7 +54,8 @@ def main() -> None:
                 x -> x <> '') as production_countries,
             nullif(dim_film.rated, '')              as rated,
             nullif(dim_film.original_language, '')  as language,
-            nullif(dim_film.collection, '')         as collection
+            nullif(dim_film.collection, '')         as collection,
+            dim_film.poster_path                    as poster
         from marts.dim_film
         """,
     )

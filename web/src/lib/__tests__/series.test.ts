@@ -33,6 +33,7 @@ function makeFilm(overrides: Partial<Film> = {}): Film {
     rated: "R",
     language: "en",
     collection: null,
+    poster: null,
     ...overrides,
   };
 }

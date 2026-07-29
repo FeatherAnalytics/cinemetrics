@@ -22,6 +22,7 @@ describe("data type parsing", () => {
     rated: "R",
     language: "en",
     collection: null,
+    poster: null,
   };
 
   const sampleWatch: Watch = {
@@ -76,6 +77,7 @@ describe("data type parsing", () => {
       rated: null,
       language: null,
       collection: null,
+      poster: null,
     };
     expect(sparse.director).toBeNull();
     expect(sparse.metascore).toBeNull();

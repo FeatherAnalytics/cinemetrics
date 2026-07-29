@@ -18,6 +18,12 @@ export type Film = {
   rated: string | null; // MPAA content rating (G/PG/PG-13/R/…)
   language: string | null; // TMDB original_language (ISO 639-1)
   collection: string | null; // TMDB franchise/collection name, if any
+  /**
+   * TMDB poster path, e.g. "/abc123.jpg", or null when TMDB serves none.
+   * Build the URL with posterUrl() in lib/fourFavs.ts — the CDN host and size
+   * segment are a rendering choice, not data.
+   */
+  poster: string | null;
 };
 
 export type Watch = {
