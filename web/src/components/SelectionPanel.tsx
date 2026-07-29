@@ -82,6 +82,29 @@ export function SelectionPanel() {
   const [sort, setSort] = useState<Sort>({ key: "date", dir: 1 }); // oldest → most recent
   const watchlistMode = activeStory === "watchlist";
   const columns = watchlistMode ? WATCHLIST_COLUMNS : COLUMNS;
+  const [openByHand, setOpenByHand] = useState(false);
+
+  /**
+   * In watchlist mode the table is a drawer, not a result.
+   *
+   * The whole list is 136 rows, and dropping that above the charts every time
+   * the story opens buries them. So it starts closed and the reader opens it —
+   * except when a filter is running, where the table IS the answer to what they
+   * just clicked and hiding it would make the click feel like it did nothing.
+   *
+   * `openByHand` survives the filter clearing, so a reader who opened the table
+   * and then cleared a country does not have it shut on them.
+   */
+  const watchlistFiltered =
+    filters.genres.size > 0 ||
+    filters.releaseYearRange !== null ||
+    filters.runtimeRange !== null ||
+    filters.votesRange !== null ||
+    filters.country !== null ||
+    filters.language !== null ||
+    filters.genreTag !== null ||
+    filters.keyword !== null;
+  const open = !watchlistMode || openByHand || watchlistFiltered;
 
   const { rows, films, avgMe, avgCritic, genres } = useMemo(() => {
     if (watchlistMode) {
@@ -205,7 +228,16 @@ export function SelectionPanel() {
             </span>
           )}
         </div>
-        {!watchlistMode && (
+        {watchlistMode ? (
+          <button
+            onClick={() => setOpenByHand((v) => !v)}
+            aria-expanded={open}
+            className="rounded-full border px-3 py-1 text-xs text-[#3d3c38] transition hover:text-[#0b0b0b]"
+            style={{ borderColor: "rgba(11,11,11,0.2)" }}
+          >
+            {open ? "hide films" : "show films"}
+          </button>
+        ) : (
           <button
             onClick={clear}
             className="rounded-full border px-3 py-1 text-xs text-[#3d3c38] transition hover:text-[#0b0b0b]"
@@ -216,7 +248,7 @@ export function SelectionPanel() {
         )}
       </div>
 
-      {genres.length > 0 && (
+      {open && genres.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs" style={{ color: INK.muted }}>
           {genres.map(([g, n]) => (
             <span key={g} className="inline-flex items-center gap-1.5">
@@ -227,6 +259,7 @@ export function SelectionPanel() {
         </div>
       )}
 
+      {open && (
       <div className="mt-3 max-h-72 overflow-x-auto overflow-y-auto rounded border" style={{ borderColor: "rgba(11,11,11,0.1)" }}>
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0" style={{ background: "#f2f1ec" }}>
@@ -298,6 +331,7 @@ export function SelectionPanel() {
           </tbody>
         </table>
       </div>
+      )}
     </section>
   );
 }

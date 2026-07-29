@@ -35,9 +35,7 @@ import { SelectionPanel } from "@/components/SelectionPanel";
 import { StatBar } from "@/components/StatBar";
 import { StoryAnnotation } from "@/components/StoryAnnotation";
 import { StoryChartNote } from "@/components/StoryChartNote";
-import { WatchlistDecades } from "@/components/watchlist/WatchlistDecades";
 import { WatchlistBarcode } from "@/components/watchlist/WatchlistBarcode";
-import { WatchlistGenreDecades } from "@/components/watchlist/WatchlistGenreDecades";
 import { WatchlistGenres } from "@/components/watchlist/WatchlistGenres";
 import { WatchlistKeywords } from "@/components/watchlist/WatchlistKeywords";
 import { WatchlistOrigin } from "@/components/watchlist/WatchlistOrigin";
@@ -368,33 +366,6 @@ const CHART_SECTIONS: ChartSection[] = [
 
   // --- The watchlist set. Films with no viewing history, so none of the charts
   // above appears here: every one of them walks the watch log. ---
-  {
-    id: "wldecades",
-    sets: ["watchlist"],
-    title: "Release decade of films on the watchlist",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        Films on the watchlist by release decade. Empty decades stay in, so the gaps
-        are real gaps. Click a decade to filter the other charts to it.
-      </>
-    ),
-    Chart: WatchlistDecades,
-  },
-  {
-    id: "wlgenredecades",
-    sets: ["watchlist"],
-    title: "Genre by release decade",
-    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
-    blurb: (
-      <>
-        One cell per genre and decade, darker where more films are waiting. Every bin
-        is the same size, so rows and columns compare directly &mdash; and an outlined
-        cell is an era I have queued nothing from.
-      </>
-    ),
-    Chart: WatchlistGenreDecades,
-  },
   {
     id: "wlbarcode",
     sets: ["watchlist"],

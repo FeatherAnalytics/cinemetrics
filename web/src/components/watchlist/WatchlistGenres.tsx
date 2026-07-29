@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useExplorer } from "@/lib/store";
+import { ratingDeltaByKey } from "@/lib/ratingDelta";
 import { genreBars } from "@/lib/watchlistChart";
 import { ChartTakeaway } from "../ChartTakeaway";
 import { RankedBars } from "./RankedBars";
@@ -15,23 +16,37 @@ import { RankedBars } from "./RankedBars";
  * still: it recognises five genres, so it would file Documentary, Crime,
  * Mystery and Science Fiction together under "Other" and lose most of the list.
  *
- * The five tracked genres keep their identity colours. Everything else shares
- * the neutral, because inventing eleven more colours would imply eleven more
- * meanings the rest of the site does not carry.
+ * The five tracked genres keep their identity colours and everything else takes
+ * the neutral. Colouring an untracked row by its films' dominant primary genre
+ * painted Mystery crimson, because most Mystery films here are also horror —
+ * a red bar labelled Mystery above a red bar labelled Horror.
+ *
+ * Clicking a bar filters on the exact TMDB genre, which is why the rail carries
+ * `genreTag` alongside the five-key `genres` set: that set cannot name Mystery,
+ * so without it two thirds of this chart would be unclickable.
  */
 export function WatchlistGenres() {
-  const { filteredWatchlist } = useExplorer();
+  const { filteredWatchlist, filtered, filters, setGenreTag } = useExplorer();
   const bars = useMemo(() => genreBars(filteredWatchlist), [filteredWatchlist]);
+
+  // From the watch log: the watchlist's own films carry no rating.
+  const deltas = useMemo(
+    () => ratingDeltaByKey(filtered, (w) => w.film?.genres ?? []),
+    [filtered],
+  );
 
   return (
     <>
       <RankedBars
         bars={bars}
         total={filteredWatchlist.length}
-        ariaLabel="Watchlist films per genre"
+        active={filters.genreTag}
+        onPick={setGenreTag}
+        deltas={deltas}
+        ariaLabel="Watchlist films per genre, with how I rate films I have already seen in each"
       />
       <ChartTakeaway>
-        films carry several genres each
+        films carry several genres each &middot; deviation from films I&rsquo;ve seen
       </ChartTakeaway>
     </>
   );

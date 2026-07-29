@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Filters } from "./store";
 import type { Film, EnrichedWatch, WatchlistFilm } from "./types";
-import { genreBars, decadeBars, watchlistSummary } from "./watchlistChart";
+import { genreBars, watchlistSummary } from "./watchlistChart";
 import { primaryGenre, type GenreKey } from "./palette";
 import { watchKey } from "./brush";
 import { ALPHA, anova, chicagoParts, hasKnownRewatchState, mean } from "./statsChart";
@@ -44,11 +44,9 @@ export type ChartId =
   // the sets above they share no data with the others at all — not a different
   // question about the same watches, a different list entirely.
   | "wlgenres"
-  | "wldecades"
   | "wlkeywords"
   | "wlorigin"
-  | "wlbarcode"
-  | "wlgenredecades";
+  | "wlbarcode";
 
 /**
  * Which group of charts a story puts on the page.
@@ -713,10 +711,8 @@ function computeWatchlist(
     return { headline: "No watchlist data", chip: "Watchlist" };
   }
 
-  const { total, watched, oldest, preMillenniumShare } = watchlistSummary(watchlist);
+  const { total, watched, preMillenniumShare } = watchlistSummary(watchlist);
   const topGenre = genreBars(watchlist, 1)[0];
-  const decades = decadeBars(watchlist);
-  const peakDecade = decades.reduce((a, b) => (b.count > a.count ? b : a));
   const pct = Math.round(100 * preMillenniumShare);
 
   // Both numbers are measured here rather than written down, so the line cannot
@@ -743,22 +739,12 @@ function computeWatchlist(
             )}% of the watchlist.`,
           }
         : {}),
-      // "The heaviest decade" only says something when there is more than one to
-      // be heaviest of. Filtered to a single decade the superlative names the
-      // only bar on the chart, so it drops to a plain statement.
-      wldecades:
-        decades.length > 1
-          ? `The ${peakDecade.decade}s is the most prominent decade at ${peakDecade.count} films and the watchlist reaches back to ${oldest}.`
-          : `All ${peakDecade.count} of these are from the ${peakDecade.decade}s.`,
       wlorigin:
         "",
-      // The blurb already explains the encoding, so the note carries the thing
-      // the decade chart above cannot show: where inside a decade the films
-      // actually sit.
-      wlgenredecades:
-        "One genre per film here, so each column sums to the decade bar above it. The outlined cells are eras I have queued nothing from.",
+      // The blurb explains the encoding, so the note carries what the shape
+      // itself says rather than restating how to read it.
       wlbarcode:
-        "Year by year rather than by decade, so the runs and the empty years inside a decade are both visible.",
+        "The columns thicken toward the present, but the tallest single year still holds only a handful — this is a wide list, not a deep one.",
     },
   };
 }
@@ -848,7 +834,7 @@ export const STORIES: StoryConfig[] = [
     label: "Watchlist",
     // `dim` is empty for the same reason the landing story's is: the other
     // charts are ABSENT here, not faded.
-    focus: { primary: "wldecades", emphasize: ["wldecades", "wlgenres"], dim: [] },
+    focus: { primary: "wlbarcode", emphasize: ["wlbarcode", "wlgenres"], dim: [] },
     chartSet: "watchlist",
     compute: computeWatchlist,
     // The three flags a non-narrative chart set wants, for the reasons on each:

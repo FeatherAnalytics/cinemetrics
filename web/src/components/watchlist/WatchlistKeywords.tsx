@@ -25,7 +25,7 @@ const MIN_FILMS = 3;
  * contributed unevenly, so a well-tagged film pushes more bars than a thin one.
  */
 export function WatchlistKeywords() {
-  const { filteredWatchlist, filtered } = useExplorer();
+  const { filteredWatchlist, filtered, filters, setKeyword } = useExplorer();
   const bars = useMemo(
     () => keywordBars(filteredWatchlist, 12, MIN_FILMS),
     [filteredWatchlist],
@@ -53,6 +53,8 @@ export function WatchlistKeywords() {
       <RankedBars
         bars={bars}
         total={filteredWatchlist.length}
+        active={filters.keyword}
+        onPick={setKeyword}
         deltas={deltas}
         ariaLabel="Most common watchlist keywords, with how I rate films I have already seen carrying each"
       />

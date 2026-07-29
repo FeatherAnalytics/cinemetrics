@@ -135,8 +135,10 @@ export function RankedBars({
           const devLen = d == null ? 0 : (Math.abs(d.delta) / devMax) * DEV_HALF;
           const devInside = devLen > INSIDE_MIN;
 
+          const dim = active != null && !isActive;
+
           return (
-            <g key={bar.key}>
+            <g key={bar.key} opacity={dim ? 0.35 : 1}>
               <text
                 x={LABEL_W - 8}
                 y={y + BAR_H / 2}
@@ -149,13 +151,21 @@ export function RankedBars({
                 {bar.label}
               </text>
 
+              {/* Selection is an OUTLINE, not a recolour. The fill is the bar's
+                  genre, and repainting it crimson to say "picked" threw that away
+                  — the reader lost the one thing the colour was carrying at the
+                  exact moment they were focused on that row. The accent moves to
+                  the stroke and the label instead, which is how CountryBars has
+                  always marked its selection. */}
               <rect
                 x={LABEL_W}
                 y={y}
                 width={barLen}
                 height={BAR_H}
-                fill={isActive ? ACCENT : bar.color}
+                fill={bar.color}
                 fillOpacity={isActive || isHover ? 0.95 : 0.72}
+                stroke={isActive ? ACCENT : "none"}
+                strokeWidth={isActive ? 1.75 : 0}
               />
 
               <text
@@ -183,8 +193,10 @@ export function RankedBars({
                     y={y}
                     width={devLen}
                     height={BAR_H}
-                    fill={isActive ? ACCENT : bar.color}
+                    fill={bar.color}
                     fillOpacity={isActive || isHover ? 0.95 : 0.72}
+                    stroke={isActive ? ACCENT : "none"}
+                    strokeWidth={isActive ? 1.75 : 0}
                   />
                   <text
                     x={

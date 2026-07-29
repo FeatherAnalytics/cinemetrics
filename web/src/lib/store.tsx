@@ -87,6 +87,8 @@ export function filterWatches(
       const v = f?.imdb_votes;
       if (v == null || v < filters.votesRange[0] || v > filters.votesRange[1]) return false;
     }
+    if (filters.genreTag && !(f?.genres ?? []).includes(filters.genreTag)) return false;
+    if (filters.keyword && !(f?.keywords ?? []).includes(filters.keyword)) return false;
     if (filters.selection && !filters.selection.has(watchKey(w))) return false;
     return true;
   });
@@ -112,6 +114,8 @@ export const WATCHLIST_FILTERS = [
   "language",
   "country",
   "votesRange",
+  "genreTag",
+  "keyword",
 ] as const satisfies readonly (keyof Filters)[];
 
 /** Pure filtering logic for the watchlist, extracted for testability. */
@@ -137,6 +141,8 @@ export function filterWatchlist(
       const v = f.imdb_votes;
       if (v == null || v < filters.votesRange[0] || v > filters.votesRange[1]) return false;
     }
+    if (filters.genreTag && !f.genres.includes(filters.genreTag)) return false;
+    if (filters.keyword && !f.keywords.includes(filters.keyword)) return false;
     return true;
   });
 }
@@ -168,6 +174,18 @@ export type Filters = {
    * That bites hardest on the watchlist, where OMDb coverage is partial.
    */
   votesRange: [number, number] | null;
+  /**
+   * A single TMDB genre NAME, matched against the film's whole genre list.
+   *
+   * Distinct from `genres`, which holds the five tracked GenreKeys and matches
+   * on primaryGenre. That set cannot express Mystery or Science Fiction at all,
+   * so the genre chart — which ranks every TMDB genre — had no way to filter
+   * through it. The two compose: `genres` narrows by the colour scale, this
+   * narrows by the exact tag.
+   */
+  genreTag: string | null;
+  /** A single TMDB keyword, matched against the film's keyword list. */
+  keyword: string | null;
   selection: Set<string> | null; // brushed watch keys (null = no brush active)
 };
 
@@ -186,6 +204,8 @@ const EMPTY_FILTERS: Filters = {
   runtimeRange: null,
   ratingRange: null,
   votesRange: null,
+  genreTag: null,
+  keyword: null,
   selection: null,
 };
 
@@ -258,6 +278,8 @@ type ExplorerValue = {
   setRuntimeRange: (r: [number, number]) => void;
   setRatingRange: (r: [number, number]) => void;
   setVotesRange: (r: [number, number]) => void;
+  setGenreTag: (g: string | null) => void;
+  setKeyword: (k: string | null) => void;
   setRewatch: (r: Filters["rewatch"]) => void;
   setText: (field: TextField, value: string) => void;
   setCountry: (iso: string | null) => void;
@@ -545,6 +567,16 @@ export function ExplorerProvider({
       setVotesRange: (r) => {
         exitStoryOnFilter();
         setFilters((f) => ({ ...f, votesRange: r }));
+      },
+      // Both toggle: clicking the active bar again clears, the same contract
+      // every other click-to-filter chart here uses.
+      setGenreTag: (g) => {
+        exitStoryOnFilter();
+        setFilters((f) => ({ ...f, genreTag: f.genreTag === g ? null : g }));
+      },
+      setKeyword: (k) => {
+        exitStoryOnFilter();
+        setFilters((f) => ({ ...f, keyword: f.keyword === k ? null : k }));
       },
       setRewatch: (r) => {
         exitStoryOnFilter();

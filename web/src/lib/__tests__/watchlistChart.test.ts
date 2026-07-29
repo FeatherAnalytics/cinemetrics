@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   countryBars,
-  decadeBars,
   genreBars,
   keywordBars,
   languageBars,
@@ -47,6 +46,8 @@ const EMPTY: Filters = {
   runtimeRange: null,
   ratingRange: null,
   votesRange: null,
+  genreTag: null,
+  keyword: null,
   selection: null,
 };
 
@@ -181,30 +182,6 @@ describe("countryBars / languageBars", () => {
     const bars = languageBars([film({ language: null }), film({ language: "ja" })]);
     expect(bars.map((b) => b.key)).toEqual(["ja"]);
     expect(bars[0].count).toBe(1);
-  });
-});
-
-describe("decadeBars", () => {
-  it("keeps empty decades between the ends so a gap reads as a gap", () => {
-    const bars = decadeBars([film({ year: 1920 }), film({ year: 1950 })]);
-    expect(bars.map((b) => b.decade)).toEqual([1920, 1930, 1940, 1950]);
-    expect(bars.map((b) => b.count)).toEqual([1, 0, 0, 1]);
-  });
-
-  it("floors a year to its decade", () => {
-    const bars = decadeBars([film({ year: 1999 }), film({ year: 1990 })]);
-    expect(bars).toHaveLength(1);
-    expect(bars[0]).toMatchObject({ decade: 1990, label: "1990s", count: 2, share: 1 });
-  });
-
-  it("labels 2000s decades without colliding with 1900s ones", () => {
-    const bars = decadeBars([film({ year: 1910 }), film({ year: 2010 })]);
-    const labels = bars.map((b) => b.label);
-    expect(new Set(labels).size).toBe(labels.length);
-  });
-
-  it("excludes films with no release year", () => {
-    expect(decadeBars([film({ year: null })])).toEqual([]);
   });
 });
 
