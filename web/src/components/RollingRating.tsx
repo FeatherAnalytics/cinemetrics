@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import { useDragRect, watchKey } from "@/lib/brush";
+import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import { useWidth } from "@/lib/useWidth";
 import { trunc } from "@/lib/format";
 import { buildSeries, DIMENSIONS, type Dimension, type Series } from "@/lib/series";
@@ -62,11 +63,31 @@ function PanelChart({
   const x = (n: number) => ML + ((n - xMin) / Math.max(1, xMax - xMin)) * (w - ML - MR);
   const y = (v: number) => MT + (1 - (v - lo) / (hi - lo || 1)) * (H - MT - MB);
   const xInv = (px: number) => xMin + ((px - ML) / Math.max(1, w - ML - MR)) * (xMax - xMin);
-  const line = (pts: SeriesPointLite[]) =>
-    pts.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.x)},${y(p.y)}`).join(" ");
-  const at = (pts: SeriesPointLite[], n: number) => pts.find((p) => p.x === n);
 
-  const hov = hoverX != null ? at(s.points, hoverX) : undefined;
+  /**
+   * The line's y positions in SCREEN space, not in rating space.
+   *
+   * A filter almost never leaves a panel's rating values alone while keeping
+   * its point count, so tweening the ratings would snap on the length change
+   * and move nothing on the rest. What actually shifts a surviving panel is the
+   * SHARED domain: toggle a genre, the other panels leave, `lo` and `hi` refit,
+   * and this line lands somewhere new having never changed a single rating.
+   * Tweening after the scale is what carries that.
+   *
+   * Memoised because `useAnimatedValues` compares by identity and a hover
+   * anywhere in the grid re-renders every panel.
+   */
+  const ys = useMemo(
+    () => s.points.map((p) => MT + (1 - (p.y - lo) / (hi - lo || 1)) * (H - MT - MB)),
+    [s.points, lo, hi],
+  );
+  const drawnY = useAnimatedValues(ys);
+
+  const line = (pts: SeriesPointLite[]) =>
+    pts.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.x)},${drawnY[i]}`).join(" ");
+
+  const hovIdx = hoverX != null ? s.points.findIndex((p) => p.x === hoverX) : -1;
+  const hov = hovIdx >= 0 ? s.points[hovIdx] : undefined;
 
   // x-range brush: the selection is every watch that fed the brushed data points,
   // i.e. positions [a-(window-1), b] of this series (each point is a trailing
@@ -158,7 +179,9 @@ function PanelChart({
           )}
           <path d={line(s.points)} fill="none" stroke={s.color} strokeWidth={2.25} strokeLinejoin="round" strokeLinecap="round" />
 
-          {hov && <circle cx={x(hov.x)} cy={y(hov.y)} r={3.2} fill={s.color} stroke={tokens.ink.surface} strokeWidth={1} />}
+          {/* Rides the drawn line, not the settled one, so it cannot float off
+              the stroke mid-tween. The READOUT below stays on the target. */}
+          {hov && <circle cx={x(hov.x)} cy={drawnY[hovIdx]} r={3.2} fill={s.color} stroke={tokens.ink.surface} strokeWidth={1} />}
 
           {hov && (
             <text

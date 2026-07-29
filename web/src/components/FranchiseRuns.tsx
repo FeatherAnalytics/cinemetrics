@@ -6,6 +6,7 @@ import { primaryGenre } from "@/lib/palette";
 import { useTheme } from "@/lib/theme";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { trunc, fmt1 } from "@/lib/format";
+import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import type { CSSProperties } from "react";
 import type { EnrichedWatch } from "@/lib/types";
 import { heartDim } from "@/lib/heartLens";
@@ -17,6 +18,135 @@ const TOP = 24;
 const ROWH = 20;
 const PAD = 3;
 const MAIN_MIN_WATCHES = 3; // rows below this hide behind the toggle
+
+// Pure, so the row component can memoise on the numbers that feed it rather
+// than on a closure the parent rebuilds every render.
+function yAt(rating: number | null, rowTop: number, lo: number, hi: number): number {
+  const top = rowTop + PAD;
+  const bot = rowTop + ROWH - PAD;
+  if (rating == null) return (top + bot) / 2;
+  return bot - ((rating - lo) / (hi - lo || 1)) * (bot - top);
+}
+
+function xAt(t: number, x0: number, x1: number): number {
+  return LABEL + ((t - x0) / (x1 - x0 || 1)) * (W - LABEL - RIGHT);
+}
+
+type Hover = { x: number; y: number; w: EnrichedWatch } | null;
+
+/**
+ * One franchise, its own component so it can hold its own tween.
+ *
+ * The chart as a whole cannot: a filter changes how many rows there are, and
+ * `useAnimatedValues` snaps on a length change, correctly, because pairing dot
+ * n of one row set with dot n of another would animate a lie. Per row the
+ * pairing is real. A genre filter is a fact about FILMS, so a surviving run
+ * keeps every watch it had, while its dots move for two reasons that have
+ * nothing to do with its own data: the rows above it left, so its band slid up,
+ * and the shared rating scale refit around whatever is still on screen.
+ *
+ * Module scope, so a hover does not remount every row.
+ */
+function FranchiseRow({
+  r,
+  index,
+  rowTop,
+  lo,
+  hi,
+  x0,
+  x1,
+  selectedId,
+  heartLens,
+  tokens,
+  setSelected,
+  setHover,
+}: {
+  r: Row;
+  index: number;
+  rowTop: number;
+  lo: number;
+  hi: number;
+  x0: number;
+  x1: number;
+  selectedId: number | null;
+  heartLens: boolean;
+  tokens: ReturnType<typeof useTheme>["tokens"];
+  setSelected: (id: number) => void;
+  setHover: (h: Hover) => void;
+}) {
+  const rowSel = r.watches.some((w) => w.tmdb_id === selectedId);
+  const dim = selectedId != null && !rowSel;
+
+  // x is the date and never tweens. Memoised on numbers only: the hook compares
+  // its target by identity, and the parent re-renders on every hover.
+  const xs = useMemo(() => r.watches.map((w) => xAt(w.d.getTime(), x0, x1)), [r.watches, x0, x1]);
+  const ys = useMemo(
+    () => r.watches.map((w) => yAt(w.rating, rowTop, lo, hi)),
+    [r.watches, rowTop, lo, hi],
+  );
+  const drawnY = useAnimatedValues(ys);
+
+  const poly = xs.map((x, j) => `${x},${drawnY[j]}`).join(" ");
+  const labelY = rowTop + ROWH / 2;
+
+  return (
+    <g>
+      {rowSel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={tokens.ui.selected} fillOpacity={0.06} />}
+      <text
+        x={LABEL - 8}
+        y={labelY}
+        fill={rowSel ? tokens.ink.primary : tokens.ink.muted}
+        fontSize={9}
+        textAnchor="end"
+        dominantBaseline="middle"
+      >
+        {trunc(r.name)} · {r.filmCount}
+      </text>
+      <polyline
+        points={poly}
+        fill="none"
+        stroke={tokens.ink.grid}
+        strokeWidth={1}
+        strokeOpacity={dim ? 0.25 : 0.8}
+      />
+      {r.watches.map((w, j) => (
+        <circle
+          key={j}
+          cx={xs[j]}
+          cy={drawnY[j]}
+          r={w.tmdb_id === selectedId ? 3.4 : 2.6}
+          fill={w.rating == null ? tokens.ink.surface : tokens.genre[primaryGenre(w.film)]}
+          fillOpacity={(dim ? 0.3 : 0.9) * (heartLens ? heartDim(w) : 1)}
+          stroke={
+            w.tmdb_id === selectedId
+              ? tokens.ui.selected
+              : w.rating == null
+                ? tokens.ink.muted
+                : tokens.ink.surface
+          }
+          strokeWidth={w.tmdb_id === selectedId ? 1.5 : w.rating == null ? 1 : 0.5}
+          style={{ cursor: "pointer" }}
+          onMouseEnter={() => setHover({ x: xs[j], y: drawnY[j], w })}
+          onMouseLeave={() => setHover(null)}
+          onClick={() => setSelected(w.tmdb_id)}
+        />
+      ))}
+      {r.avg != null && (
+        <text
+          x={W - 4}
+          y={labelY}
+          fill={index === 0 ? tokens.ink.primary : tokens.ink.muted}
+          fontSize={9}
+          fontWeight={index === 0 ? 700 : 400}
+          textAnchor="end"
+          dominantBaseline="middle"
+        >
+          avg {fmt1(r.avg)}
+        </text>
+      )}
+    </g>
+  );
+}
 
 type Row = {
   name: string;
@@ -90,13 +220,11 @@ export function FranchiseRuns() {
   }, [rows]);
 
   const H = TOP + rows.length * ROWH + 10;
-  const x = (t: number) => LABEL + ((t - x0) / (x1 - x0 || 1)) * (W - LABEL - RIGHT);
-  const yRating = (rating: number | null, rowTop: number) => {
-    const top = rowTop + PAD;
-    const bot = rowTop + ROWH - PAD;
-    if (rating == null) return (top + bot) / 2;
-    return bot - ((rating - lo) / (hi - lo || 1)) * (bot - top);
-  };
+  const x = (t: number) => xAt(t, x0, x1);
+  // Brush hit-testing reads the SETTLED position, not the drawn one. Testing
+  // against a dot mid-flight would select whatever the tween happened to be
+  // passing through at mouse-up.
+  const yRating = (rating: number | null, rowTop: number) => yAt(rating, rowTop, lo, hi);
 
   const years: number[] = [];
   for (let Y = new Date(x0).getUTCFullYear(); Y <= new Date(x1).getUTCFullYear(); Y++) {
@@ -151,77 +279,23 @@ export function FranchiseRuns() {
           );
         })}
 
-        {rows.map((r, i) => {
-          const rowTop = TOP + i * ROWH;
-          const rowSel = r.watches.some((w) => w.tmdb_id === selectedId);
-          const dim = selectedId != null && !rowSel;
-          const pts = r.watches.map((w) => ({
-            x: x(w.d.getTime()),
-            y: yRating(w.rating, rowTop),
-            w,
-          }));
-          const poly = pts.map((p) => `${p.x},${p.y}`).join(" ");
-          const labelY = rowTop + ROWH / 2;
-          return (
-            <g key={r.name}>
-              {rowSel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={tokens.ui.selected} fillOpacity={0.06} />}
-              <text
-                x={LABEL - 8}
-                y={labelY}
-                fill={rowSel ? tokens.ink.primary : tokens.ink.muted}
-                fontSize={9}
-                textAnchor="end"
-                dominantBaseline="middle"
-              >
-                {trunc(r.name)} · {r.filmCount}
-              </text>
-              <polyline
-                points={poly}
-                fill="none"
-                stroke={tokens.ink.grid}
-                strokeWidth={1}
-                strokeOpacity={dim ? 0.25 : 0.8}
-              />
-              {pts.map((p, j) => (
-                <circle
-                  key={j}
-                  cx={p.x}
-                  cy={p.y}
-                  r={p.w.tmdb_id === selectedId ? 3.4 : 2.6}
-                  fill={
-                    p.w.rating == null ? tokens.ink.surface : tokens.genre[primaryGenre(p.w.film)]
-                  }
-                  fillOpacity={(dim ? 0.3 : 0.9) * (heartLens ? heartDim(p.w) : 1)}
-                  stroke={
-                    p.w.tmdb_id === selectedId
-                      ? tokens.ui.selected
-                      : p.w.rating == null
-                        ? tokens.ink.muted
-                        : tokens.ink.surface
-                  }
-                  strokeWidth={p.w.tmdb_id === selectedId ? 1.5 : p.w.rating == null ? 1 : 0.5}
-                  style={{ cursor: "pointer" }}
-                  onMouseEnter={() => setHover({ x: p.x, y: p.y, w: p.w })}
-                  onMouseLeave={() => setHover(null)}
-                  onClick={() => setSelected(p.w.tmdb_id)}
-                />
-              ))}
-              {r.avg != null && (
-                <text
-                  x={W - 4}
-                  y={labelY}
-                  fill={i === 0 ? tokens.ink.primary : tokens.ink.muted}
-                  fontSize={9}
-                  fontWeight={i === 0 ? 700 : 400}
-                  textAnchor="end"
-                  dominantBaseline="middle"
-                >
-                  avg {fmt1(r.avg)}
-                </text>
-              )}
-            </g>
-          );
-        })}
+        {rows.map((r, i) => (
+          <FranchiseRow
+            key={r.name}
+            r={r}
+            index={i}
+            rowTop={TOP + i * ROWH}
+            lo={lo}
+            hi={hi}
+            x0={x0}
+            x1={x1}
+            selectedId={selectedId}
+            heartLens={heartLens}
+            tokens={tokens}
+            setSelected={setSelected}
+            setHover={setHover}
+          />
+        ))}
 
         <BrushRectOverlay rect={rect} accent={tokens.accent} />
       </svg>

@@ -8,6 +8,37 @@ const DURATION = 480;
 const ease = (t: number) => 1 - (1 - t) ** 3;
 
 /**
+ * WHICH CHARTS TWEEN, AND WHY THE REST DO NOT. Measured, not assumed.
+ *
+ * Tweening: the eight bar charts; `RollingRating` (per panel); `RewatchCadence`
+ * and `FranchiseRuns` (per row).
+ *
+ * Left instant, each for a reason a rebuild would have to disprove again:
+ *
+ *   SwimLaneChart. A dot's y is its lane (the watch year) plus its rating, and
+ *   the lane bounds come from the UNFILTERED log, so a filter cannot move one.
+ *   Measured on the 795-dot field: the multiset of y positions is identical
+ *   before and after a genre filter, the same 58 values with the same counts.
+ *   Wiring the hook up anyway put 488 of 495 trackable marks in flight, because
+ *   the layer is re-sorted so the selected dot paints last and index i is a
+ *   different watch afterward. That is a dot gliding to a position another film
+ *   already held. Cost, six toggles each, 120Hz display, no CPU throttle: 96.3
+ *   fps mean with the tween against 109.8 without, 24 frames over 16.7ms
+ *   against 12, no long task from the tween itself either way. It clears the
+ *   plan's 60fps bar comfortably. It was removed for being meaningless, not for
+ *   being slow.
+ *
+ *   ResidualDotStack. 207 dots to 27 under one genre filter, and the OLS refits,
+ *   so no dot keeps a partner to move from.
+ *
+ *   StreakStripes. 795 stripes to 94 under the same filter, so there is no
+ *   stripe-to-stripe pairing, and a stripe's fill is scored against the median
+ *   of the whole log, which a filter never moves. There is no colour change to
+ *   interpolate.
+ *
+ * With the three converted charts in one page, a genre toggle runs at 109.9 fps
+ * mean against 108.3 with reduced motion on: the tween is free at this scale.
+ *
  * Tween a numeric series toward its next value.
  *
  * Filtering is the point of this dashboard and it currently happens with no

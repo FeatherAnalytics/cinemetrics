@@ -8,6 +8,7 @@ import { useTheme } from "@/lib/theme";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { isSolstice, SunMarker } from "@/lib/solstice";
 import { trunc } from "@/lib/format";
+import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import type { EnrichedWatch, Film } from "@/lib/types";
 import { likedOnly } from "@/lib/heartLens";
 
@@ -19,6 +20,19 @@ const ROWH = 20;
 const HEADER_H = 26;
 const PAD = 3; // vertical padding inside each row band
 
+// Pure, so the row component can memoise on the numbers that feed it rather
+// than on a closure the parent rebuilds every render.
+function yAt(rating: number | null, rowTop: number, lo: number, hi: number): number {
+  const top = rowTop + PAD;
+  const bot = rowTop + ROWH - PAD;
+  if (rating == null) return (top + bot) / 2;
+  return bot - ((rating - lo) / (hi - lo || 1)) * (bot - top);
+}
+
+function xAt(t: number, x0: number, x1: number): number {
+  return LABEL + ((t - x0) / (x1 - x0 || 1)) * (W - LABEL - RIGHT);
+}
+
 type Row = {
   tmdb_id: number;
   film: Film | undefined;
@@ -29,7 +43,125 @@ type Row = {
   delta: number | null; // last - first; null with fewer than 2 rated watches
 };
 
-type Band = { label: string; rows: Row[]; headerY: number; startY: number };
+// `id` is the React key and `label` is what the reader sees. They have to be
+// separate: the label carries the band's count, so keying on it would give
+// every band a new key on every filter, remount every row underneath it, and
+// reset each row's tween to its new position before it could run.
+type Band = { id: string; label: string; rows: Row[]; headerY: number; startY: number };
+
+type Hover = { x: number; y: number; row: Row; w: EnrichedWatch } | null;
+
+/**
+ * One film, its own component so it can hold its own tween.
+ *
+ * The chart as a whole cannot: a filter changes how many rows there are, and
+ * `useAnimatedValues` snaps on a length change, correctly, because pairing dot
+ * n of one row set with dot n of another would animate a lie. Per row the
+ * pairing is real. A genre filter is a fact about FILMS, so a surviving film
+ * keeps every viewing it had, while its dots move for two reasons that have
+ * nothing to do with its own data: rows above it left, so its band slid up,
+ * and the shared rating scale refit around whatever is still on screen.
+ *
+ * Module scope, so a hover does not remount every row.
+ */
+function CadenceRow({
+  r,
+  index,
+  rowTop,
+  lo,
+  hi,
+  x0,
+  x1,
+  selectedId,
+  tokens,
+  setSelected,
+  setHover,
+}: {
+  r: Row;
+  index: number;
+  rowTop: number;
+  lo: number;
+  hi: number;
+  x0: number;
+  x1: number;
+  selectedId: number | null;
+  tokens: ReturnType<typeof useTheme>["tokens"];
+  setSelected: (id: number) => void;
+  setHover: (h: Hover) => void;
+}) {
+  const sel = r.tmdb_id === selectedId;
+  const color = sel ? tokens.ui.selected : tokens.genre[primaryGenre(r.film)];
+  const dim = selectedId != null && !sel;
+
+  // x is the date and never tweens. Memoised on numbers only: the hook compares
+  // its target by identity, and the parent re-renders on every hover.
+  const xs = useMemo(() => r.watches.map((w) => xAt(w.d.getTime(), x0, x1)), [r.watches, x0, x1]);
+  const ys = useMemo(
+    () => r.watches.map((w) => yAt(w.rating, rowTop, lo, hi)),
+    [r.watches, rowTop, lo, hi],
+  );
+  const drawnY = useAnimatedValues(ys);
+
+  const poly = xs.map((x, j) => `${x},${drawnY[j]}`).join(" ");
+  const labelY = rowTop + ROWH / 2;
+
+  return (
+    <g style={{ cursor: "pointer" }} onClick={() => setSelected(r.tmdb_id)}>
+      {sel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={tokens.ui.selected} fillOpacity={0.06} />}
+      <text
+        x={LABEL - 8}
+        y={labelY}
+        fill={sel ? tokens.ink.primary : tokens.ink.muted}
+        fontSize={9}
+        textAnchor="end"
+        dominantBaseline="middle"
+      >
+        {trunc(r.film?.title ?? String(r.tmdb_id))}
+      </text>
+      <polyline
+        points={poly}
+        fill="none"
+        stroke={color}
+        strokeWidth={sel ? 1.75 : 1.1}
+        strokeOpacity={dim ? 0.3 : 0.85}
+      />
+      {r.watches.map((w, j) => {
+        const enter = () => setHover({ x: xs[j], y: drawnY[j], row: r, w });
+        return isSolstice(w) ? (
+          <g key={j} opacity={dim ? 0.3 : 1} onMouseEnter={enter} onMouseLeave={() => setHover(null)}>
+            <SunMarker x={xs[j]} y={drawnY[j]} r={2.6} accent={tokens.accent} />
+          </g>
+        ) : (
+          <circle
+            key={j}
+            cx={xs[j]}
+            cy={drawnY[j]}
+            r={sel ? 3.4 : 2.6}
+            fill={w.rating == null ? tokens.ink.surface : color}
+            fillOpacity={dim ? 0.3 : 0.9}
+            stroke={w.rating == null ? tokens.ink.muted : tokens.ink.surface}
+            strokeWidth={w.rating == null ? 1 : 0.5}
+            onMouseEnter={enter}
+            onMouseLeave={() => setHover(null)}
+          />
+        );
+      })}
+      {r.delta != null && r.delta !== 0 && (
+        <text
+          x={W - 4}
+          y={labelY}
+          fill={index === 0 ? tokens.ink.primary : tokens.ink.muted}
+          fontSize={9}
+          fontWeight={index === 0 ? 700 : 400}
+          textAnchor="end"
+          dominantBaseline="middle"
+        >
+          {r.first} → {r.last}
+        </text>
+      )}
+    </g>
+  );
+}
 
 export function RewatchCadence() {
   const { all, filters, selectedId, setSelected, setSelection, heartLens } = useExplorer();
@@ -108,9 +240,11 @@ export function RewatchCadence() {
   // Bands stacked with a header row each; empty bands disappear entirely.
   const { bands, H } = useMemo(() => {
     const defs = [
-      { label: `grew · ${grew.length}`, rows: grew },
-      { label: `soured · ${soured.length}`, rows: soured },
-      ...(showUnchanged ? [{ label: `unchanged · ${unchanged.length}`, rows: unchanged }] : []),
+      { id: "grew", label: `grew · ${grew.length}`, rows: grew },
+      { id: "soured", label: `soured · ${soured.length}`, rows: soured },
+      ...(showUnchanged
+        ? [{ id: "unchanged", label: `unchanged · ${unchanged.length}`, rows: unchanged }]
+        : []),
     ].filter((b) => b.rows.length > 0);
     let yCur = TOP;
     const bands: Band[] = defs.map((b) => {
@@ -123,13 +257,11 @@ export function RewatchCadence() {
     return { bands, H: yCur + 10 };
   }, [grew, soured, unchanged, showUnchanged]);
 
-  const x = (t: number) => LABEL + ((t - x0) / (x1 - x0 || 1)) * (W - LABEL - RIGHT);
-  const yRating = (rating: number | null, rowTop: number) => {
-    const top = rowTop + PAD;
-    const bot = rowTop + ROWH - PAD;
-    if (rating == null) return (top + bot) / 2;
-    return bot - ((rating - lo) / (hi - lo || 1)) * (bot - top);
-  };
+  const x = (t: number) => xAt(t, x0, x1);
+  // Brush hit-testing reads the SETTLED position, not the drawn one. Testing
+  // against a dot mid-flight would select whatever the tween happened to be
+  // passing through at mouse-up.
+  const yRating = (rating: number | null, rowTop: number) => yAt(rating, rowTop, lo, hi);
 
   const years: number[] = [];
   for (let Y = new Date(x0).getUTCFullYear(); Y <= new Date(x1).getUTCFullYear(); Y++) {
@@ -172,7 +304,7 @@ export function RewatchCadence() {
         })}
 
         {bands.map((band) => (
-          <g key={band.label}>
+          <g key={band.id}>
             <text
               x={0}
               y={band.headerY + HEADER_H / 2 + 4}
@@ -192,79 +324,22 @@ export function RewatchCadence() {
               strokeWidth={0.5}
             />
 
-            {band.rows.map((r, i) => {
-              const rowTop = band.startY + i * ROWH;
-              const sel = r.tmdb_id === selectedId;
-              const color = sel ? tokens.ui.selected : tokens.genre[primaryGenre(r.film)];
-              const dim = selectedId != null && !sel;
-              const pts = r.watches.map((w) => ({
-                x: x(w.d.getTime()),
-                y: yRating(w.rating, rowTop),
-                w,
-              }));
-              const poly = pts.map((p) => `${p.x},${p.y}`).join(" ");
-              const labelY = rowTop + ROWH / 2;
-              return (
-                <g key={r.tmdb_id} style={{ cursor: "pointer" }} onClick={() => setSelected(r.tmdb_id)}>
-                  {sel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={tokens.ui.selected} fillOpacity={0.06} />}
-                  <text
-                    x={LABEL - 8}
-                    y={labelY}
-                    fill={sel ? tokens.ink.primary : tokens.ink.muted}
-                    fontSize={9}
-                    textAnchor="end"
-                    dominantBaseline="middle"
-                  >
-                    {trunc(r.film?.title ?? String(r.tmdb_id))}
-                  </text>
-                  <polyline
-                    points={poly}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={sel ? 1.75 : 1.1}
-                    strokeOpacity={dim ? 0.3 : 0.85}
-                  />
-                  {pts.map((p, j) =>
-                    isSolstice(p.w) ? (
-                      <g
-                        key={j}
-                        opacity={dim ? 0.3 : 1}
-                        onMouseEnter={() => setHover({ x: p.x, y: p.y, row: r, w: p.w })}
-                        onMouseLeave={() => setHover(null)}
-                      >
-                        <SunMarker x={p.x} y={p.y} r={2.6} accent={tokens.accent} />
-                      </g>
-                    ) : (
-                      <circle
-                        key={j}
-                        cx={p.x}
-                        cy={p.y}
-                        r={sel ? 3.4 : 2.6}
-                        fill={p.w.rating == null ? tokens.ink.surface : color}
-                        fillOpacity={dim ? 0.3 : 0.9}
-                        stroke={p.w.rating == null ? tokens.ink.muted : tokens.ink.surface}
-                        strokeWidth={p.w.rating == null ? 1 : 0.5}
-                        onMouseEnter={() => setHover({ x: p.x, y: p.y, row: r, w: p.w })}
-                        onMouseLeave={() => setHover(null)}
-                      />
-                    ),
-                  )}
-                  {r.delta != null && r.delta !== 0 && (
-                    <text
-                      x={W - 4}
-                      y={labelY}
-                      fill={i === 0 ? tokens.ink.primary : tokens.ink.muted}
-                      fontSize={9}
-                      fontWeight={i === 0 ? 700 : 400}
-                      textAnchor="end"
-                      dominantBaseline="middle"
-                    >
-                      {r.first} → {r.last}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
+            {band.rows.map((r, i) => (
+              <CadenceRow
+                key={r.tmdb_id}
+                r={r}
+                index={i}
+                rowTop={band.startY + i * ROWH}
+                lo={lo}
+                hi={hi}
+                x0={x0}
+                x1={x1}
+                selectedId={selectedId}
+                tokens={tokens}
+                setSelected={setSelected}
+                setHover={setHover}
+              />
+            ))}
           </g>
         ))}
 
