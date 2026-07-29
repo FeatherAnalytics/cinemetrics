@@ -224,3 +224,23 @@ def test_strict_writer_rejects_a_key_no_column_accepts():
     w = dict_writer(io.StringIO(), ["a"], strict=True)
     with pytest.raises(ValueError):
         w.writerow({"a": "1", "unexpected": "2"})
+
+
+def test_no_script_hardcodes_the_enrichment_column_list():
+    """No script may spell out the enrichment column order for itself.
+
+    Five separate copies of this list existed at one point. Adding poster_path
+    to BASE_COLUMNS left every one of them stale, and the worst copy was four
+    columns behind -- enough to strip production_countries, original_language
+    and collection out of a committed seed on a single re-run.
+
+    "box_office" is the marker: it appears in no other context under scripts/,
+    so a literal occurrence means someone wrote the list out by hand again.
+    """
+    from pathlib import Path
+
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    offenders = sorted(
+        py.name for py in scripts.glob("*.py") if '"box_office"' in py.read_text(encoding="utf-8")
+    )
+    assert offenders == [], f"hardcoded enrichment column list in: {offenders}"
