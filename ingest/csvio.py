@@ -49,11 +49,14 @@ def dict_writer(fh: TextIO, columns: list[str], *, strict: bool = False) -> csv.
     )
 
 
-def append_rows(path: Path, rows: list[dict], columns: list[str]) -> None:
+def append_rows(
+    path: Path, rows: list[dict], columns: list[str], *, strict: bool = False
+) -> None:
     """Atomically append ``rows`` to the CSV at ``path``.
 
     - Writes a header row when the target does not exist or is empty.
-    - Ignores dict keys not in ``columns`` (csv.DictWriter extrasaction="ignore").
+    - Ignores dict keys not in ``columns`` (csv.DictWriter extrasaction="ignore"),
+      unless ``strict=True`` raises on unexpected keys instead.
     - No-op when ``rows`` is empty (never creates a header-only file).
     """
     if not rows:
@@ -69,7 +72,7 @@ def append_rows(path: Path, rows: list[dict], columns: list[str]) -> None:
                 # Preserve existing bytes verbatim (header + prior rows).
                 with open(path, encoding="utf-8", newline="") as src:
                     out.write(src.read())
-            writer = dict_writer(out, columns)
+            writer = dict_writer(out, columns, strict=strict)
             if not has_content:
                 writer.writeheader()
             writer.writerows(rows)

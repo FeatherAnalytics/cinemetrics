@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from ingest.csvio import append_rows  # noqa: E402
-from ingest.enrich import build_enrichment_row  # noqa: E402
+from ingest.enrich import ENRICHMENT_CSV_COLUMNS, build_enrichment_row  # noqa: E402
 from ingest.http import omdb_get, tmdb_get  # noqa: E402
 
 SEEDS = ROOT / "transform" / "seeds"
@@ -38,27 +38,6 @@ LOG_COLUMNS = [
     # Per-watch like state from letterboxd:memberLike. Empty means unknown
     # (pre-Letterboxd rows), which is distinct from "false".
     "liked",
-]
-
-ENRICH_COLUMNS = [
-    "tmdb_id",
-    "imdb_id",
-    "genres",
-    "keywords",
-    "runtime",
-    "budget",
-    "revenue",
-    "metascore",
-    "rt_rating",
-    "imdb_rating",
-    "imdb_votes",
-    "box_office",
-    "director",
-    "actors",
-    "rated",
-    "production_countries",
-    "original_language",
-    "collection",
 ]
 
 
@@ -115,7 +94,7 @@ def loggable_watches(
 
 
 def append_to_enrichment(rows: list[dict[str, str]]) -> None:
-    append_rows(ENRICH_PATH, rows, ENRICH_COLUMNS)
+    append_rows(ENRICH_PATH, rows, ENRICHMENT_CSV_COLUMNS, strict=True)
 
 
 def append_to_log(watches: list[dict]) -> None:

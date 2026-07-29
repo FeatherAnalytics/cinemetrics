@@ -13,9 +13,10 @@ stays byte-identical to each original builder. Column order is preserved.
 from ingest.geo import names_to_iso
 from ingest.parse import float_or_empty, int_or_empty, na_clean, na_empty
 
-# Base columns shared by every enrichment CSV, in order.
-# poster_path is LAST so adding it appends to each row rather than rewriting
-# every existing line of the committed seeds.
+# Base columns shared by every enrichment CSV, in order. This list defines the
+# order of the row dict AND, via ENRICHMENT_CSV_COLUMNS, the column order of the
+# files themselves — the seeds are diffed in git, so the order is part of the
+# data's contract and is not safe to shuffle.
 BASE_COLUMNS = [
     "tmdb_id", "imdb_id", "genres", "keywords", "runtime", "budget", "revenue",
     "metascore", "rt_rating", "imdb_rating", "imdb_votes", "box_office",
@@ -23,6 +24,15 @@ BASE_COLUMNS = [
 ]
 # Extra TMDB-only columns for the candidate/rebuild variants.
 LANG_COLLECTION_COLUMNS = ["original_language", "collection"]
+
+# The column order every enrichment CSV is written in.
+#
+# Exported because update.py, fetch_candidates.py and rebuild_enrichment.py all
+# write these seeds and previously each kept a private copy of this list. When
+# poster_path was added to BASE_COLUMNS, all three copies stayed at 18 entries
+# and dict_writer's extrasaction="ignore" dropped the new field without a word.
+# One list means a column added here reaches every writer.
+ENRICHMENT_CSV_COLUMNS = BASE_COLUMNS + LANG_COLLECTION_COLUMNS
 
 
 def _tmdb_genres(tmdb: dict) -> str:

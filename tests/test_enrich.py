@@ -7,7 +7,14 @@ the per-caller differences (which source wins for genres/countries, and which
 columns are emitted).
 """
 
-from ingest.enrich import BASE_COLUMNS, build_enrichment_row
+import pytest
+
+from ingest.enrich import (
+    BASE_COLUMNS,
+    ENRICHMENT_CSV_COLUMNS,
+    LANG_COLLECTION_COLUMNS,
+    build_enrichment_row,
+)
 
 TMDB = {
     "id": 27205,
@@ -172,3 +179,48 @@ def test_poster_path_is_last_base_column():
     # Column order is load-bearing: the seeds are diffed in git, and a column
     # inserted mid-row rewrites every line of every enrichment CSV.
     assert BASE_COLUMNS[-1] == "poster_path"
+
+
+def test_enrichment_csv_columns_is_base_plus_lang_collection():
+    assert ENRICHMENT_CSV_COLUMNS == BASE_COLUMNS + LANG_COLLECTION_COLUMNS
+
+
+def test_enrichment_csv_columns_includes_poster_path():
+    assert "poster_path" in ENRICHMENT_CSV_COLUMNS
+
+
+@pytest.mark.parametrize(
+    ("prefer_omdb", "omdb_countries", "include_lang_collection", "strip_text"),
+    [
+        (True, True, True, False),  # scripts/update.py
+        (True, True, True, False),  # scripts/fetch_candidates.py
+        (True, True, True, True),   # scripts/rebuild_enrichment.py
+    ],
+)
+def test_every_row_key_has_a_column(
+    prefer_omdb, omdb_countries, include_lang_collection, strip_text
+):
+    # The regression this guards: a key added to build_enrichment_row without a
+    # matching entry in ENRICHMENT_CSV_COLUMNS. That is how poster_path was
+    # silently dropped, and dict_writer's strict=True now turns it into a raise
+    # at write time -- this catches it at test time instead.
+    row = build_enrichment_row(
+        TMDB, OMDB,
+        tmdb_id="27205", imdb_id="tt1375666",
+        prefer_omdb=prefer_omdb,
+        omdb_countries=omdb_countries,
+        include_lang_collection=include_lang_collection,
+        strip_text=strip_text,
+    )
+    assert set(row) <= set(ENRICHMENT_CSV_COLUMNS)
+
+
+def test_strict_writer_rejects_a_key_no_column_accepts():
+    # The guard that would have caught the poster_path drop.
+    import io
+
+    from ingest.csvio import dict_writer
+
+    w = dict_writer(io.StringIO(), ["a"], strict=True)
+    with pytest.raises(ValueError):
+        w.writerow({"a": "1", "unexpected": "2"})
