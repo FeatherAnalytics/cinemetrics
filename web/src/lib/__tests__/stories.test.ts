@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { CHART_SECTIONS } from "@/components/ExplorerApp";
 import { chartSetFor, computeStoryHeadlines, STORIES, swapsChartSet } from "../stories";
 import { FOUR_FAVS } from "../fourFavs";
 import type { EnrichedWatch, Film } from "../types";
@@ -255,6 +256,20 @@ describe("chart sets", () => {
       expect(chartSetFor(id)).toBe("narrative");
       expect(swapsChartSet(id)).toBe(false);
     }
+  });
+
+  it("opens the landing, narrative and heart sets with the poster barcode", () => {
+    // Order within a set comes from CHART_SECTIONS' own order: the render site
+    // filters that array and never sorts it, so index 0 of a set is the first
+    // chart the reader meets.
+    for (const set of ["landing", "narrative", "heart"] as const) {
+      const ids = CHART_SECTIONS.filter((s) => s.sets.includes(set)).map((s) => s.id);
+      expect(ids[0], set).toBe("posterbarcode");
+    }
+    // Not the watchlist. Its films have never been watched, so there is no watch
+    // to give the barcode a stripe.
+    const watchlist = CHART_SECTIONS.filter((s) => s.sets.includes("watchlist"));
+    expect(watchlist.map((s) => s.id)).not.toContain("posterbarcode");
   });
 
   it("gives every set-swapping story the three flags that make a swap work", () => {

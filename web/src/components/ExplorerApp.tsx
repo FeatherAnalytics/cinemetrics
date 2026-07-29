@@ -24,6 +24,7 @@ import { WeekdayCounts } from "@/components/stats/WeekdayCounts";
 import { RatingsByGenre } from "@/components/stats/RatingsByGenre";
 import { GenrePairing } from "@/components/stats/GenrePairing";
 import { RatingDistribution } from "@/components/stats/RatingDistribution";
+import { PosterBarcode } from "@/components/PosterBarcode";
 import { FavPosters } from "@/components/lab/FavPosters";
 import { LikedByRating, LikedByRatingBlurb } from "@/components/lab/LikedByRating";
 import { WhatMovesTheHeart } from "@/components/lab/WhatMovesTheHeart";
@@ -87,8 +88,22 @@ type ChartSection = {
 // Section order and copy are load-bearing — the story chips dim charts by id and
 // the narrative reads top to bottom. Keep this array in sync with StoryAnnotation
 // targets and the ChartId union.
-const CHART_SECTIONS: ChartSection[] = [
+export const CHART_SECTIONS: ChartSection[] = [
   // --- Shown at the top of EVERY set. ---
+  // Opens every set. The rating histogram used to be first, which is the least
+  // surprising chart in film data: every log is left-skewed. This one shows the
+  // whole run at a glance before the reader has read a word.
+  {
+    id: "posterbarcode",
+    sets: ["landing", "narrative", "heart"],
+    // No year count in the title. The run is seven and a half years long, not
+    // eight, and the barcode redraws to whatever the rail leaves standing, so any
+    // span in the copy is a number the chart under it can contradict.
+    title: "Every watch, in order",
+    blurbClass: "mb-2 max-w-2xl text-xs",
+    blurb: <>Every watch since 2019, as a slice of that film&rsquo;s own poster.</>,
+    Chart: PosterBarcode,
+  },
   // The shape of the scale every other chart is expressed in, so it comes before
   // the reader is asked to care when, where or against whom I watched.
   {

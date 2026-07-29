@@ -13,7 +13,9 @@ import {
 } from "./likedChart";
 
 export type ChartId =
-  // Shown at the top of every set: the shape of the scale everything else uses.
+  // Shown at the top of every set: the whole run in order, then the shape of the
+  // scale everything else uses.
+  | "posterbarcode"
   | "ratings"
   | "spiral"
   | "contrarian"
