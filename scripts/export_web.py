@@ -76,14 +76,47 @@ def main() -> None:
         """,
     )
 
+    # The watchlist is its own top-level array rather than rows in `films`:
+    # a watchlist film has no watches, and folding it into `films` would put
+    # entries with no history into every chart that walks that list.
+    watchlist = records(
+        con,
+        """
+        select
+            tmdb_id,
+            title,
+            release_year                                            as year,
+            release_date                                            as released,
+            added_date                                              as added,
+            watched,
+            list_filter(string_split(coalesce(genres, ''), ', '),   x -> x <> '') as genres,
+            list_filter(string_split(coalesce(keywords, ''), ', '), x -> x <> '') as keywords,
+            runtime_min                                             as runtime,
+            list_filter(
+                string_split(coalesce(production_countries, ''), ', '),
+                x -> x <> '') as production_countries,
+            nullif(original_language, '') as language,
+            director,
+            imdb_rating,
+            imdb_votes,
+            tmdb_rating,
+            tmdb_votes
+        from marts.dim_watchlist
+        order by added_date
+        """,
+    )
+
     con.close()
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps({"films": films, "watches": watches}), encoding="utf-8")
+    OUT.write_text(
+        json.dumps({"films": films, "watches": watches, "watchlist": watchlist}),
+        encoding="utf-8",
+    )
     size_kb = OUT.stat().st_size / 1024
     print(
         f"wrote {OUT.relative_to(ROOT)}: {len(films)} films, "
-        f"{len(watches)} watches ({size_kb:.0f} KB)"
+        f"{len(watches)} watches, {len(watchlist)} watchlist ({size_kb:.0f} KB)"
     )
 
 

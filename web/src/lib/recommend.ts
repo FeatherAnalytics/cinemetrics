@@ -209,6 +209,16 @@ export function decodeEmbeddings(file: EmbeddingFileV2): EmbeddingData {
   return { dims: file.dims, vectors, metadata: file.metadata };
 }
 
+/**
+ * Bumped whenever the artifact's CONTENT changes without the dataset changing.
+ *
+ * The cache key used to be the watch count alone, which meant a rebuild that
+ * fixed the payload but added no watches reused the stale copy already in every
+ * browser's HTTP cache — exactly what happened when the candidate titles were
+ * backfilled: the file on R2 was correct and the page still drew blanks.
+ */
+const EMBEDDINGS_BUILD = "2-titles";
+
 let _cache: { data: EmbeddingData } | null = null;
 
 export async function loadEmbeddings(
@@ -220,7 +230,7 @@ export async function loadEmbeddings(
   // cache whenever a data update deploys; between deploys the R2 object's
   // Cache-Control lets repeat visits skip the download entirely.
   const embRes = await fetch(
-    `${r2Url}/embeddings-v2.json?v=${encodeURIComponent(version)}`,
+    `${r2Url}/embeddings-v2.json?v=${encodeURIComponent(version)}-${EMBEDDINGS_BUILD}`,
   );
   if (!embRes.ok) throw new Error("Failed to load embeddings");
   const data = decodeEmbeddings((await embRes.json()) as EmbeddingFileV2);

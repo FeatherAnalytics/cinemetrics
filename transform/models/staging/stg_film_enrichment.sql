@@ -4,7 +4,9 @@
 select
     try_cast(tmdb_id as integer)     as tmdb_id,
     imdb_id,
-    genres,
+    -- Canonicalised so both halves of the dataset name science fiction
+    -- the same way; see macros/canonical_genres.sql.
+    {{ canonical_genres('genres') }} as genres,
     keywords,
     try_cast(runtime as integer)     as runtime_min,
     try_cast(budget as bigint)       as budget,

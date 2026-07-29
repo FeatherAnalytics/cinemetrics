@@ -40,7 +40,56 @@ export type Watch = {
   liked: boolean | null;
 };
 
-export type Dataset = { films: Film[]; watches: Watch[] };
+/**
+ * A film on the Letterboxd watchlist. Deliberately NOT a `Film`: it has no
+ * watches, no rating and no `liked`, so anything that walks `films` expecting a
+ * viewing history would find none here.
+ *
+ * A SNAPSHOT, not history. `added` is the only date the export carries;
+ * Letterboxd records nothing about films LEAVING the list, so no dwell time,
+ * time-to-watch or conversion rate can be computed from this — the films that
+ * would anchor the denominator are exactly the ones that vanished.
+ */
+export type WatchlistFilm = {
+  tmdb_id: number;
+  title: string;
+  year: number | null;
+  /**
+   * Full TMDB release date, for the barcode's time axis. Null for the six films
+   * TMDB serves no date for; `year` still covers those, so the axis falls back
+   * to January 1 rather than dropping them.
+   */
+  released: string | null;
+  added: string; // ISO date the film was added to the list
+  /**
+   * True when the film has also been watched. Letterboxd does not clear a film
+   * from the watchlist when it is logged, and the reader only sometimes does it
+   * by hand, so the list is not a clean backlog. 6 of the current 136 are here.
+   */
+  watched: boolean;
+  genres: string[];
+  keywords: string[];
+  runtime: number | null;
+  production_countries: string[]; // ISO 3166-1 alpha-2 codes
+  language: string | null; // TMDB original_language (ISO 639-1)
+  director: string | null;
+  imdb_rating: number | null;
+  imdb_votes: number | null;
+  /**
+   * TMDB's audience score, 0-10, and the votes behind it.
+   *
+   * Kept alongside the OMDb-sourced imdb_* pair rather than replacing it because
+   * they are different measurements from different crowds. This one is here for
+   * coverage: OMDb answers for 34 of the 136 films on the list, TMDB for 130.
+   */
+  tmdb_rating: number | null;
+  tmdb_votes: number | null;
+};
+
+// `watchlist` is optional so a payload written before dim_watchlist existed —
+// or a test fixture that only cares about watches — still loads, and the
+// watchlist story simply reports an empty list rather than throwing.
+export type Dataset = { films: Film[]; watches: Watch[]; watchlist?: WatchlistFilm[] };
 
 // A watch joined to its film, with derived fields the charts need.
 export type EnrichedWatch = Watch & {

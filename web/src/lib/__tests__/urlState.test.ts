@@ -23,6 +23,9 @@ const DEFAULTS: Filters = {
   franchise: null,
   runtimeRange: null,
   ratingRange: null,
+  votesRange: null,
+  genreTag: null,
+  keyword: null,
   selection: null,
 };
 

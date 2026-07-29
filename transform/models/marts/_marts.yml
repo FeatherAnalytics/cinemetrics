@@ -49,3 +49,37 @@ models:
       - name: tmdb_id
         description: TMDB film identifier — the primary candidate key.
         tests: [unique, not_null]
+
+  - name: dim_watchlist
+    description: >
+      One row per film on the Letterboxd watchlist, with the date it was added and
+      attributes joined from the enrichment seeds. A SNAPSHOT, not history —
+      removals are recorded nowhere, so time-to-watch and conversion cannot be
+      derived from it. Not mutually exclusive with dim_film: Letterboxd leaves a
+      watched film on the list until it is removed by hand, so check `watched`
+      before calling this a backlog.
+    columns:
+      - name: tmdb_id
+        description: TMDB film identifier — the primary watchlist key.
+        tests: [unique, not_null]
+      - name: added_date
+        description: Date the film was added to the watchlist.
+        tests: [not_null]
+      - name: watched
+        description: >
+          True when the film also appears in fct_watches — on the list but already
+          seen. Never null.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+      - name: genres
+        description: >
+          Comma-separated genre names. Backfilled for the whole list by
+          scripts/enrich_watchlist.py; a null here means TMDB has no record for
+          the film, which would leave it out of every watchlist chart.
+        tests:
+          - not_null:
+              config:
+                severity: warn

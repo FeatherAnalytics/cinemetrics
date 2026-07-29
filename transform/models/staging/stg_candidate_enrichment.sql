@@ -3,7 +3,9 @@
 select
     try_cast(tmdb_id as integer)     as tmdb_id,
     imdb_id,
-    genres,
+    -- Canonicalised so both halves of the dataset name science fiction
+    -- the same way; see macros/canonical_genres.sql.
+    {{ canonical_genres('genres') }} as genres,
     keywords,
     try_cast(runtime as integer)     as runtime_min,
     try_cast(budget as bigint)       as budget,
@@ -18,6 +20,15 @@ select
     rated,
     production_countries,
     original_language,
-    collection
+    collection,
+    title,
+    -- Empty for the few films TMDB serves no date for; try_cast keeps those NULL
+    -- rather than failing the build.
+    try_cast(release_date as date) as release_date,
+    -- TMDB's own audience score, 0-10, and the votes behind it. Distinct from
+    -- imdb_rating/imdb_votes, which come from OMDb and cover far less of the
+    -- pool; see scripts/backfill_tmdb_scores.py.
+    try_cast(tmdb_rating as double)  as tmdb_rating,
+    try_cast(tmdb_votes as integer)  as tmdb_votes
 from {{ ref('candidate_enrichment') }}
 where tmdb_id is not null

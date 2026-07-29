@@ -35,6 +35,11 @@ import { SelectionPanel } from "@/components/SelectionPanel";
 import { StatBar } from "@/components/StatBar";
 import { StoryAnnotation } from "@/components/StoryAnnotation";
 import { StoryChartNote } from "@/components/StoryChartNote";
+import { WatchlistBarcode } from "@/components/watchlist/WatchlistBarcode";
+import { WatchlistScores } from "@/components/watchlist/WatchlistScores";
+import { WatchlistGenres } from "@/components/watchlist/WatchlistGenres";
+import { WatchlistKeywords } from "@/components/watchlist/WatchlistKeywords";
+import { WatchlistOrigin } from "@/components/watchlist/WatchlistOrigin";
 import { StoryChips } from "@/components/StoryChips";
 import { CopyChartLink } from "@/components/CopyChartLink";
 import { Footer } from "@/components/Footer";
@@ -358,6 +363,69 @@ const CHART_SECTIONS: ChartSection[] = [
       </>
     ),
     Chart: FranchiseRuns,
+  },
+
+  // --- The watchlist set. Films with no viewing history, so none of the charts
+  // above appears here: every one of them walks the watch log. ---
+  {
+    id: "wlbarcode",
+    sets: ["watchlist"],
+    title: "Release year and genre",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        One brick per film, colored by genre.
+      </>
+    ),
+    Chart: WatchlistBarcode,
+  },
+  {
+    id: "wlscores",
+    sets: ["watchlist"],
+    title: "Watchlist ratings",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        TMDB&rsquo;s audience score for each film on the watchlist.
+      </>
+    ),
+    Chart: WatchlistScores,
+  },
+  {
+    id: "wlgenres",
+    sets: ["watchlist"],
+    title: "Watchlist by genre",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        How many watchlist films carry each genre.
+      </>
+    ),
+    Chart: WatchlistGenres,
+  },
+  {
+    id: "wlorigin",
+    sets: ["watchlist"],
+    title: "Origins of the watchlist",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Production country or original language.
+      </>
+    ),
+    Chart: WatchlistOrigin,
+  },
+  {
+    id: "wlkeywords",
+    sets: ["watchlist"],
+    title: "Watchlist keywords",
+    blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
+    blurb: (
+      <>
+        Keywords shared by three or more films on the list.
+      </>
+    ),
+    Chart: WatchlistKeywords,
   },
 ];
 

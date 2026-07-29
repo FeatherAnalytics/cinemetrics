@@ -11,9 +11,10 @@ import {
   type ReactNode,
 } from "react";
 import { encodeUrlState, parseUrlState } from "./urlState";
-import type { Dataset, EnrichedWatch, Film } from "./types";
-import { primaryGenre, type GenreKey } from "./palette";
+import type { Dataset, EnrichedWatch, Film, WatchlistFilm } from "./types";
+import { canonicalGenre, primaryGenre, type GenreKey } from "./palette";
 import { countryName } from "./countries";
+import { languageName } from "./languages";
 import { watchKey } from "./brush";
 import { filmHearts } from "./likedChart";
 import {
@@ -82,7 +83,77 @@ export function filterWatches(
       const r = w.rating;
       if (r == null || r < filters.ratingRange[0] || r > filters.ratingRange[1]) return false;
     }
+    if (filters.votesRange) {
+      const v = f?.imdb_votes;
+      if (v == null || v < filters.votesRange[0] || v > filters.votesRange[1]) return false;
+    }
+    // Canonicalised on both sides: the tag comes from a TMDB-spelled watchlist
+    // bar, the film's genres from OMDb, and "Science Fiction" would otherwise
+    // match none of the 68 films OMDb calls "Sci-Fi".
+    if (
+      filters.genreTag &&
+      !(f?.genres ?? []).map(canonicalGenre).includes(canonicalGenre(filters.genreTag))
+    )
+      return false;
+    if (filters.keyword && !(f?.keywords ?? []).includes(filters.keyword)) return false;
     if (filters.selection && !filters.selection.has(watchKey(w))) return false;
+    return true;
+  });
+}
+
+/**
+ * The subset of `Filters` that means anything for a film nobody has watched.
+ *
+ * A watchlist film has no watch date, no rating, no rewatch state and no heart,
+ * so `yearRange`, `ratingRange`, `rewatch` and `selection` have nothing to test
+ * against. They are not merely skipped here — this list drives the RAIL too, so
+ * the controls that set them are never shown while the watchlist story is
+ * active. Silently ignoring a visible control would be worse than hiding it: the
+ * reader would drag the rating slider and watch nothing happen.
+ *
+ * `rated` and `franchise` are absent for a duller reason: dim_watchlist exports
+ * neither, so filtering on them would empty every chart.
+ */
+export const WATCHLIST_FILTERS = [
+  "genres",
+  "releaseYearRange",
+  "runtimeRange",
+  "language",
+  "country",
+  "votesRange",
+  "genreTag",
+  "keyword",
+] as const satisfies readonly (keyof Filters)[];
+
+/** Pure filtering logic for the watchlist, extracted for testability. */
+export function filterWatchlist(
+  all: WatchlistFilm[],
+  filters: Filters,
+): WatchlistFilm[] {
+  return all.filter((f) => {
+    if (filters.genres.size > 0 && !filters.genres.has(primaryGenre(f))) return false;
+    if (filters.releaseYearRange) {
+      const y = f.year;
+      if (y == null || y < filters.releaseYearRange[0] || y > filters.releaseYearRange[1])
+        return false;
+    }
+    if (filters.runtimeRange) {
+      const rt = f.runtime;
+      if (rt == null || rt < filters.runtimeRange[0] || rt > filters.runtimeRange[1])
+        return false;
+    }
+    if (filters.language && f.language !== filters.language) return false;
+    if (filters.country && !f.production_countries.includes(filters.country)) return false;
+    if (filters.votesRange) {
+      const v = f.imdb_votes;
+      if (v == null || v < filters.votesRange[0] || v > filters.votesRange[1]) return false;
+    }
+    if (
+      filters.genreTag &&
+      !f.genres.map(canonicalGenre).includes(canonicalGenre(filters.genreTag))
+    )
+      return false;
+    if (filters.keyword && !f.keywords.includes(filters.keyword)) return false;
     return true;
   });
 }
@@ -105,6 +176,27 @@ export type Filters = {
   franchise: string | null; // collection/franchise name (null = all)
   runtimeRange: [number, number] | null; // film runtime in minutes, inclusive
   ratingRange: [number, number] | null; // my rating 0-100, inclusive (drops unrated)
+  /**
+   * IMDb vote count, inclusive. How many people logged an opinion, which is the
+   * closest thing here to "how obscure is this" — the Hidden Gems story cuts at
+   * 10k on the same field.
+   *
+   * Drops films with no vote count while active, like every other range filter.
+   * That bites hardest on the watchlist, where OMDb coverage is partial.
+   */
+  votesRange: [number, number] | null;
+  /**
+   * A single TMDB genre NAME, matched against the film's whole genre list.
+   *
+   * Distinct from `genres`, which holds the five tracked GenreKeys and matches
+   * on primaryGenre. That set cannot express Mystery or Science Fiction at all,
+   * so the genre chart — which ranks every TMDB genre — had no way to filter
+   * through it. The two compose: `genres` narrows by the colour scale, this
+   * narrows by the exact tag.
+   */
+  genreTag: string | null;
+  /** A single TMDB keyword, matched against the film's keyword list. */
+  keyword: string | null;
   selection: Set<string> | null; // brushed watch keys (null = no brush active)
 };
 
@@ -122,6 +214,9 @@ const EMPTY_FILTERS: Filters = {
   franchise: null,
   runtimeRange: null,
   ratingRange: null,
+  votesRange: null,
+  genreTag: null,
+  keyword: null,
   selection: null,
 };
 
@@ -138,22 +233,20 @@ function sortRated(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
-function languageName(code: string): string {
-  try {
-    return new Intl.DisplayNames(["en"], { type: "language" }).of(code) ?? code;
-  } catch {
-    return code;
-  }
-}
-
 type ExplorerValue = {
   films: Film[];
   byId: Map<number, Film>;
   all: EnrichedWatch[];
   filtered: EnrichedWatch[];
+  /** Every film on the watchlist, unfiltered. */
+  watchlist: WatchlistFilm[];
+  /** The watchlist under the reduced rail — see WATCHLIST_FILTERS. */
+  filteredWatchlist: WatchlistFilm[];
   yearBounds: [number, number];
   releaseYearBounds: [number, number];
   runtimeBounds: [number, number];
+  /** IMDb vote-count bounds across watched films, for the rail's slider. */
+  votesBounds: [number, number];
   titleOptions: string[];
   directorOptions: string[];
   actorOptions: string[];
@@ -161,6 +254,18 @@ type ExplorerValue = {
   languageOptions: { code: string; name: string }[];
   ratedOptions: string[];
   franchiseOptions: string[];
+  /**
+   * Rail options measured from the WATCHLIST rather than from watched films.
+   * Kept separate because the two sets genuinely differ — the watchlist reaches
+   * countries and years the viewing history never does (Soviet films, 1917) —
+   * and offering an option that matches nothing reads as a broken filter.
+   */
+  watchlistOptions: {
+    releaseYearBounds: [number, number];
+    runtimeBounds: [number, number];
+    countryOptions: { iso: string; name: string }[];
+    languageOptions: { code: string; name: string }[];
+  };
   filters: Filters;
   selectedId: number | null; // tmdb_id of film clicked in a chart, highlighted everywhere
   activeStory: string | null;
@@ -183,6 +288,9 @@ type ExplorerValue = {
   setReleaseYearRange: (r: [number, number]) => void;
   setRuntimeRange: (r: [number, number]) => void;
   setRatingRange: (r: [number, number]) => void;
+  setVotesRange: (r: [number, number]) => void;
+  setGenreTag: (g: string | null) => void;
+  setKeyword: (k: string | null) => void;
   setRewatch: (r: Filters["rewatch"]) => void;
   setText: (field: TextField, value: string) => void;
   setCountry: (iso: string | null) => void;
@@ -231,6 +339,13 @@ export function ExplorerProvider({
     const runtimeBounds: [number, number] = runtimes.length
       ? [Math.floor(Math.min(...runtimes) / 5) * 5, Math.ceil(Math.max(...runtimes) / 5) * 5]
       : [0, 300];
+    // Vote counts span five orders of magnitude, so the rail slides in log space
+    // rather than linear; the bounds here are the raw counts it maps between.
+    const votes = data.films.map((f) => f.imdb_votes).filter((v): v is number => v != null && v > 0);
+    const votesBounds: [number, number] = votes.length
+      ? [Math.min(...votes), Math.max(...votes)]
+      : [1, 1_000_000];
+
     // Autocomplete option lists (director/actors are comma-separated -> split).
     const directorOptions = uniqueSorted(
       data.films.flatMap((f) => (f.director ?? "").split(",")),
@@ -251,13 +366,41 @@ export function ExplorerProvider({
     const franchiseOptions = [
       ...new Set(data.films.map((f) => f.collection).filter((c): c is string => !!c)),
     ].sort((a, b) => a.localeCompare(b));
+
+    // `watchlist` is optional in the payload so an older cinemetrics.json (or a
+    // fixture that predates the mart) renders the other stories instead of
+    // throwing on a missing key.
+    const watchlist = data.watchlist ?? [];
+    const wlYears = watchlist.map((f) => f.year).filter((y): y is number => y != null);
+    const wlRuntimes = watchlist.map((f) => f.runtime).filter((r): r is number => r != null);
+    const wlIsos = [...new Set(watchlist.flatMap((f) => f.production_countries ?? []))];
+    const watchlistOptions = {
+      releaseYearBounds: (wlYears.length
+        ? [Math.min(...wlYears), Math.max(...wlYears)]
+        : [1900, 2030]) as [number, number],
+      runtimeBounds: (wlRuntimes.length
+        ? [Math.floor(Math.min(...wlRuntimes) / 5) * 5, Math.ceil(Math.max(...wlRuntimes) / 5) * 5]
+        : [0, 300]) as [number, number],
+      countryOptions: wlIsos
+        .map((iso) => ({ iso, name: countryName(iso) }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      languageOptions: [
+        ...new Set(watchlist.map((f) => f.language).filter((l): l is string => !!l)),
+      ]
+        .map((code) => ({ code, name: languageName(code) }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    };
+
     return {
       films: data.films,
       byId,
       all,
+      watchlist,
+      watchlistOptions,
       yearBounds: [Math.min(...watchYears), Math.max(...watchYears)] as [number, number],
       releaseYearBounds: [Math.min(...releaseYears), Math.max(...releaseYears)] as [number, number],
       runtimeBounds,
+      votesBounds,
       titleOptions: uniqueSorted(data.films.map((f) => f.title)),
       directorOptions,
       actorOptions,
@@ -278,12 +421,16 @@ export function ExplorerProvider({
     () => filterWatches(all, deferredFilters),
     [all, deferredFilters],
   );
+  const filteredWatchlist = useMemo(
+    () => filterWatchlist(derived.watchlist, deferredFilters),
+    [derived.watchlist, deferredFilters],
+  );
 
   // Story headlines are computed once from the full dataset — they are stable
   // invitations, not filtered views.
   const storyHeadlines = useMemo(
-    () => computeStoryHeadlines(derived.films, derived.all),
-    [derived.films, derived.all],
+    () => computeStoryHeadlines(derived.films, derived.all, derived.watchlist),
+    [derived.films, derived.all, derived.watchlist],
   );
 
   // --- URL sync: hydrate once from the query string, then mirror state back
@@ -306,7 +453,7 @@ export function ExplorerProvider({
     if (parsed.story) {
       const story = getStoryById(parsed.story);
       if (!story) return;
-      const result = story.compute(derived.films, derived.all);
+      const result = story.compute(derived.films, derived.all, derived.watchlist);
       setActiveStory(parsed.story);
       setStoryResult(result);
       setFilters({ ...EMPTY_FILTERS, ...result.filters, selection: result.selection ?? null });
@@ -340,7 +487,7 @@ export function ExplorerProvider({
     }
     const story = getStoryById(id);
     if (!story) return;
-    const result = story.compute(derived.films, derived.all);
+    const result = story.compute(derived.films, derived.all, derived.watchlist);
     setActiveStory(id);
     setStoryResult(result);
     const newFilters: Filters = {
@@ -372,8 +519,8 @@ export function ExplorerProvider({
     }
     const cfg = getStoryById(activeStory);
     if (!cfg?.recomputeOnFilter) return storyResult;
-    return cfg.compute(derived.films, filtered);
-  }, [activeStory, storyResult, derived.films, filtered]);
+    return cfg.compute(derived.films, filtered, filteredWatchlist);
+  }, [activeStory, storyResult, derived.films, filtered, filteredWatchlist]);
 
   /**
    * Filtering by hand normally drops out of the active story, because for the
@@ -400,6 +547,7 @@ export function ExplorerProvider({
     () => ({
       ...derived,
       filtered,
+      filteredWatchlist,
       filters,
       selectedId,
       toggleGenre: (g) => {
@@ -426,6 +574,20 @@ export function ExplorerProvider({
       setRatingRange: (r) => {
         exitStoryOnFilter();
         setFilters((f) => ({ ...f, ratingRange: r }));
+      },
+      setVotesRange: (r) => {
+        exitStoryOnFilter();
+        setFilters((f) => ({ ...f, votesRange: r }));
+      },
+      // Both toggle: clicking the active bar again clears, the same contract
+      // every other click-to-filter chart here uses.
+      setGenreTag: (g) => {
+        exitStoryOnFilter();
+        setFilters((f) => ({ ...f, genreTag: f.genreTag === g ? null : g }));
+      },
+      setKeyword: (k) => {
+        exitStoryOnFilter();
+        setFilters((f) => ({ ...f, keyword: f.keyword === k ? null : k }));
       },
       setRewatch: (r) => {
         exitStoryOnFilter();
@@ -480,7 +642,7 @@ export function ExplorerProvider({
     // `derived` and `activeStory`, both already dependencies, so the closures
     // here are never stale and both are safe to leave out.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [derived, filtered, filters, selectedId, activeStory, activeResult, storyHeadlines],
+    [derived, filtered, filteredWatchlist, filters, selectedId, activeStory, activeResult, storyHeadlines],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

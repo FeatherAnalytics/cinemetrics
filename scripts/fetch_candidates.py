@@ -156,8 +156,16 @@ def _enrich_tmdb(tmdb_id: int) -> dict | None:
         omdb,
         tmdb_id=str(tmdb_id),
         imdb_id=imdb_id,
-        prefer_omdb=False,
-        omdb_countries=False,
+        # Matches the watched-film pipeline (update.py, rebuild_enrichment.py)
+        # rather than diverging from it. These used to read TMDB only, which is
+        # why the two halves of the dataset disagreed about genre names: OMDb
+        # writes "Sci-Fi", TMDB "Science Fiction", and nothing joined them.
+        #
+        # Degrades safely. build_enrichment_row falls back to TMDB for genres,
+        # runtime and countries whenever the OMDb dict is empty, which is what
+        # happens once the free tier's 1,000 calls a day run out.
+        prefer_omdb=True,
+        omdb_countries=True,
         include_lang_collection=True,
     )
 

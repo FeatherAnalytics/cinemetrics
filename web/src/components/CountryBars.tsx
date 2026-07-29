@@ -4,10 +4,14 @@ import { useMemo, useState } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
 import { ACCENT, GENRE_COLORS, INK } from "@/lib/palette";
 import { countryName } from "@/lib/countries";
-import { aggregateCountries, type CountryRow } from "@/lib/countryStats";
+import { languageName } from "@/lib/languages";
+import { aggregateOrigin, type CountryRow, type OriginDimension } from "@/lib/countryStats";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { ChartTakeaway } from "./ChartTakeaway";
+import { Toggle } from "./stats/Toggle";
 import { heartDeltaPP, heartShare, ppLabel } from "@/lib/heartLens";
+
+const DIMENSIONS = ["country", "language"] as const;
 
 const LABEL_W = 176;
 const BAR_W = 286; // films track, grows left to right
@@ -32,17 +36,32 @@ const TOP_N = 15;
 const INSIDE_MIN = 44;
 
 export function CountryBars() {
-  const { all, byId, filters, setCountry } = useExplorer();
+  const { all, byId, filters, setCountry, setLanguage } = useExplorer();
   const [hover, setHover] = useState<string | null>(null);
+  const [dimension, setDimension] = useState<OriginDimension>("country");
+  const isLang = dimension === "language";
 
-  // Aggregate over every filter EXCEPT country, so selecting a country still
-  // leaves the rest of the ranking visible (self-excluding cross-filter, same
-  // as the archived world map).
+  // Aggregate over every filter EXCEPT the one this chart sets, so selecting a
+  // row still leaves the rest of the ranking visible (self-excluding
+  // cross-filter, same as the archived world map). Which filter that is now
+  // follows the toggle: in language mode the country filter stays applied and
+  // the language one lifts.
   const watches = useMemo(
-    () => filterWatches(all, { ...filters, country: null }),
-    [all, filters],
+    () =>
+      filterWatches(all, {
+        ...filters,
+        ...(isLang ? { language: null } : { country: null }),
+      }),
+    [all, filters, isLang],
   );
-  const agg = useMemo(() => aggregateCountries(watches, byId, TOP_N), [watches, byId]);
+  const agg = useMemo(
+    () => aggregateOrigin(watches, byId, dimension, TOP_N),
+    [watches, byId, dimension],
+  );
+
+  const label = (key: string) => (isLang ? languageName(key) : countryName(key));
+  const active = isLang ? filters.language : filters.country;
+  const pick = isLang ? setLanguage : setCountry;
 
   // The mirror is how far that country's heart rate sits from my overall one, and
   // it is no longer conditional: the me-versus-critics residual it replaced asked
@@ -57,13 +76,20 @@ export function CountryBars() {
     if (!base) return null;
     const out = new Map<string, number>();
     for (const row of agg.rows) {
+      // Membership follows the toggle, so the deviation is measured off the same
+      // films the bar beside it counts. Reading country membership while the
+      // chart ranked languages would put one row's rate against another's count.
       const share = heartShare(
-        watches.filter((w) => (w.film?.production_countries ?? []).includes(row.iso)),
+        watches.filter((w) =>
+          isLang
+            ? w.film?.language === row.iso
+            : (w.film?.production_countries ?? []).includes(row.iso),
+        ),
       );
       if (share) out.set(row.iso, heartDeltaPP(share.rate, base.rate));
     }
     return out;
-  }, [agg.rows, watches]);
+  }, [agg.rows, watches, isLang]);
 
   const maxCount = agg.rows.reduce((m, r) => Math.max(m, r.count), 1);
   const tailRow = agg.tailCountries > 0;
@@ -89,15 +115,25 @@ export function CountryBars() {
     );
   }
 
-  const handleRow = (row: CountryRow) => setCountry(row.iso);
+  const handleRow = (row: CountryRow) => pick(row.iso);
 
   return (
     <figure className="m-0">
+      <div className="mb-2">
+        <Toggle
+          options={DIMENSIONS}
+          value={dimension}
+          onChange={setDimension}
+          label="Origin dimension"
+        />
+      </div>
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
         role="img"
-        aria-label="Top production countries ranked by film count, colored by dominant genre. Films bars grow rightward from the country name. The right-hand track diverges from a zero line: bars grow right where I heart films from that country more often than average and left where less often."
+        aria-label={`Top production ${
+          isLang ? "languages" : "countries"
+        } ranked by film count, colored by dominant genre. Film bars grow rightward from the name. The right-hand track diverges from a zero line: bars grow right where I heart films from that ${dimension} more often than average and left where less often.`}
       >
         {/* Column headers */}
         <text
@@ -136,8 +172,8 @@ export function CountryBars() {
         {agg.rows.map((row, i) => {
           const y = 20 + i * (BAR_H + GAP);
           const barLen = (row.count / maxCount) * BAR_W;
-          const sel = filters.country === row.iso;
-          const dim = filters.country != null && !sel;
+          const sel = active === row.iso;
+          const dim = active != null && !sel;
           const isHover = hover === row.iso;
           const countInside = barLen > INSIDE_MIN;
           const dev = heartRates?.get(row.iso) ?? null;
@@ -146,7 +182,7 @@ export function CountryBars() {
           // less, from a shared zero.
           const devX = dev != null && dev > 0 ? DEV_ZERO : DEV_ZERO - devLen;
           const devInside = devLen > INSIDE_MIN;
-          const name = countryName(row.iso);
+          const name = label(row.iso);
 
           return (
             <g
@@ -247,15 +283,23 @@ export function CountryBars() {
             textAnchor="end"
             dominantBaseline="middle"
           >
-            + {agg.tailCountries} more {agg.tailCountries === 1 ? "country" : "countries"} ·{" "}
+            + {agg.tailCountries} more{" "}
+            {isLang
+              ? agg.tailCountries === 1
+                ? "language"
+                : "languages"
+              : agg.tailCountries === 1
+                ? "country"
+                : "countries"}{" "}
+            ·{" "}
             {agg.tailFilms} film{agg.tailFilms === 1 ? "" : "s"}
           </text>
         )}
       </svg>
       {topHeart && (
         <ChartTakeaway>
-          {agg.totalCountries} countries · {countryName(topHeart.iso)} sits{" "}
-          {ppLabel(topHeart.pp)} from my overall heart rate
+          {agg.totalCountries} {isLang ? "languages" : "countries"} · {label(topHeart.iso)}{" "}
+          sits {ppLabel(topHeart.pp)} from my overall heart rate
         </ChartTakeaway>
       )}
     </figure>

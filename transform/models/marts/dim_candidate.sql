@@ -3,8 +3,11 @@
 select
     tmdb_id,
     imdb_id,
-    '' as title,
-    null as release_year,
+    -- Was hardcoded to '' because the seed carried no title, which shipped every
+    -- recommendation with a runtime, a genre and a working Letterboxd link but no
+    -- name. scripts/backfill_candidate_titles.py filled the column in.
+    title,
+    year(release_date) as release_year,
     runtime_min,
     genres,
     keywords,

@@ -83,6 +83,26 @@ def _load_candidates(rated_ids: set[int]) -> list[dict]:
     if "original_language" in df.columns:
         df = df.rename(columns={"original_language": "language"})
 
+    # Title and release date come from the SEED, which is committed, rather than
+    # from data/raw/tmdb_candidates, which is not.
+    #
+    # Reading the cache is what put nameless films on the production site: a
+    # candidate with no cached detail file silently got title "", and the card
+    # still rendered because its Letterboxd link resolves through imdb_id. Any
+    # machine without a warm cache — a fresh clone, and the CI runner that
+    # actually builds the deployed artifact — produced blanks for every film it
+    # had not personally fetched.
+    #
+    # The cache remains the fallback for a seed written before
+    # scripts/backfill_candidate_titles.py added the columns.
+    if "title" in df.columns and "release_date" in df.columns:
+        df["release_year"] = (
+            df["release_date"].astype(str).str[:4].where(lambda s: s.str.isdigit())
+        )
+        df["release_year"] = pd.to_numeric(df["release_year"], errors="coerce")
+        df["title"] = df["title"].fillna("")
+        return df.to_dict("records")
+
     cache_dir = ROOT / "data" / "raw" / "tmdb_candidates"
     titles, years = [], []
     for tid in df["tmdb_id"]:

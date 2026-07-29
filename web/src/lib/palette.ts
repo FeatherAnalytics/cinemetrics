@@ -1,5 +1,12 @@
 import type { Film } from "./types";
 
+/**
+ * Anything with a genre list. Widened from `Film` so watchlist films — which
+ * carry genres but no watch history — colour by the same rule as watched ones,
+ * rather than through a parallel copy of it that could drift.
+ */
+type HasGenres = { genres: string[] };
+
 // Genre identity colors: validated categorical slots 1-5 + neutral "Other".
 // (Validated all-pairs with scripts/validate_palette.js; the crimson/green pair
 // is a known deuteranopia collision the labels + hover mitigate — identity is
@@ -25,9 +32,31 @@ export const GENRE_COLORS: Record<GenreKey, string> = {
 
 export const GENRE_KEYS: GenreKey[] = [...GENRE_ORDER, "Other"];
 
+/**
+ * One spelling for genres the two sources name differently.
+ *
+ * The split was OMDb's "Sci-Fi" against TMDB's "Science Fiction", and it is now
+ * settled UPSTREAM: transform/macros/canonical_genres.sql rewrites both halves
+ * to "Sci-Fi" in staging, so the exported data carries one spelling and this map
+ * matches nothing in practice.
+ *
+ * It stays as a guard rather than being deleted. The export is a build artefact
+ * a reader may hold a stale copy of, and a chart that silently shows no
+ * deviation is a harder failure to notice than one that quietly agrees with the
+ * pipeline. Genres unique to one source (OMDb's Biography, Film-Noir, Short) are
+ * left alone: there is nothing on the other side to join them to.
+ */
+const GENRE_ALIASES: Record<string, string> = {
+  "Science Fiction": "Sci-Fi",
+};
+
+export function canonicalGenre(name: string): string {
+  return GENRE_ALIASES[name] ?? name;
+}
+
 // A film's dominant genre for coloring: first of the tracked genres it carries
 // (Horror wins when present, which is what the seasonality story turns on).
-export function primaryGenre(film: Film | undefined): GenreKey {
+export function primaryGenre(film: HasGenres | undefined): GenreKey {
   const gs = film?.genres ?? [];
   for (const g of GENRE_ORDER) if (gs.includes(g)) return g;
   return "Other";

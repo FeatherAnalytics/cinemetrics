@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Filters } from "./store";
-import type { Film, EnrichedWatch } from "./types";
+import type { Film, EnrichedWatch, WatchlistFilm } from "./types";
+import { genreBars, watchlistSummary } from "./watchlistChart";
 import { primaryGenre, type GenreKey } from "./palette";
 import { watchKey } from "./brush";
 import { ALPHA, anova, chicagoParts, hasKnownRewatchState, mean } from "./statsChart";
@@ -38,7 +39,15 @@ export type ChartId =
   | "likedcurve"
   | "heartpredictors"
   | "favtie"
-  | "favdirectors";
+  | "favdirectors"
+  // The watchlist set. These plot films that have never been watched, so unlike
+  // the sets above they share no data with the others at all — not a different
+  // question about the same watches, a different list entirely.
+  | "wlgenres"
+  | "wlkeywords"
+  | "wlorigin"
+  | "wlbarcode"
+  | "wlscores";
 
 /**
  * Which group of charts a story puts on the page.
@@ -52,10 +61,15 @@ export type ChartId =
  * a different question with a different vocabulary and two sets side by side read
  * as sixteen charts rather than one view.
  *
+ * "watchlist" replaces the landing set for a harder reason than the other two:
+ * its charts plot films with no viewing history at all, so every landing,
+ * narrative and heart chart — all of which walk the watch log — would be empty
+ * beside them rather than merely off-topic.
+ *
  * Declared on the story rather than hardcoded at the render site, so adding a set
  * is a story field instead of another branch in ExplorerApp.
  */
-export type ChartSet = "landing" | "narrative" | "heart";
+export type ChartSet = "landing" | "narrative" | "heart" | "watchlist";
 
 export type StoryFocus = {
   primary: ChartId;
@@ -114,7 +128,18 @@ export type StoryConfig = {
    * follow the rail.
    */
   chartSet?: ChartSet;
-  compute: (films: Film[], watches: EnrichedWatch[]) => StoryResult;
+  /**
+   * `watchlist` is a third, OPTIONAL argument rather than a different signature
+   * for the one story that needs it. Optional on both sides: every other compute
+   * declares two parameters and stays assignable, and every caller with no
+   * watchlist to give — the tests, and anything reading a payload written before
+   * dim_watchlist existed — can still call with two.
+   */
+  compute: (
+    films: Film[],
+    watches: EnrichedWatch[],
+    watchlist?: WatchlistFilm[],
+  ) => StoryResult;
   /**
    * Whether filtering by hand drops out of this story. Defaults to true.
    *
@@ -665,6 +690,62 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
   };
 }
 
+/**
+ * The watchlist story: five breakdowns of films that have not been watched.
+ *
+ * Every other story reads the diary. This one reads the OTHER list, so it takes
+ * neither `films` nor `watches` — a watchlist film has no rating, no date and no
+ * heart, and the charts in every other set have nothing to draw for it.
+ *
+ * The headline counts what is genuinely waiting rather than the list length.
+ * Letterboxd leaves a film on the watchlist after it is logged and the reader
+ * clears them only sometimes, so a handful have already been seen; calling all
+ * 136 "waiting" would be wrong by exactly that many. The gap goes in the subtext
+ * rather than being hidden, because a reader who counts the bars will find it.
+ */
+function computeWatchlist(
+  _films: Film[],
+  _watches: EnrichedWatch[],
+  watchlist: WatchlistFilm[] = [],
+): StoryResult {
+  if (watchlist.length === 0) {
+    return { headline: "No watchlist data", chip: "Watchlist" };
+  }
+
+  const { total, watched, preMillenniumShare } = watchlistSummary(watchlist);
+  const topGenre = genreBars(watchlist, 1)[0];
+  const pct = Math.round(100 * preMillenniumShare);
+
+  // Both numbers are measured here rather than written down, so the line cannot
+  // drift from the charts underneath it.
+  const headline = `${total} films on the list, ${pct}% of them from before 2000`;
+
+  return {
+    headline,
+    chip: "Watchlist",
+    ...(watched > 0
+      ? {
+          subtext: ``,
+        }
+      : {}),
+    notes: {
+      // A SHARE, not the raw count: the bar already carries the count, so
+      // repeating it says the same number twice, while the share against the
+      // list is the part the chart cannot show — genres overlap, so the bars
+      // do not sum to anything a reader could divide by.
+      ...(topGenre
+        ? {
+            wlgenres: `${topGenre.label} makes up ${Math.round(
+              (100 * topGenre.count) / watchlist.length,
+            )}% of the watchlist.`,
+          }
+        : {}),
+      wlorigin:
+        "",
+    },
+  };
+}
+
 export const STORIES: StoryConfig[] = [
   // Chip order is this array's order, most inviting first. `stats` is the landing
   // story and is filtered out of the strip, so it sits last.
@@ -745,6 +826,22 @@ export const STORIES: StoryConfig[] = [
     scrollToPrimary: false,
     recomputeOnFilter: true,
   },
+  {
+    id: "watchlist",
+    label: "Watchlist",
+    // `dim` is empty for the same reason the landing story's is: the other
+    // charts are ABSENT here, not faded.
+    focus: { primary: "wlbarcode", emphasize: ["wlbarcode", "wlgenres"], dim: [] },
+    chartSet: "watchlist",
+    compute: computeWatchlist,
+    // The three flags a non-narrative chart set wants, for the reasons on each:
+    // the rail stays live, the whole page is this story's first chart, and the
+    // headline has to follow the rail or it keeps claiming all 136 films over
+    // charts showing the 19 that survived a filter.
+    dismissOnFilter: false,
+    scrollToPrimary: false,
+    recomputeOnFilter: true,
+  },
 ];
 
 /**
@@ -790,9 +887,10 @@ export function swapsChartSet(activeStory: string | null): boolean {
 export function computeStoryHeadlines(
   films: Film[],
   watches: EnrichedWatch[],
+  watchlist: WatchlistFilm[] = [],
 ): { id: string; label: string; headline: string; chip: string }[] {
   return STORIES.filter((s) => !s.landing).map((s) => {
-    const r = s.compute(films, watches);
+    const r = s.compute(films, watches, watchlist);
     return { id: s.id, label: s.label, headline: r.headline, chip: r.chip ?? s.label };
   });
 }
