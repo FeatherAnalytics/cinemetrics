@@ -130,3 +130,42 @@ export const UI = {
   /** Selection outline. Ink, so it reads on a mark of any genre colour. */
   selected: "#0b0b0b",
 };
+
+/**
+ * The dark counterpart.
+ *
+ * Not an inversion: #c01023 against a near-black ground falls under 3:1, and the
+ * same is true of Drama's blue and Comedy's green. Every hue lifts in lightness
+ * while keeping its identity, so a Horror mark still reads as the same colour it
+ * is in light mode.
+ */
+export const DARK = {
+  accent: "#ff4757",
+  genre: {
+    Horror: "#ff4757",
+    Thriller: "#ffc043",
+    Drama: "#5aa2f5",
+    Comedy: "#3ab54a",
+    Adventure: "#a97ae8",
+    Other: "#8a877d",
+  } as Record<GenreKey, string>,
+  ink: {
+    primary: "#f2f0ea",
+    secondary: "#b6b3a9",
+    muted: "#86837a",
+    grid: "#3a3833",
+    axis: "#5c5a53",
+    surface: "#1c1b17",
+    plane: "#1c1b17",
+  },
+  surface: {
+    well: "#131210",
+    paper: "#171613",
+    card: "#1c1b17",
+  },
+  ui: {
+    active: "#f2f0ea",
+    activeText: "#131210",
+    selected: "#f2f0ea",
+  },
+};
