@@ -124,7 +124,7 @@ selects from it, [`export_web.py`](../scripts/export_web.py) does not export it,
 [`build_watchlist_seed.py`](../scripts/build_watchlist_seed.py) and the model is typed and tested,
 but the branch stops there — it is staged and ready rather than in use.
 
-Current scale: <!--stat:watches-->795<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->7,770<!--/stat--> recommendation candidates, <!--stat:dbt_models-->9<!--/stat--> dbt models, <!--stat:dbt_seeds-->5<!--/stat--> seeds, <!--stat:dbt_tests-->33<!--/stat--> data tests.
+Current scale: <!--stat:watches-->795<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->7,770<!--/stat--> recommendation candidates, <!--stat:dbt_models-->9<!--/stat--> dbt models, <!--stat:dbt_seeds-->5<!--/stat--> seeds, <!--stat:dbt_tests-->35<!--/stat--> data tests.
 
 Those figures are generated — see [Keeping the figures honest](#keeping-the-figures-honest). The
 dashboard header and the share card derive their own counts separately at build time, from
@@ -167,6 +167,24 @@ rewatch rate by <!--stat:rewatch_delta-->5.0<!--/stat--> points.
 The derivation and its reasoning live in
 [`stg_film_log.sql`](../transform/models/staging/stg_film_log.sql).
 
+**Most of the rewatch unknowns are recoverable, and are recovered.** Whether a viewing
+was a return does not depend on the source having recorded it — it depends on whether an
+earlier watch of the same film is already in the data.
+[`fct_watches`](../transform/models/marts/fct_watches.sql) therefore derives two more
+columns: `is_return`, which is that ordinal test, and `is_rewatch_effective`, the union of
+it with the recorded flag. The dashboard filters on the union.
+
+Neither half is sufficient alone. The flag misses every sheet-era return — Midsommar's
+2019-10-06 entry is the second time that film appears and the flag calls it a first
+viewing. The ordinal misses the <!--stat:flagged_once-->87<!--/stat--> films whose single
+row is flagged because the original viewing predates the dataset, where the flag is the
+only evidence. Together they move 11 rows, 6 of them sheet-era.
+
+What stays unknown is a sheet-era row that is its film's first appearance: whether it
+returned to a viewing from before the data begins cannot be recovered. So the rewatch rate
+still divides by rows the data can actually answer for — now `liked is not null or
+is_return` rather than `liked is not null` alone.
+
 ### The recommendation path
 
 [`scripts/train_embeddings.py`](../scripts/train_embeddings.py) reads the marts, encodes each
@@ -200,7 +218,7 @@ Everything is free-tier and stateless except the object store.
 
 **[`ci.yml`](../.github/workflows/ci.yml)** — on pull requests to `main`. Three independent
 jobs: `lint` (ruff + eslint), `data` (`dbt deps` then `dbt build`, which runs all
-<!--stat:dbt_tests-->33<!--/stat--> tests), and `web` (vitest + Next.js build).
+<!--stat:dbt_tests-->35<!--/stat--> tests), and `web` (vitest + Next.js build).
 
 **[`deploy.yml`](../.github/workflows/deploy.yml)** — on push to `main` and on manual dispatch.
 Builds the web bundle and publishes to Pages. Concurrency group `pages`, no

@@ -44,7 +44,7 @@ function watch(over: Partial<EnrichedWatch> = {}): EnrichedWatch {
     tmdb_id: 1,
     rating: 80,
     stars: 4,
-    rewatch: false,
+    rewatch: false, returned: false,
     liked: true,
     film: film(),
     d: new Date(date),

@@ -69,7 +69,14 @@ def main() -> None:
             tmdb_id,
             rating_100   as rating,
             star_rating  as stars,
-            is_rewatch   as rewatch,
+            -- The union of the recorded flag and the film's own watch order, so
+            -- a sheet-era return reads as a rewatch instead of a first viewing.
+            -- Derived in fct_watches, which explains why neither half suffices.
+            is_rewatch_effective as rewatch,
+            -- Exported alongside it because it is what makes a sheet-era row
+            -- KNOWN rather than merely false: see computeRewatchShare, which
+            -- must not divide by rows that recorded nothing.
+            is_return    as returned,
             -- Three-state: true / false / null. NULL means UNKNOWN (pre-Letterboxd
             -- watches), NOT "not liked" — filter nulls before any affection rate.
             liked

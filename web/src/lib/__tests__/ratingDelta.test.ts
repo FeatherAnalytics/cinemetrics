@@ -37,7 +37,7 @@ function watch(f: Film, rating: number | null): EnrichedWatch {
     tmdb_id: f.tmdb_id,
     rating,
     stars: null,
-    rewatch: false,
+    rewatch: false, returned: false,
     liked: null,
     heart: null,
     film: f,

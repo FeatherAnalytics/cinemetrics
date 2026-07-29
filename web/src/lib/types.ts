@@ -37,7 +37,23 @@ export type Watch = {
   tmdb_id: number;
   rating: number | null;
   stars: number | null;
+  /**
+   * Was this viewing a rewatch — the recorded flag OR the film's watch order.
+   *
+   * The flag alone reads every sheet-era return as a first viewing, because the
+   * Google Sheet had no such field. The order alone misses a film whose only row
+   * is flagged, where the original viewing predates the dataset. Derived as the
+   * union in `fct_watches`.
+   */
   rewatch: boolean;
+  /**
+   * Whether an earlier watch of this same film exists in the dataset.
+   *
+   * Narrower than `rewatch` and knowable for every row regardless of era, which
+   * is what lets `computeRewatchShare` tell a sheet-era row it can measure from
+   * one it cannot.
+   */
+  returned: boolean;
   /**
    * The Letterboxd heart. Carried on the watch, but a property of the FILM:
    * hearting is a single toggle per film, stamped onto every diary entry for

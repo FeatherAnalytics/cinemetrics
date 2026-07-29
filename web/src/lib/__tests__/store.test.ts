@@ -45,7 +45,7 @@ function makeWatch(
     rating: 70,
     stars: 3.5,
     liked: null,
-    rewatch: false,
+    rewatch: false, returned: false,
     film,
     d,
     yearFrac: (d.getTime() - start) / (end - start),

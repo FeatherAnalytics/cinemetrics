@@ -40,7 +40,12 @@ export function computeAvgRating(watches: EnrichedWatch[]): AvgRatingResult {
  * upstream column is made nullable (D5e) this becomes a plain null check.
  */
 function hasKnownRewatchState(w: EnrichedWatch): boolean {
-  return w.liked != null;
+  // `returned` is knowable for every row regardless of era, so a sheet-era watch
+  // that the data can SEE is a return counts here even though it recorded
+  // nothing itself. Only a sheet-era row that is its film's first appearance is
+  // genuinely unmeasurable — whether it returned to a viewing from before the
+  // data begins cannot be recovered.
+  return w.liked != null || w.returned;
 }
 
 /**

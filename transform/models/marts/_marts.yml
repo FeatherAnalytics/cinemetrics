@@ -50,6 +50,31 @@ models:
         description: IMDb id — kept for external linking.
       - name: watched_date
         tests: [not_null]
+      - name: is_rewatch
+        description: >
+          The rewatch flag exactly as the source recorded it. False for all 129
+          pre-Letterboxd rows because the Google Sheet had no such field — which
+          is NOT the same as those viewings having been first watches. Left
+          untouched so the published "flagged rewatches" figure keeps meaning
+          what it says; use is_rewatch_effective to answer whether a viewing was
+          a rewatch.
+      - name: is_return
+        description: >
+          True when an earlier watch of the same film exists in the dataset.
+          Purely ordinal, so it is answerable for the sheet era too. Narrower
+          than a rewatch: a film whose only row is flagged returned to a viewing
+          that predates the data, and this cannot see that.
+        tests:
+          - not_null
+      - name: is_rewatch_effective
+        description: >
+          The union of is_rewatch and is_return, and the column the dashboard
+          filters on. Neither half is sufficient alone — the flag misses every
+          sheet-era return, the order misses a first-row film whose original
+          viewing predates the dataset. Still false for a sheet-era row that is
+          its film's first appearance, which is genuinely unknowable.
+        tests:
+          - not_null
 
   - name: dim_candidate
     description: >

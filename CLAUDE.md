@@ -28,11 +28,20 @@ Personal film analytics pipeline: Letterboxd watch history → dbt/DuckDB → Ne
   computing an affection rate — collapsing them understates it by ~7.5 points.
 - **`is_rewatch` is three-state the same way**, but the column does not say so:
   the 129 sheet-era rows are all `false` because the Google Sheet had no such
-  field, not because they were first viewings. Divide by rows that recorded it
-  (`liked is not null` marks them) or the rate understates by ~5 points.
+  field, not because they were first viewings.
+- **Use `is_rewatch_effective`, not `is_rewatch`, to ask whether a viewing was a
+  rewatch.** `fct_watches` derives it as the recorded flag OR `is_return` (an
+  earlier watch of the same film exists in the data). The ordinal half is
+  era-independent, so it recovers the sheet-era returns the flag misses. Neither
+  half works alone — the flag is the only evidence for the 87 films whose single
+  row predates their first viewing. `is_rewatch` stays raw because the published
+  "flagged rewatches" figure is about it.
+- **The rewatch rate divides by `liked is not null or is_return`** — the rows the
+  data can answer for. Dividing by every row understates it by ~5 points. Still
+  unknowable: a sheet-era row that is its film's first appearance.
 - **"Rewatches" and "returns" are different numbers.** 87 of the 206 flagged
   rewatches are films whose first viewing predates the dataset, so they appear
-  once. Counting rows in the data gives 118 returns across 82 films. State which
+  once. Counting rows in the data gives 119 returns across 83 films. State which
   one a figure means.
 - **Pipeline order**: RSS parse → enrich new films → dbt build → export JSON → train embeddings → upload to R2.
 - **Franchise rollups**: curated in the `franchise_mapping()` macro (`transform/macros/`), keyed by collection, tmdb_id, or director.
