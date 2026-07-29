@@ -35,7 +35,7 @@ const STACK_ORDER = [...GENRE_ORDER, "Other"] as GenreKey[];
  * means everywhere else.
  */
 export function WatchlistBarcode() {
-  const { filteredWatchlist } = useExplorer();
+  const { filteredWatchlist, selectedId, setSelected } = useExplorer();
   const [ref, W] = useWidth(W0, W_MIN);
   const [hover, setHover] = useState<WatchlistFilm | null>(null);
 
@@ -133,6 +133,7 @@ export function WatchlistBarcode() {
             const films = byYear.get(y) ?? [];
             return films.map((f, k) => {
               const isHover = hover === f;
+              const isPicked = selectedId === f.tmdb_id;
               return (
                 <rect
                   key={`${f.tmdb_id}-${k}`}
@@ -145,9 +146,15 @@ export function WatchlistBarcode() {
                   fill={GENRE_COLORS[primaryGenre(f)]}
                   // Full opacity throughout: semi-transparent marks composite
                   // where they meet and invent shades the genre scale lacks.
-                  opacity={hover == null || isHover ? 1 : 0.25}
+                  opacity={hover == null || isHover || isPicked ? 1 : 0.25}
+                  stroke={isPicked ? INK.primary : "none"}
+                  strokeWidth={isPicked ? 1 : 0}
+                  style={{ cursor: "pointer" }}
                   onMouseOver={() => setHover(f)}
                   onMouseOut={() => setHover(null)}
+                  // Clicking a brick opens that film in the table below. Toggles,
+                  // so clicking it again returns the table to the whole list.
+                  onClick={() => setSelected(f.tmdb_id)}
                 />
               );
             });
@@ -182,7 +189,7 @@ export function WatchlistBarcode() {
           : ""}
       </p>
       <ChartTakeaway>
-        one column per year, {years[0]}–{years[years.length - 1]} · tallest year holds {peak}
+        one column per year, {years[0]}–{years[years.length - 1]} · click a film to open it
       </ChartTakeaway>
     </figure>
   );

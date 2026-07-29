@@ -32,6 +32,28 @@ export const GENRE_COLORS: Record<GenreKey, string> = {
 
 export const GENRE_KEYS: GenreKey[] = [...GENRE_ORDER, "Other"];
 
+/**
+ * One spelling for genres the two sources name differently.
+ *
+ * Watched films take their genres from OMDb, watchlist films from TMDB, and the
+ * two vocabularies agree on everything except science fiction: OMDb writes
+ * "Sci-Fi" (68 watched films), TMDB writes "Science Fiction" (25 on the list).
+ * Any join by genre name therefore missed that pair entirely — the watchlist's
+ * Science Fiction row showed no rating deviation at all, not because nothing had
+ * been watched but because the 68 films were filed under another name.
+ *
+ * TMDB's spelling wins because it is what the watchlist charts print. Genres
+ * unique to one source (OMDb's Biography, Film-Noir, Short) are left alone:
+ * there is nothing on the other side to join them to.
+ */
+const GENRE_ALIASES: Record<string, string> = {
+  "Sci-Fi": "Science Fiction",
+};
+
+export function canonicalGenre(name: string): string {
+  return GENRE_ALIASES[name] ?? name;
+}
+
 // A film's dominant genre for coloring: first of the tracked genres it carries
 // (Horror wins when present, which is what the seasonality story turns on).
 export function primaryGenre(film: HasGenres | undefined): GenreKey {

@@ -73,8 +73,16 @@ export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
                   me — rather than something the recommender computed. */}
               {onWatchlist && (
                 <span
-                  className="rounded-sm px-1 py-px font-mono text-[9px] font-bold leading-none"
-                  style={{ background: ACCENT, color: "#f7f6f3" }}
+                  className="rounded px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase"
+                  style={{
+                    background: ACCENT,
+                    color: "#f7f6f3",
+                    letterSpacing: "0.12em",
+                    // The tracking pushes the last letter off-centre inside the
+                    // pill, so the right pad absorbs it back.
+                    paddingRight: "0.28rem",
+                    lineHeight: 1.35,
+                  }}
                   title="Already on my Letterboxd watchlist"
                 >
                   WL

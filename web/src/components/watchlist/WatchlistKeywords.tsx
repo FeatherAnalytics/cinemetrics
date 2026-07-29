@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useExplorer } from "@/lib/store";
+import { filterWatches, useExplorer } from "@/lib/store";
 import { ratingDeltaByKey } from "@/lib/ratingDelta";
 import { keywordBars } from "@/lib/watchlistChart";
 import { ChartTakeaway } from "../ChartTakeaway";
@@ -25,16 +25,31 @@ const MIN_FILMS = 3;
  * contributed unevenly, so a well-tagged film pushes more bars than a thin one.
  */
 export function WatchlistKeywords() {
-  const { filteredWatchlist, filtered, filters, setKeyword } = useExplorer();
+  const { filteredWatchlist, all, filters, setKeyword } = useExplorer();
   const bars = useMemo(
     () => keywordBars(filteredWatchlist, 12, MIN_FILMS),
     [filteredWatchlist],
   );
 
+/**
+ * Watches the deviation baseline is measured against.
+ *
+ * NOT the filtered set. Clicking a bar sets the very filter that defines the
+ * group, so the group and the whole set become the same films and every
+ * deviation collapses to exactly zero — the number vanished at the moment the
+ * reader asked for it. Lifting this chart's own filter, and only its own, keeps
+ * the rest of the rail live while leaving something to compare against. It is
+ * the self-excluding cross-filter CountryBars already uses.
+ */
+  const base = useMemo(
+    () => filterWatches(all, { ...filters, keyword: null }),
+    [all, filters],
+  );
+
   // From the watch log: the watchlist's own films have no rating to average.
   const deltas = useMemo(
-    () => ratingDeltaByKey(filtered, (w) => w.film?.keywords ?? []),
-    [filtered],
+    () => ratingDeltaByKey(base, (w) => w.film?.keywords ?? []),
+    [base],
   );
 
   if (bars.length === 0) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useExplorer } from "@/lib/store";
+import { filterWatches, useExplorer } from "@/lib/store";
 import { ratingDeltaByKey } from "@/lib/ratingDelta";
 import { countryBars, languageBars } from "@/lib/watchlistChart";
 import { ChartTakeaway } from "../ChartTakeaway";
@@ -27,7 +27,7 @@ type Mode = (typeof MODES)[number];
  * measured twice.
  */
 export function WatchlistOrigin() {
-  const { filteredWatchlist, filtered, filters, setCountry, setLanguage } = useExplorer();
+  const { filteredWatchlist, all, filters, setCountry, setLanguage } = useExplorer();
   const [mode, setMode] = useState<Mode>("country");
   const isLang = mode === "language";
 
@@ -36,18 +36,36 @@ export function WatchlistOrigin() {
     [filteredWatchlist, isLang],
   );
 
-  // Measured off the WATCH log, not the watchlist, and against whatever the rail
-  // currently shows so the baseline is the films on screen.
+/**
+ * Watches the deviation baseline is measured against.
+ *
+ * NOT the filtered set. Clicking a bar sets the very filter that defines the
+ * group, so the group and the whole set become the same films and every
+ * deviation collapses to exactly zero — the number vanished at the moment the
+ * reader asked for it. Lifting this chart's own filter, and only its own, keeps
+ * the rest of the rail live while leaving something to compare against. It is
+ * the self-excluding cross-filter CountryBars already uses.
+ */
+  const base = useMemo(
+    () =>
+      filterWatches(all, {
+        ...filters,
+        ...(isLang ? { language: null } : { country: null }),
+      }),
+    [all, filters, isLang],
+  );
+
+  // Measured off the WATCH log, not the watchlist: nothing on the list is rated.
   const deltas = useMemo(
     () =>
-      ratingDeltaByKey(filtered, (w) =>
+      ratingDeltaByKey(base, (w) =>
         isLang
           ? w.film?.language
             ? [w.film.language]
             : []
           : (w.film?.production_countries ?? []),
       ),
-    [filtered, isLang],
+    [base, isLang],
   );
 
   const active = isLang ? filters.language : filters.country;

@@ -4,7 +4,14 @@
 
 import { countryName } from "./countries";
 import { languageName } from "./languages";
-import { GENRE_COLORS, GENRE_KEYS, GENRE_ORDER, primaryGenre, type GenreKey } from "./palette";
+import {
+  canonicalGenre,
+  GENRE_COLORS,
+  GENRE_KEYS,
+  GENRE_ORDER,
+  primaryGenre,
+  type GenreKey,
+} from "./palette";
 import type { WatchlistFilm } from "./types";
 
 export type RankedBar = {
@@ -120,7 +127,10 @@ export function rankMulti(
 }
 
 export function genreBars(films: WatchlistFilm[], limit = 10): RankedBar[] {
-  return rankMulti(films, (f) => f.genres, { limit, colorBy: "self" });
+  // Canonicalised so the one watchlist film TMDB tagged "Sci-Fi" joins the 25
+  // tagged "Science Fiction" instead of ranking as its own one-film bar — and so
+  // the bar's key matches the key the rating deviation is stored under.
+  return rankMulti(films, (f) => f.genres.map(canonicalGenre), { limit, colorBy: "self" });
 }
 
 export function keywordBars(films: WatchlistFilm[], limit = 12, minCount = 3): RankedBar[] {

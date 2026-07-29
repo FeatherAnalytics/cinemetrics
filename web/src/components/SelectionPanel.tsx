@@ -77,10 +77,24 @@ function compareRows(a: Row, b: Row, sort: Sort): number {
 // cross-filters, so `filtered` already IS the selection; we summarise it and
 // list every watch in date order.
 export function SelectionPanel() {
-  const { filtered, filters, setSelection, setCountry, activeStory, filteredWatchlist } =
-    useExplorer();
+  const {
+    filtered,
+    filters,
+    setSelection,
+    setCountry,
+    activeStory,
+    filteredWatchlist,
+    selectedId,
+    setSelected,
+  } = useExplorer();
   const [sort, setSort] = useState<Sort>({ key: "date", dir: 1 }); // oldest → most recent
   const watchlistMode = activeStory === "watchlist";
+  /**
+   * The favourites story is the other one whose subject is a SET rather than a
+   * selection: every film carrying the heart. It sets no brush, so without this
+   * the panel never appeared for it at all.
+   */
+  const heartMode = activeStory === "heart";
   const columns = watchlistMode ? WATCHLIST_COLUMNS : COLUMNS;
   const [openByHand, setOpenByHand] = useState(false);
 
@@ -104,14 +118,20 @@ export function SelectionPanel() {
     filters.language !== null ||
     filters.genreTag !== null ||
     filters.keyword !== null;
-  const open = !watchlistMode || openByHand || watchlistFiltered;
+  const open = !watchlistMode || openByHand || watchlistFiltered || selectedId != null;
 
   const { rows, films, avgMe, avgCritic, genres } = useMemo(() => {
     if (watchlistMode) {
+      // A clicked film narrows the table to itself, which is what the release
+      // year chart's click is for; clearing the pick restores the list.
+      const source =
+        selectedId != null
+          ? filteredWatchlist.filter((f) => f.tmdb_id === selectedId)
+          : filteredWatchlist;
       // `t` sorts on the release date, falling back to January 1 of the year for
       // the few films TMDB has no date for — the same fallback the barcode uses,
       // so the two orderings agree.
-      const wlRows: Row[] = filteredWatchlist.map((f) => ({
+      const wlRows: Row[] = source.map((f) => ({
         key: `wl-${f.tmdb_id}`,
         tmdb_id: f.tmdb_id,
         date: f.released ?? (f.year != null ? `${f.year}` : "—"),
@@ -140,7 +160,14 @@ export function SelectionPanel() {
       };
     }
 
-    const rows: Row[] = filtered.map((w) => ({
+    // The heart story lists FILMS, one row each, so a film watched four times
+    // does not fill four rows of a table about which films are loved. The most
+    // recent watch supplies the rating, matching how the gems story picks one.
+    const source = heartMode
+      ? [...new Map(filtered.filter((w) => w.heart === true).map((w) => [w.tmdb_id, w])).values()]
+      : filtered;
+
+    const rows: Row[] = source.map((w) => ({
       key: watchKey(w),
       tmdb_id: w.tmdb_id,
       date: w.date,
@@ -157,11 +184,11 @@ export function SelectionPanel() {
 
     // Distinct films for the summary (a rewatched film counts once).
     const seen = new Map<number, { genre: GenreKey; mc: number | null }>();
-    for (const w of filtered)
+    for (const w of source)
       if (!seen.has(w.tmdb_id))
         seen.set(w.tmdb_id, { genre: primaryGenre(w.film), mc: w.film?.metascore ?? null });
 
-    const meVals = filtered.map((w) => w.rating).filter((v): v is number => v != null);
+    const meVals = source.map((w) => w.rating).filter((v): v is number => v != null);
     const avgMe = meVals.length ? meVals.reduce((s, v) => s + v, 0) / meVals.length : null;
     const criticVals = [...seen.values()].map((f) => f.mc).filter((v): v is number => v != null);
     const avgCritic = criticVals.length
@@ -173,14 +200,14 @@ export function SelectionPanel() {
     const genres = [...gCounts.entries()].sort((a, b) => b[1] - a[1]);
 
     return { rows, films: seen.size, avgMe, avgCritic, genres };
-  }, [filtered, filteredWatchlist, watchlistMode, sort]);
+  }, [filtered, filteredWatchlist, watchlistMode, heartMode, selectedId, sort]);
 
   const toggleSort = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
 
   // The watchlist story shows the table unconditionally: the list IS the subject
   // there, not a selection made out of something larger.
-  if (!watchlistMode && !filters.selection && !filters.country) return null;
+  if (!watchlistMode && !heartMode && !filters.selection && !filters.country) return null;
 
   const delta = avgMe != null && avgCritic != null ? avgMe - avgCritic : null;
   const clear = () => {
@@ -198,13 +225,17 @@ export function SelectionPanel() {
         <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
           <h2 className="font-display text-lg font-semibold text-[#0b0b0b]">
             {watchlistMode
-              ? "Watchlist"
-              : filters.country
+              ? selectedId != null
+                ? "Film"
+                : "Watchlist"
+              : heartMode
+                ? "Favourites"
+                : filters.country
                 ? countryName(filters.country)
                 : "Selection"}{" "}
             <span style={{ color: ACCENT }}>·</span> {films} {films === 1 ? "film" : "films"}
           </h2>
-          {!watchlistMode && (
+          {!watchlistMode && !heartMode && (
             <span className="font-mono text-xs" style={{ color: INK.muted }}>
               {rows.length} watches
             </span>
@@ -228,7 +259,15 @@ export function SelectionPanel() {
             </span>
           )}
         </div>
-        {watchlistMode ? (
+        {watchlistMode && selectedId != null ? (
+          <button
+            onClick={() => setSelected(null)}
+            className="rounded-full border px-3 py-1 text-xs text-[#3d3c38] transition hover:text-[#0b0b0b]"
+            style={{ borderColor: "rgba(11,11,11,0.2)" }}
+          >
+            back to all films
+          </button>
+        ) : watchlistMode ? (
           <button
             onClick={() => setOpenByHand((v) => !v)}
             aria-expanded={open}
@@ -237,7 +276,7 @@ export function SelectionPanel() {
           >
             {open ? "hide films" : "show films"}
           </button>
-        ) : (
+        ) : heartMode ? null : (
           <button
             onClick={clear}
             className="rounded-full border px-3 py-1 text-xs text-[#3d3c38] transition hover:text-[#0b0b0b]"

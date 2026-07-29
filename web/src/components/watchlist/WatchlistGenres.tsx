@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { useExplorer } from "@/lib/store";
+import { filterWatches, useExplorer } from "@/lib/store";
 import { ratingDeltaByKey } from "@/lib/ratingDelta";
+import { canonicalGenre } from "@/lib/palette";
 import { genreBars } from "@/lib/watchlistChart";
 import { ChartTakeaway } from "../ChartTakeaway";
 import { RankedBars } from "./RankedBars";
@@ -26,13 +27,29 @@ import { RankedBars } from "./RankedBars";
  * so without it two thirds of this chart would be unclickable.
  */
 export function WatchlistGenres() {
-  const { filteredWatchlist, filtered, filters, setGenreTag } = useExplorer();
+  const { filteredWatchlist, all, filters, setGenreTag } = useExplorer();
   const bars = useMemo(() => genreBars(filteredWatchlist), [filteredWatchlist]);
 
-  // From the watch log: the watchlist's own films carry no rating.
+/**
+ * Watches the deviation baseline is measured against.
+ *
+ * NOT the filtered set. Clicking a bar sets the very filter that defines the
+ * group, so the group and the whole set become the same films and every
+ * deviation collapses to exactly zero — the number vanished at the moment the
+ * reader asked for it. Lifting this chart's own filter, and only its own, keeps
+ * the rest of the rail live while leaving something to compare against. It is
+ * the self-excluding cross-filter CountryBars already uses.
+ */
+  const base = useMemo(
+    () => filterWatches(all, { ...filters, genreTag: null, genres: new Set() }),
+    [all, filters],
+  );
+
+  // From the watch log: the watchlist's own films carry no rating. Genres are
+  // canonicalised because the two sides spell science fiction differently.
   const deltas = useMemo(
-    () => ratingDeltaByKey(filtered, (w) => w.film?.genres ?? []),
-    [filtered],
+    () => ratingDeltaByKey(base, (w) => (w.film?.genres ?? []).map(canonicalGenre)),
+    [base],
   );
 
   return (

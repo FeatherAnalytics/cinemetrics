@@ -12,7 +12,7 @@ import {
 } from "react";
 import { encodeUrlState, parseUrlState } from "./urlState";
 import type { Dataset, EnrichedWatch, Film, WatchlistFilm } from "./types";
-import { primaryGenre, type GenreKey } from "./palette";
+import { canonicalGenre, primaryGenre, type GenreKey } from "./palette";
 import { countryName } from "./countries";
 import { languageName } from "./languages";
 import { watchKey } from "./brush";
@@ -87,7 +87,14 @@ export function filterWatches(
       const v = f?.imdb_votes;
       if (v == null || v < filters.votesRange[0] || v > filters.votesRange[1]) return false;
     }
-    if (filters.genreTag && !(f?.genres ?? []).includes(filters.genreTag)) return false;
+    // Canonicalised on both sides: the tag comes from a TMDB-spelled watchlist
+    // bar, the film's genres from OMDb, and "Science Fiction" would otherwise
+    // match none of the 68 films OMDb calls "Sci-Fi".
+    if (
+      filters.genreTag &&
+      !(f?.genres ?? []).map(canonicalGenre).includes(canonicalGenre(filters.genreTag))
+    )
+      return false;
     if (filters.keyword && !(f?.keywords ?? []).includes(filters.keyword)) return false;
     if (filters.selection && !filters.selection.has(watchKey(w))) return false;
     return true;
@@ -141,7 +148,11 @@ export function filterWatchlist(
       const v = f.imdb_votes;
       if (v == null || v < filters.votesRange[0] || v > filters.votesRange[1]) return false;
     }
-    if (filters.genreTag && !f.genres.includes(filters.genreTag)) return false;
+    if (
+      filters.genreTag &&
+      !f.genres.map(canonicalGenre).includes(canonicalGenre(filters.genreTag))
+    )
+      return false;
     if (filters.keyword && !f.keywords.includes(filters.keyword)) return false;
     return true;
   });
