@@ -398,13 +398,13 @@ const CHART_SECTIONS: ChartSection[] = [
   {
     id: "wlbarcode",
     sets: ["watchlist"],
-    title: "Release dates of films on the watchlist",
+    title: "Release year and genre",
     blurbClass: "mb-2 max-w-2xl text-xs text-[#67655f]",
     blurb: (
       <>
-        One stripe per film, left to right by release date, colored by genre. Spacing
-        is real time, so a dense band is a run of years the watchlist keeps returning
-        to and a gap is one it skips.
+        One column per year at equal width, one brick per film, colored by genre. Column
+        height is the count, so years compare directly; a blank column is a year the
+        watchlist skips entirely.
       </>
     ),
     Chart: WatchlistBarcode,

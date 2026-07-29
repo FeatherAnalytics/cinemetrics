@@ -243,7 +243,7 @@ export function RankedBars({
               // chart decodes it — a legend would repeat the five swatches the
               // rail already shows, so the readout names it instead.
               const genrePart = b.key === b.genre ? "" : ``;
-              return `${b.label}: ${pct}% of watchlist${genrePart}${devPart}`;
+              return `${b.label}: ${pct}% of the watchlist${genrePart}${devPart}`;
             })()
           : ""}
       </p>

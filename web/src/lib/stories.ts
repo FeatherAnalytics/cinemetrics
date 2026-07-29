@@ -758,7 +758,7 @@ function computeWatchlist(
       wlgenredecades:
         "One genre per film here, so each column sums to the decade bar above it. The outlined cells are eras I have queued nothing from.",
       wlbarcode:
-        "The decade bars above round these positions to the nearest ten years; here the clumps and gaps inside a decade stay visible.",
+        "Year by year rather than by decade, so the runs and the empty years inside a decade are both visible.",
     },
   };
 }
