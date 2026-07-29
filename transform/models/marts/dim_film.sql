@@ -71,6 +71,7 @@ select
     e.rated,
     e.original_language,
     e.poster_path,
+    ps.poster_slice,
     -- The umbrella franchise when mapped, the raw TMDB collection otherwise.
     -- Kept under the `collection` name because it is the grouping the site
     -- exposes as "franchise runs".
@@ -80,3 +81,4 @@ left join {{ ref('stg_film_enrichment') }} e using (tmdb_id)
 left join franchise_by_film ff using (tmdb_id)
 left join franchise_by_collection fc on e.collection = fc.collection_name
 left join franchise_by_director fd on contains(coalesce(e.director, ''), fd.director)
+left join {{ ref('stg_poster_slices') }} ps using (tmdb_id)

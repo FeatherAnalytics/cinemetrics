@@ -66,3 +66,16 @@ models:
         tests: [unique, not_null]
       - name: imdb_id
         description: IMDb id — may be empty for candidates TMDB lacks a link for.
+
+  - name: stg_poster_slices
+    description: >
+      A sampled colour column per film, for the landing-page barcode. 20 RGB
+      stops packed as 120 hex characters, no separators.
+    columns:
+      - name: tmdb_id
+        description: TMDB id. Primary key.
+        tests: [unique, not_null]
+      - name: poster_slice
+        description: >
+          120 hex characters — 20 stops of six. NULL when the film has no
+          poster art to sample.
