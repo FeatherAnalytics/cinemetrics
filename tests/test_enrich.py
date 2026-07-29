@@ -11,7 +11,7 @@ import pytest
 
 from ingest.enrich import (
     BASE_COLUMNS,
-    ENRICHMENT_CSV_COLUMNS,
+    FILM_CSV_COLUMNS,
     LANG_COLLECTION_COLUMNS,
     build_enrichment_row,
 )
@@ -181,38 +181,63 @@ def test_poster_path_is_last_base_column():
     assert BASE_COLUMNS[-1] == "poster_path"
 
 
-def test_enrichment_csv_columns_is_base_plus_lang_collection():
-    assert ENRICHMENT_CSV_COLUMNS == BASE_COLUMNS + LANG_COLLECTION_COLUMNS
+def test_film_csv_columns_is_base_plus_lang_collection():
+    assert FILM_CSV_COLUMNS == BASE_COLUMNS + LANG_COLLECTION_COLUMNS
 
 
-def test_enrichment_csv_columns_includes_poster_path():
-    assert "poster_path" in ENRICHMENT_CSV_COLUMNS
+def test_film_csv_columns_includes_poster_path():
+    assert "poster_path" in FILM_CSV_COLUMNS
+
+
+def test_candidate_csv_columns_excludes_poster_path():
+    # candidate_enrichment.csv predates poster_path and has no such column.
+    from ingest.enrich import CANDIDATE_CSV_COLUMNS
+
+    assert "poster_path" not in CANDIDATE_CSV_COLUMNS
 
 
 @pytest.mark.parametrize(
-    ("prefer_omdb", "omdb_countries", "include_lang_collection", "strip_text"),
+    ("kwargs", "columns_name"),
     [
-        (True, True, True, False),  # scripts/update.py
-        (True, True, True, False),  # scripts/fetch_candidates.py
-        (True, True, True, True),   # scripts/rebuild_enrichment.py
+        (  # scripts/update.py
+            dict(prefer_omdb=True, omdb_countries=True, include_lang_collection=False),
+            "FILM_CSV_COLUMNS",
+        ),
+        (  # scripts/fetch_candidates.py, scripts/enrich_watchlist.py
+            dict(
+                prefer_omdb=True, omdb_countries=True, include_lang_collection=True,
+                include_poster_path=False,
+            ),
+            "CANDIDATE_CSV_COLUMNS",
+        ),
+        (  # scripts/rebuild_enrichment.py
+            dict(
+                prefer_omdb=True, omdb_countries=True, include_lang_collection=True,
+                strip_text=True,
+            ),
+            "FILM_CSV_COLUMNS",
+        ),
     ],
 )
-def test_every_row_key_has_a_column(
-    prefer_omdb, omdb_countries, include_lang_collection, strip_text
-):
+def test_every_row_key_has_a_column(kwargs, columns_name):
     # The regression this guards: a key added to build_enrichment_row without a
-    # matching entry in ENRICHMENT_CSV_COLUMNS. That is how poster_path was
+    # matching entry in the target column list. That is how poster_path was
     # silently dropped, and dict_writer's strict=True now turns it into a raise
     # at write time -- this catches it at test time instead.
+    #
+    # It also guards the inverse: build_enrichment_row unconditionally emitted
+    # poster_path regardless of caller, which would raise under strict=True
+    # once candidate_enrichment.csv's writers got their own column list (no
+    # poster_path in it) -- include_poster_path=False is what fetch_candidates.py
+    # and enrich_watchlist.py now pass to avoid that.
+    from ingest import enrich
+
     row = build_enrichment_row(
         TMDB, OMDB,
         tmdb_id="27205", imdb_id="tt1375666",
-        prefer_omdb=prefer_omdb,
-        omdb_countries=omdb_countries,
-        include_lang_collection=include_lang_collection,
-        strip_text=strip_text,
+        **kwargs,
     )
-    assert set(row) <= set(ENRICHMENT_CSV_COLUMNS)
+    assert set(row) <= set(getattr(enrich, columns_name))
 
 
 def test_strict_writer_rejects_a_key_no_column_accepts():
@@ -224,6 +249,56 @@ def test_strict_writer_rejects_a_key_no_column_accepts():
     w = dict_writer(io.StringIO(), ["a"], strict=True)
     with pytest.raises(ValueError):
         w.writerow({"a": "1", "unexpected": "2"})
+
+
+def test_candidate_row_writes_under_strict_with_the_real_call_shape():
+    """fetch_candidates.py and enrich_watchlist.py both write with strict=True.
+
+    Both call build_enrichment_row with include_poster_path=False for exactly
+    this reason: without it, the row carries a leftover poster_path key that
+    CANDIDATE_CSV_COLUMNS has no slot for, and strict=True raises on every
+    write -- trading the original silent-corruption bug for a guaranteed
+    crash on the next candidate found.
+    """
+    import io
+
+    from ingest.csvio import dict_writer
+    from ingest.enrich import CANDIDATE_CSV_COLUMNS
+
+    row = build_enrichment_row(
+        TMDB, OMDB,
+        tmdb_id="27205", imdb_id="tt1375666",
+        prefer_omdb=True, omdb_countries=True, include_lang_collection=True,
+        include_poster_path=False,
+    )
+    w = dict_writer(io.StringIO(), CANDIDATE_CSV_COLUMNS, strict=True)
+    w.writerow(row)  # must not raise
+
+
+@pytest.mark.parametrize(
+    ("seed", "columns_name"),
+    [
+        ("film_enrichment.csv", "FILM_CSV_COLUMNS"),
+        ("candidate_enrichment.csv", "CANDIDATE_CSV_COLUMNS"),
+    ],
+)
+def test_writer_columns_match_the_seed_header(seed, columns_name):
+    """A writer's column list must equal the header of the file it writes.
+
+    One shared list was pointed at both seeds, which silently shifted
+    poster_path into the original_language column of candidate_enrichment.csv
+    on the next append. The two files have genuinely different schemas; the
+    only safe check is against the bytes on disk.
+    """
+    import csv
+    from pathlib import Path
+
+    from ingest import enrich
+
+    seed_path = Path(__file__).resolve().parents[1] / "transform" / "seeds" / seed
+    with open(seed_path, encoding="utf-8", newline="") as fh:
+        header = next(csv.reader(fh))
+    assert getattr(enrich, columns_name) == header
 
 
 def test_no_script_hardcodes_the_enrichment_column_list():

@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from ingest.csvio import dict_writer  # noqa: E402
-from ingest.enrich import ENRICHMENT_CSV_COLUMNS, build_enrichment_row  # noqa: E402
+from ingest.enrich import CANDIDATE_CSV_COLUMNS, build_enrichment_row  # noqa: E402
 from ingest.http import cached_json, omdb_get, tmdb_get  # noqa: E402
 
 SEEDS = ROOT / "transform" / "seeds"
@@ -167,6 +167,10 @@ def _enrich_tmdb(tmdb_id: int) -> dict | None:
         prefer_omdb=True,
         omdb_countries=True,
         include_lang_collection=True,
+        # candidate_enrichment.csv predates poster_path and has no such column;
+        # CANDIDATE_CSV_COLUMNS omits it, and strict=True below would raise on
+        # the leftover key if the shared builder still emitted it.
+        include_poster_path=False,
     )
 
 
@@ -236,7 +240,7 @@ def main() -> None:
     write_header = not CANDIDATE_ENRICHMENT.exists()
     enriched = 0
     with open(CANDIDATE_ENRICHMENT, "a", newline="", encoding="utf-8") as fh:
-        writer = dict_writer(fh, ENRICHMENT_CSV_COLUMNS, strict=True)
+        writer = dict_writer(fh, CANDIDATE_CSV_COLUMNS, strict=True)
         if write_header:
             writer.writeheader()
         for tid in sorted(new_ids):

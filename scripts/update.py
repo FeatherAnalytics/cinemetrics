@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from ingest.csvio import append_rows  # noqa: E402
-from ingest.enrich import ENRICHMENT_CSV_COLUMNS, build_enrichment_row  # noqa: E402
+from ingest.enrich import FILM_CSV_COLUMNS, build_enrichment_row  # noqa: E402
 from ingest.http import omdb_get, tmdb_get  # noqa: E402
 
 SEEDS = ROOT / "transform" / "seeds"
@@ -94,7 +94,7 @@ def loggable_watches(
 
 
 def append_to_enrichment(rows: list[dict[str, str]]) -> None:
-    append_rows(ENRICH_PATH, rows, ENRICHMENT_CSV_COLUMNS, strict=True)
+    append_rows(ENRICH_PATH, rows, FILM_CSV_COLUMNS, strict=True)
 
 
 def append_to_log(watches: list[dict]) -> None:

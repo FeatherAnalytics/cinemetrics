@@ -1,5 +1,7 @@
 -- One row per candidate film (not yet rated), typed from the candidate
--- enrichment seed. Same schema as stg_film_enrichment.
+-- enrichment seed. NOT the same schema as stg_film_enrichment: this seed
+-- has no poster_path, and carries title/release_date/tmdb_rating/tmdb_votes
+-- that the film seed does not.
 select
     try_cast(tmdb_id as integer)     as tmdb_id,
     imdb_id,

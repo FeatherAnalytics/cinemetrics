@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from ingest.csvio import dict_writer  # noqa: E402
-from ingest.enrich import ENRICHMENT_CSV_COLUMNS, build_enrichment_row  # noqa: E402
+from ingest.enrich import FILM_CSV_COLUMNS, build_enrichment_row  # noqa: E402
 
 OMDB = ROOT / "data" / "raw" / "omdb"
 TMDB = ROOT / "data" / "raw" / "tmdb"
@@ -71,7 +71,7 @@ def main() -> None:
 
     rows = sorted(seen.values(), key=lambda r: int(r["tmdb_id"]))
     with open(OUT, "w", encoding="utf-8", newline="") as f:
-        writer = dict_writer(f, ENRICHMENT_CSV_COLUMNS, strict=True)
+        writer = dict_writer(f, FILM_CSV_COLUMNS, strict=True)
         writer.writeheader()
         writer.writerows(rows)
 

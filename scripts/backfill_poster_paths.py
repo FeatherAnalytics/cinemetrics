@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from ingest.csvio import dict_writer  # noqa: E402
-from ingest.enrich import ENRICHMENT_CSV_COLUMNS as COLUMNS  # noqa: E402
+from ingest.enrich import FILM_CSV_COLUMNS as COLUMNS  # noqa: E402
 from ingest.http import tmdb_get  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]

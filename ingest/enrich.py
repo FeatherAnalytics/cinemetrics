@@ -14,9 +14,9 @@ from ingest.geo import names_to_iso
 from ingest.parse import float_or_empty, int_or_empty, na_clean, na_empty
 
 # Base columns shared by every enrichment CSV, in order. This list defines the
-# order of the row dict AND, via ENRICHMENT_CSV_COLUMNS, the column order of the
-# files themselves — the seeds are diffed in git, so the order is part of the
-# data's contract and is not safe to shuffle.
+# order of the row dict AND, via FILM_CSV_COLUMNS, the column order of
+# film_enrichment.csv — the seeds are diffed in git, so the order is part of
+# the data's contract and is not safe to shuffle.
 BASE_COLUMNS = [
     "tmdb_id", "imdb_id", "genres", "keywords", "runtime", "budget", "revenue",
     "metascore", "rt_rating", "imdb_rating", "imdb_votes", "box_office",
@@ -25,14 +25,26 @@ BASE_COLUMNS = [
 # Extra TMDB-only columns for the candidate/rebuild variants.
 LANG_COLLECTION_COLUMNS = ["original_language", "collection"]
 
-# The column order every enrichment CSV is written in.
+# The column order of transform/seeds/film_enrichment.csv.
+FILM_CSV_COLUMNS = BASE_COLUMNS + LANG_COLLECTION_COLUMNS
+
+# The column order of transform/seeds/candidate_enrichment.csv, which is NOT the
+# same file schema despite being built by the same row builder.
 #
-# Exported because update.py, fetch_candidates.py and rebuild_enrichment.py all
-# write these seeds and previously each kept a private copy of this list. When
-# poster_path was added to BASE_COLUMNS, all three copies stayed at 18 entries
-# and dict_writer's extrasaction="ignore" dropped the new field without a word.
-# One list means a column added here reaches every writer.
-ENRICHMENT_CSV_COLUMNS = BASE_COLUMNS + LANG_COLLECTION_COLUMNS
+# It predates poster_path and does not carry it, and it gained four columns from
+# one-off backfills that no writer populates. Its order is fixed by the 7,770
+# rows already committed, so it is dictated by the file rather than derived from
+# BASE_COLUMNS — deriving it is what shifted poster_path into original_language.
+#
+# A single shared list here was a real corruption bug, not a near miss:
+# test_writer_columns_match_the_seed_header pins both against the bytes on disk.
+CANDIDATE_CSV_COLUMNS = [
+    "tmdb_id", "imdb_id", "genres", "keywords", "runtime", "budget", "revenue",
+    "metascore", "rt_rating", "imdb_rating", "imdb_votes", "box_office",
+    "director", "actors", "rated", "production_countries",
+    "original_language", "collection",
+    "title", "release_date", "tmdb_rating", "tmdb_votes",
+]
 
 
 def _tmdb_genres(tmdb: dict) -> str:
@@ -78,6 +90,7 @@ def build_enrichment_row(
     omdb_countries: bool,
     include_lang_collection: bool,
     strip_text: bool = False,
+    include_poster_path: bool = True,
 ) -> dict[str, str]:
     """Map a TMDB detail + OMDb dict to an enrichment row.
 
@@ -89,6 +102,10 @@ def build_enrichment_row(
     include_lang_collection True -> append original_language + collection (TMDB).
     strip_text             True  -> strip text fields (rebuild_enrichment.py).
                            False -> preserve text as-is (update/fetch_candidates).
+    include_poster_path     True  -> emit poster_path (film_enrichment.csv).
+                           False -> omit it (candidate_enrichment.csv has no
+                                    such column; a stray key here would trip
+                                    dict_writer's strict=True at write time).
     """
     text = na_clean if strip_text else na_empty
     tmdb_genres = _tmdb_genres(tmdb)
@@ -130,10 +147,12 @@ def build_enrichment_row(
         "actors": text(omdb.get("Actors")),
         "rated": text(omdb.get("Rated")),
         "production_countries": countries,
+    }
+
+    if include_poster_path:
         # TMDB image path, e.g. "/abc123.jpg". Stored as the path, not a URL:
         # the CDN host and size segment belong to the renderer, not the data.
-        "poster_path": tmdb.get("poster_path") or "",
-    }
+        row["poster_path"] = tmdb.get("poster_path") or ""
 
     if include_lang_collection:
         # fetch_candidates.py reads these raw; rebuild_enrichment.py cleans them.

@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from ingest.csvio import dict_writer  # noqa: E402
-from ingest.enrich import ENRICHMENT_CSV_COLUMNS  # noqa: E402
+from ingest.enrich import FILM_CSV_COLUMNS  # noqa: E402
 from ingest.http import tmdb_get  # noqa: E402
 
 SEEDS = ROOT / "transform" / "seeds"
@@ -149,7 +149,7 @@ def backfill_enrichment() -> int:
             rows.append(row)
 
     with open(ENRICH_PATH, "w", encoding="utf-8", newline="") as f:
-        writer = dict_writer(f, ENRICHMENT_CSV_COLUMNS)
+        writer = dict_writer(f, FILM_CSV_COLUMNS)
         writer.writeheader()
         writer.writerows(rows)
 
