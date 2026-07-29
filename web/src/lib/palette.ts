@@ -75,6 +75,19 @@ export function secondaryGenre(film: Film | undefined): GenreKey {
   return hits[1] ?? "Other";
 }
 
+/**
+ * Three paper tones.
+ *
+ * The landing page felt flat because every section sat on one surface with no
+ * edge between them — not because the charts were grey. Depth was the missing
+ * thing, and it costs no saturation.
+ */
+export const SURFACE = {
+  well: "#eeece4",
+  paper: "#f7f6f3",
+  card: "#fdfdfb",
+};
+
 // Chart chrome (light mode). Chrome is deliberately darker than the validated
 // hairline defaults so lines and labels read clearly on the light surface.
 export const INK = {
@@ -97,3 +110,21 @@ export const ACCENT = "#c01023";
 export const DIVERGE_WARM = ACCENT;
 export const DIVERGE_COOL = GENRE_COLORS.Drama;
 export const DIVERGE_MID = "#eceae3";
+
+/**
+ * UI state, deliberately without hue.
+ *
+ * ACCENT is GENRE_COLORS.Horror. When an active toggle also painted itself
+ * crimson, the same colour meant "this control is on" and "this film is
+ * Horror" a few centimetres apart in the sidebar, and a crimson selection ring
+ * vanished against a crimson Horror mark. Ink separates the two with no new hue
+ * to defend against the five genre slots.
+ *
+ * Crimson stays on DATA only: genre identity, the diverging ramp, the heart.
+ */
+export const UI = {
+  active: "#232220",
+  activeText: "#f7f6f3",
+  /** Selection outline. Ink, so it reads on a mark of any genre colour. */
+  selected: "#0b0b0b",
+};
