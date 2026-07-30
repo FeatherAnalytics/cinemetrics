@@ -106,6 +106,12 @@ def append_to_slices(rows: list[dict[str, str]]) -> None:
     the backfill ran. A failure here must NOT hold the watch back: the film is
     fully enriched either way, and backfill_poster_slices.py is idempotent, so a
     missing slice is repaired on the next run rather than lost.
+
+    That is why the WRITE is guarded as well as the fetch. main() calls this
+    before append_to_log, so anything raising in here aborts the run before the
+    watch reaches film_log.csv, and the RSS feed will not offer that watch again
+    once it scrolls off. Losing a watch to protect a stripe is the wrong trade,
+    and the seed is unharmed either way because append_rows is atomic.
     """
     new: list[dict[str, str]] = []
     for row in rows:
@@ -116,9 +122,14 @@ def append_to_slices(rows: list[dict[str, str]]) -> None:
             continue
         if encoded:
             new.append({"tmdb_id": row["tmdb_id"], "slice": encoded})
-    if new:
+    if not new:
+        return
+    try:
         append_rows(SLICES_PATH, new, SLICE_CSV_COLUMNS, strict=True)
-        print(f"  appended {len(new)} poster slices")
+    except Exception as e:  # noqa: BLE001
+        print(f"  WARNING: poster slice append failed for {len(new)} films: {e}")
+        return
+    print(f"  appended {len(new)} poster slices")
 
 
 def append_to_log(watches: list[dict]) -> None:
