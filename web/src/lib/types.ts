@@ -129,10 +129,10 @@ export type EnrichedWatch = Watch & {
    * otherwise the value carried by another watch of the SAME FILM.
    *
    * Because hearting is one toggle per film rather than per viewing, a sheet-era
-   * row whose film was watched again later is not unknown at all. That recovers 31
-   * of the 129 rows and moves the affection rate from 46.3% to 47.3%.
+   * row whose film was watched again later is not unknown at all. That recovers 32
+   * of the 129 rows and moves the affection rate from 46.2% to 47.1%.
    *
-   * Still null for the 98 rows whose films were never watched again, so this is
+   * Still null for the 97 rows whose films were never watched again, so this is
    * narrower than `liked` in meaning and wider in coverage. Rates use THIS field;
    * `liked` stays exactly as the pipeline recorded it.
    *

@@ -14,8 +14,8 @@ import type { EnrichedWatch, Watch } from "./types";
  * sheet-era row recoverable whenever the same film was watched again later: the
  * value is not missing, it is sitting on another row.
  *
- * 31 of the 129 unknown rows come back this way, across 27 films, and the
- * affection rate moves from 46.3% to 47.3%. The remaining 98 belong to 96 films
+ * 32 of the 129 unknown rows come back this way, across 28 films, and the
+ * affection rate moves from 46.2% to 47.1%. The remaining 97 belong to 95 films
  * never watched again, and stay unknown.
  *
  * MUST be built from the FULL watch list, never a filtered one. Filtered to 2019
@@ -43,7 +43,7 @@ export function filmHearts(watches: Watch[]): Map<number, boolean> {
  * rate by about 7.5 points, so every rate in here divides by `known` and never by
  * the full watch list.
  *
- * Reads `heart` rather than raw `liked`, so the 31 rows recoverable from a later
+ * Reads `heart` rather than raw `liked`, so the 32 rows recoverable from a later
  * watch of the same film count as the evidence they are.
  */
 export function hasKnownLike(w: EnrichedWatch): boolean {
@@ -123,7 +123,7 @@ export function starBinIndex(rating: number): number {
  *
  * Unrated watches are dropped rather than bucketed: there is no bin for "no
  * rating" on a rating axis, and in this dataset the question never comes up
- * anyway, since all 696 known-heart watches carry a rating.
+ * anyway, since all 698 known-heart watches carry a rating.
  */
 export function byStarBin(watches: EnrichedWatch[]): EnrichedWatch[][] {
   const out: EnrichedWatch[][] = STAR_BINS.map(() => []);
@@ -140,10 +140,10 @@ export function byStarBin(watches: EnrichedWatch[]): EnrichedWatch[][] {
  *
  * The all-ratings twin of `byStarBin`, which filters to known-heart watches
  * because the rates built on it divide by that subset. A distribution of my
- * ratings must not: dropping the 98 unknown-heart rows would redraw the shape of
+ * ratings must not: dropping the 97 unknown-heart rows would redraw the shape of
  * the library to suit a column the chart is not about.
  *
- * Counts WATCHES rather than films, matching the stat bar's 794 and every other
+ * Counts WATCHES rather than films, matching the stat bar's 795 and every other
  * count on the page. A rewatched film contributed each of those ratings.
  */
 export function ratingsByStarBin(watches: EnrichedWatch[]): EnrichedWatch[][] {

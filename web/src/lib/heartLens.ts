@@ -30,7 +30,7 @@ export function heartPalette(
 /**
  * Unknown, which is NOT "not liked".
  *
- * 98 watches recorded no heart and belong to films never watched again, so there
+ * 97 watches recorded no heart and belong to films never watched again, so there
  * is nothing to recover them from. Painting them blue would assert a fact about
  * the sheet era that the sheet era simply never recorded.
  *
@@ -120,7 +120,7 @@ type HeartShare = { liked: number; n: number; rate: number };
  * The share of a group of watches that carry the heart, over the known ones only.
  *
  * Divides by watches whose heart is KNOWN, never by the group size, which is the
- * invariant every rate in this project holds: 98 watches recorded nothing, and
+ * invariant every rate in this project holds: 97 watches recorded nothing, and
  * counting them as "not liked" understates the rate by about seven points.
  *
  * Returns null below `minKnown`. A country with two known watches produces 0% or
