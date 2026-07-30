@@ -7,6 +7,7 @@ import { computeTravelStats, ratioLabel, signedLabel } from "@/lib/travelStats";
 import { TravelSmallMultiple } from "./TravelSmallMultiple";
 import { TravelComparison } from "./TravelComparison";
 import { TravelCallout } from "./TravelCallout";
+import { TravelMarkerLab } from "./TravelMarkerLab";
 
 /**
  * The unlisted surface behind `/lab`: prototypes under review, before one of them
@@ -171,6 +172,45 @@ export function Lab({ data }: { data: Dataset }) {
             </p>
           </section>
         ))}
+
+        {/* Section 4 is not a fourth presentation of the travel finding, so it is
+            rendered here rather than added to `prototypes`: its question is which
+            MARK a flown watch should take, and "against it" is the wrong footer
+            for a comparison that exists to be inconclusive until the owner picks. */}
+        <section id="markers">
+          <div className="mb-4">
+            <h2 className="font-display text-xl font-bold" style={{ color: tokens.ink.primary }}>
+              <span
+                className="font-mono text-sm tabular-nums"
+                style={{ color: tokens.ink.muted }}
+              >
+                4.
+              </span>{" "}
+              Travel marker comparison
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
+              Whether a plane silhouette can replace the dart. Three candidates at three sizes and
+              all three leg angles, then the same three in a real field of dots. Nothing here is
+              wired to the swim lane; the dart ships until this is decided.
+            </p>
+          </div>
+
+          <div
+            className="rounded-sm p-5"
+            style={{ background: tokens.surface.card, border: `1px solid ${tokens.ink.grid}` }}
+          >
+            <TravelMarkerLab data={data} />
+          </div>
+
+          <p className="mt-3 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
+            <span className="font-bold">What to look for:</span> not which shape is prettiest in
+            isolation, but what 21 marks of that shape do to a field of {stats.ordinary.watches}{" "}
+            dots. A silhouette that only resolves at r 7 has lost, because r 5 is what ships. The
+            weight figures under the grid are measured rather than judged by eye, and they
+            contradict the usual complaint: at r 5 every candidate covers less ink than the dot it
+            replaces.
+          </p>
+        </section>
       </div>
     </div>
   );
