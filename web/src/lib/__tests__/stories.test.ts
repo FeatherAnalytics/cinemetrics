@@ -1,8 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { CHART_SECTIONS } from "@/components/ExplorerApp";
-import { chartSetFor, computeStoryHeadlines, STORIES, swapsChartSet } from "../stories";
+import dataset from "../../../public/data/cinemetrics.json";
+import {
+  chartSetFor,
+  computeStoryHeadlines,
+  STORIES,
+  storyTeaser,
+  swapsChartSet,
+  TEASER_MAX,
+} from "../stories";
 import { FOUR_FAVS } from "../fourFavs";
-import type { EnrichedWatch, Film } from "../types";
+import { filmHearts } from "../likedChart";
+import type { Dataset, EnrichedWatch, Film } from "../types";
 
 function makeFilm(overrides: Partial<Film> = {}): Film {
   return {
@@ -323,5 +332,81 @@ describe("heart", () => {
     // The curve, the tie and the cohort charts print their own numbers, so a note
     // on any of them is the same finding twice.
     expect(Object.keys(r.notes ?? {}).sort()).toEqual(["favposters", "heartpredictors"]);
+  });
+});
+
+describe("storyTeaser", () => {
+  it("gives every story a teaser short enough to sit on a chip", () => {
+    for (const s of STORIES) {
+      const teaser = storyTeaser(s.id);
+      expect(teaser, `${s.id} has no teaser`).toBeTruthy();
+      expect(teaser!.length, `${s.id} teaser is too long`).toBeLessThanOrEqual(48);
+    }
+  });
+
+  it("has no teaser for an id that is not a story", () => {
+    expect(storyTeaser("no-such-story")).toBeUndefined();
+  });
+});
+
+/**
+ * The teasers a reader actually sees, measured off the committed dataset.
+ *
+ * The test above runs every story against NO data, so it only ever sees the
+ * degraded headlines. Those are short by construction and prove nothing about
+ * the real ones — "84 double-feature days, 4 films at peak" is the string that
+ * has to fit a chip, and it exists only once there are watches to count.
+ */
+describe("storyTeaser against the real dataset", () => {
+  const data = dataset as unknown as Dataset;
+  const byId = new Map(data.films.map((f) => [f.tmdb_id, f]));
+  const hearts = filmHearts(data.watches);
+  // Mirrors the enrichment in `ExplorerProvider`. `yearFrac` is only read by the
+  // swim lane's x position, never by a story, so it is not reproduced here.
+  const all: EnrichedWatch[] = data.watches.map((w) => ({
+    ...w,
+    film: byId.get(w.tmdb_id),
+    d: new Date(w.date + "T00:00:00Z"),
+    yearFrac: 0,
+    heart: w.liked ?? hearts.get(w.tmdb_id) ?? null,
+  }));
+
+  const results = STORIES.map((s) => ({
+    id: s.id,
+    result: s.compute(data.films, all, data.watchlist ?? []),
+  }));
+
+  const figures = (s: string) => (s.match(/\d+(?:\.\d+)?/g) ?? []);
+
+  it("fits every real teaser on a chip", () => {
+    for (const { id, result } of results) {
+      const teaser = storyTeaser(id, result);
+      expect(teaser, `${id} has no teaser`).toBeTruthy();
+      expect(teaser!.length, `${id}: ${teaser}`).toBeLessThanOrEqual(TEASER_MAX);
+    }
+  });
+
+  it("states a finding rather than selling the click", () => {
+    // A teaser that says "see", "find out" or "explore" is an invitation, and the
+    // chip is already the invitation. The second line has to carry the answer.
+    for (const { id, result } of results) {
+      expect(storyTeaser(id, result), id).not.toMatch(
+        /\b(see|explore|discover|find out|check out|take a look)\b/i,
+      );
+    }
+  });
+
+  it("quotes no figure the story's own annotations do not carry", () => {
+    // The guard against the two drifting apart. Every number on the chip has to
+    // appear in the headline, subtext or chart notes computed in the same pass,
+    // so a teaser cannot be edited into disagreeing with the chart it points at.
+    for (const { id, result } of results) {
+      const annotated = figures(
+        [result.headline, result.subtext ?? "", ...Object.values(result.notes ?? {})].join(" "),
+      );
+      for (const n of figures(storyTeaser(id, result)!)) {
+        expect(annotated, `${id} teaser quotes ${n}, which no annotation states`).toContain(n);
+      }
+    }
   });
 });
