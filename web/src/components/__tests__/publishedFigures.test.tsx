@@ -90,6 +90,7 @@ const REQUIRED: Record<string, string[]> = {
     // panel below them draws, which is exactly the pairing that lets copy and
     // chart drift apart without either looking wrong on its own.
     "ratioLabel(stats.filmsPerDayRatio)",
+    "ratioLabel(stats.multiFilmRatio)",
     "stats.travel.filmsPerDay.toFixed(2)",
     // The span the grad school section is about, in the prose above the chart.
     // The chart's own band label already derives it, so a literal here is one

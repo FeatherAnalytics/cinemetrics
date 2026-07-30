@@ -162,6 +162,37 @@ describe("what the trim was allowed to remove and what it was not", () => {
     expect(text).toContain("refusing the causal reading");
   });
 
+  /**
+   * A caveat belongs to the panel it sits under, and may not argue with it.
+   *
+   * The two travel panels present the same three measures, so a sentence
+   * written for one of them reads as plausible under the other and lands as an
+   * assertion about a chart it was never measuring. The comparison's caveat is
+   * the exposed one: two of its three panels carry a real effect and the third
+   * is a null result, and a caveat that borrowed the null result's subject
+   * would be denying the largest finding on the page directly beneath the bars
+   * that show it.
+   *
+   * So the caveat has to NAME the multi-film ratio, from the same call the
+   * panel draws it from. A sentence that reaches for the null result instead
+   * cannot also carry that figure.
+   */
+  it("keeps the comparison's caveat about the comparison, finding intact", () => {
+    const { container } = mount();
+    const paragraphs = [...container.querySelectorAll("section#comparison p")];
+    const caveat = collapse(paragraphs[paragraphs.length - 1]?.textContent);
+    expect(caveat).toContain("Against it:");
+    // Guards the assertion below: naming a ratio only settles anything while
+    // the ratio is an effect, and at 1.0x the caveat would want rewriting.
+    expect(stats.multiFilmRatio).toBeGreaterThan(1);
+    expect(caveat).toContain(ratioLabel(stats.multiFilmRatio));
+
+    // Null results on this page are stated by looking the answer up, never by
+    // writing one out, so the phrasing that would talk a chart down may not
+    // appear anywhere at all.
+    expect(collapse(container.textContent)).not.toMatch(/no meaningful difference/i);
+  });
+
   it("keeps the caveats the grad school section exists for", () => {
     const text = collapse(mount().container.textContent);
     expect(text).toContain("It is not evidence that school did it");

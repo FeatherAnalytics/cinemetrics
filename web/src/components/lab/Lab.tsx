@@ -72,8 +72,14 @@ export function Lab({ data }: { data: Dataset }) {
       aim: `Travel days against ordinary days on the measures that answer: ${ratioLabel(
         stats.filmsPerDayRatio,
       )} more films, ratings unchanged.`,
-      caveat:
-        "The rating panel uses most of the ink to say that there is no meaningful difference in days with multiple viewings compared to travel and non-travel days.",
+      // The caveat has to be about THIS panel and has to leave its finding
+      // standing. Three measures, and the ratio it names is the largest effect
+      // anywhere on the page, so a sentence talking any of them down would be
+      // arguing with the chart directly above it. What is genuinely against the
+      // presentation is where the ink goes.
+      caveat: `Three panels at equal weight, and the null result takes the most ink: the rating gap needs two whiskers and a paragraph explaining what a whisker is, while the ${ratioLabel(
+        stats.multiFilmRatio,
+      )} above it gets a bar pair and one line. Ink here follows how hard a measure is to draw, not how much it says.`,
       Chart: () => <TravelComparison stats={stats} />,
     },
     {
