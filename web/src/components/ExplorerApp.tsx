@@ -618,9 +618,13 @@ function Explorer() {
 
         {/* One panel, two lives: a sticky sidebar at lg, a slide-in drawer below it. */}
         <aside
+          /* rail-column rather than a desktop width class of its own: /lab draws
+             the same column beside the same content, and the two pages only line
+             up if one rule sets the width for both. See --rail-width in
+             globals.css. */
           className={`fixed inset-y-0 left-0 z-50 w-[86%] max-w-sm transform overflow-y-auto p-4 shadow-xl transition-transform duration-300 lg:static lg:z-auto lg:mb-0 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:p-0 lg:shadow-none ${
             drawerOpen ? "translate-x-0" : "-translate-x-full"
-          } ${collapsed ? "lg:hidden" : "lg:w-72"} bg-[var(--surface-paper)] lg:bg-transparent`}
+          } ${collapsed ? "lg:hidden" : "rail-column"} bg-[var(--surface-paper)] lg:bg-transparent`}
           /* Opaque only as a drawer. At lg the aside is a flex child that
              stretches to the height of the chart column beside it, so a
              background here painted a tall block below the panel's own card.

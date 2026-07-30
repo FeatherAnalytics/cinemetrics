@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import dataset from "../../../public/data/cinemetrics.json";
 import { TravelComparison } from "@/components/lab/TravelComparison";
@@ -124,6 +124,92 @@ describe("the travel prototypes agree with each other", () => {
       render(<P stats={stats} />).container.querySelectorAll("svg path").length;
     expect(darts(TravelCallout)).toBe(stats.travel.days);
     expect(darts(TravelComparison)).toBe(0);
+  });
+
+  /**
+   * The comparison's hover readout. The panel's own labels round: 2.10 sits at
+   * the end of a bar and 74 at the end of a whisker, and nothing on the face of
+   * it says how many days or how wide the interval is. That is what the tooltip
+   * is for, so these assert the EXACT figures rather than that a box appeared.
+   */
+  describe("the comparison's hover readout", () => {
+    const tips = (container: HTMLElement) =>
+      [...container.querySelectorAll(".pointer-events-none")].map((el) =>
+        (el.textContent ?? "").replace(/\s+/g, " "),
+      );
+
+    /** Panel 0 films per day, 1 the multi-film share, 2 the rating intervals. */
+    const hoverRow = (panel: number, row: 0 | 1) => {
+      const { container } = render(<TravelComparison stats={stats} />);
+      const svg = container.querySelectorAll("svg")[panel];
+      // ROW_H is 34, so the second row starts at 34. x is ignored by the hit
+      // test, which reads the pointer's y and nothing else.
+      fireEvent.mouseMove(svg, { clientX: 200, clientY: row === 0 ? 10 : 45 });
+      return { container, text: tips(container)[0] ?? "" };
+    };
+
+    it("shows nothing until the pointer is over a panel", () => {
+      const { container } = render(<TravelComparison stats={stats} />);
+      expect(tips(container)).toHaveLength(0);
+    });
+
+    it("gives the films-per-day row its counts, not just its bar", () => {
+      const { travel, ordinary } = stats;
+      expect(hoverRow(0, 0).text).toBe(
+        `Travel days${travel.filmsPerDay.toFixed(2)} a day · ${travel.watches} watches, ${travel.days} days`,
+      );
+      expect(hoverRow(0, 1).text).toBe(
+        `Ordinary days${ordinary.filmsPerDay.toFixed(2)} a day · ${ordinary.watches} watches, ${ordinary.days} days`,
+      );
+    });
+
+    it("gives the multi-film row the days behind the percentage", () => {
+      const { travel } = stats;
+      expect(hoverRow(1, 0).text).toContain(
+        `${travel.multiFilmDays} of ${travel.days} days`,
+      );
+      expect(hoverRow(1, 1).text).toContain(
+        `${stats.ordinary.multiFilmDays} of ${stats.ordinary.days} days`,
+      );
+    });
+
+    it("spells out the interval on the rating panel, which is its whole point", () => {
+      const { travel } = stats;
+      const half = 1.96 * travel.seRating;
+      const text = hoverRow(2, 0).text;
+      expect(text).toContain(travel.meanRating.toFixed(1));
+      expect(text).toContain(`${(travel.meanRating - half).toFixed(1)} to`);
+      expect(text).toContain((travel.meanRating + half).toFixed(1));
+      expect(text).toContain(`median ${travel.medianRating}`);
+    });
+
+    it("stays on screen and out of the pointer's way", () => {
+      const { container } = hoverRow(0, 0);
+      const tip = container.querySelector<HTMLElement>(".pointer-events-none");
+      // jsdom lays nothing out, so the figure measures zero and the barcode's
+      // clamp pins the box flush left at its 4px gutter. A box centered on the
+      // pointer instead would sit at 108, which is off a figure this wide.
+      expect(tip?.style.left).toBe("4px");
+      expect(tip?.className).toContain("absolute");
+    });
+
+    it("drops the readout when the pointer leaves the panel", () => {
+      const { container } = render(<TravelComparison stats={stats} />);
+      const svg = container.querySelectorAll("svg")[0];
+      fireEvent.mouseMove(svg, { clientX: 200, clientY: 10 });
+      expect(tips(container)).toHaveLength(1);
+      fireEvent.mouseLeave(svg);
+      expect(tips(container)).toHaveLength(0);
+    });
+
+    it("answers below the last row with nothing, rather than with the near row", () => {
+      // The axis strip under the bars belongs to neither side. A hit test that
+      // clamped instead of returning nothing would put "Ordinary days" up while
+      // the pointer sat on the tick labels.
+      const { container } = render(<TravelComparison stats={stats} />);
+      fireEvent.mouseMove(container.querySelectorAll("svg")[0], { clientX: 200, clientY: 80 });
+      expect(tips(container)).toHaveLength(0);
+    });
   });
 
   it("names every travel film in the callout, which is the only panel that can", () => {

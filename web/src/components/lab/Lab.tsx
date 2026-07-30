@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 import type { Dataset } from "@/lib/types";
-import { computeTravelStats, ratioLabel, signedLabel } from "@/lib/travelStats";
+import { computeTravelStats, ratioLabel } from "@/lib/travelStats";
 import { computeEraStats } from "@/lib/gradSchool";
 import { GradSchoolEra } from "./GradSchoolEra";
+import { LabRail } from "./LabRail";
 import { TravelComparison } from "./TravelComparison";
 import { TravelCallout } from "./TravelCallout";
 
@@ -35,11 +36,20 @@ import { TravelCallout } from "./TravelCallout";
  * different number and turn a comparison of presentations into a comparison of
  * arithmetic. Everything here reads library-wide figures from one
  * `computeTravelStats` or `computeEraStats` call, so no two sections can disagree.
+ *
+ * There IS a left column, and that is not a reversal of the paragraph above. The
+ * landing page seats its content beside a 18rem rail, so a page without one starts
+ * against the margin and reads as somewhere else; `LabRail` takes that geometry
+ * and fills it with the page's figures and its section list, which are readouts
+ * and not controls. The pages line up and the 21 watches stay 21.
+ *
+ * SECTIONS ARE NOT NUMBERED, and their order is arrival, not strength. The main
+ * page numbers nothing, and a rank in the heading would invite renumbering the
+ * page every time a figure moved.
  */
 
 type Prototype = {
   id: string;
-  n: number;
   title: string;
   /** One line on what the presentation is TRYING to be. */
   aim: string;
@@ -56,29 +66,35 @@ export function Lab({ data }: { data: Dataset }) {
   const prototypes: Prototype[] = [
     {
       id: "comparison",
-      n: 1,
       title: "Comparison",
-      aim: `Travel days against ordinary days on the measures that answer. The headline is ${ratioLabel(
+      aim: `Travel days against ordinary days on the measures that answer: ${ratioLabel(
         stats.filmsPerDayRatio,
       )} more films, ratings unchanged.`,
       caveat:
-        "Three measures, two marks each. Six marks is a table with a scale drawn on it, and the rating panel spends the most ink of the three on saying that nothing happened. That is the right thing to say and an expensive way to say it.",
+        "Six marks is a table with a scale drawn on it, and the rating panel spends the most ink of the three on saying that nothing happened. That is the right thing to say and an expensive way to say it.",
       Chart: () => <TravelComparison stats={stats} />,
     },
     {
       id: "callout",
-      n: 2,
       title: "Callout",
       aim: "No axes. The trips named, the films listed, the figures inline. The cheaper of the two.",
       caveat:
-        "Prose does not scale and does not compare. It cannot show the ordinary-day baseline as anything but a number in a sentence, and if a reader wants to know whether 2.10 is a lot, this panel can only assert that it is.",
+        "Prose does not compare. The ordinary-day baseline can only be a number in a sentence, so a reader asking whether 2.10 is a lot has nothing but this panel's word for it.",
       Chart: () => <TravelCallout stats={stats} />,
     },
   ];
 
+  const sections = [
+    ...prototypes.map(({ id, title }) => ({ id, title })),
+    { id: "grad-school", title: "The grad school years" },
+  ];
+
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-10">
-      <header className="mb-10">
+    // The landing page's shell, to the pixel: same max width, same padding, same
+    // rail-then-content flex. Two pages that share a rail and not a container
+    // would line their rails up and none of the content beside them.
+    <main className="mx-auto w-full max-w-7xl px-6 py-10">
+      <header className="mb-6">
         <p
           className="font-mono text-xs tracking-[0.2em] uppercase"
           style={{ color: tokens.ink.muted }}
@@ -86,136 +102,92 @@ export function Lab({ data }: { data: Dataset }) {
           Unlisted · permanent
         </p>
         <h1
-          className="font-display text-3xl font-bold tracking-tight"
+          className="font-display text-4xl font-bold tracking-tight"
           style={{ color: tokens.ink.primary }}
         >
           The lab
         </h1>
-        <p className="mt-3 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-          Work that has not earned a place on the main page. Some of it is a finding still
-          choosing how to be drawn, and some of it is a number that wants more data behind it
-          before it means much. Sections leave when they are decided, promoted or deleted.
-          Nothing links here and nothing will.
+        <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
+          Work that has not earned a place on the main page: a finding still choosing how to be
+          drawn, or a number that wants more data behind it. Sections leave when they are decided,
+          promoted or deleted. Nothing links here.
         </p>
       </header>
 
-      {/* The claim, and the non-claim, stated once so neither travel panel has to
-          carry the whole caveat on its own. Scoped to those two in the heading,
-          because section 3 is not about flying and a bare "the finding"
-          at the top of the page would read as governing them too. */}
-      <div
-        className="mb-12 border-t border-b py-4"
-        style={{ borderColor: tokens.ink.grid }}
-      >
-        <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="font-bold" style={{ color: tokens.ink.primary }}>
-              The travel finding, for sections 1 and 2
-            </dt>
-            <dd className="mt-0.5" style={{ color: tokens.ink.secondary }}>
-              {ratioLabel(stats.filmsPerDayRatio)} more films per day in the air, and a flight day
-              is {ratioLabel(stats.multiFilmRatio)} likelier to hold more than one film.{" "}
-              {stats.travel.watches} watches over {stats.travel.days} days.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-bold" style={{ color: tokens.ink.primary }}>
-              Not a travel finding
-            </dt>
-            <dd className="mt-0.5" style={{ color: tokens.ink.secondary }}>
-              {stats.ratingGapIsNoise ? (
-                <>
-                  The rating does not move. {signedLabel(stats.ratingDiff)} points, interval{" "}
-                  {signedLabel(stats.ratingDiffCi[0])} to {signedLabel(stats.ratingDiffCi[1])},
-                  both medians {stats.travel.medianRating}. Neither panel may imply I rate a film
-                  worse for having watched it on a plane.
-                </>
-              ) : (
-                <>
-                  The rating gap now sits outside its interval at{" "}
-                  {signedLabel(stats.ratingDiff)} points, so this caveat needs rewriting rather
-                  than repeating.
-                </>
-              )}
-            </dd>
-          </div>
-        </dl>
-      </div>
+      <div className="lg:flex lg:gap-8">
+        <LabRail sections={sections} stats={stats} eraStats={eraStats} />
 
-      {/* grid-cols-1 rather than a bare grid: an implicit track is max-content,
-          which would ask a chart how wide it wants to be while the chart is asking
-          the track the same question. See the note on useWidth. */}
-      <div className="grid grid-cols-1 gap-14">
-        {prototypes.map(({ id, n, title, aim, caveat, Chart }) => (
-          <section key={id} id={id}>
-            <div className="mb-4">
+        <div className="min-w-0 flex-1">
+          {/* grid-cols-1 rather than a bare grid: an implicit track is max-content,
+              which would ask a chart how wide it wants to be while the chart is asking
+              the track the same question. See the note on useWidth. */}
+          <div className="grid grid-cols-1 gap-12">
+            {prototypes.map(({ id, title, aim, caveat, Chart }) => (
+              <section key={id} id={id} className="scroll-mt-6">
+                <h2
+                  className="font-display text-lg font-semibold"
+                  style={{ color: tokens.ink.primary }}
+                >
+                  {title}
+                </h2>
+                <p className="mb-2 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
+                  {aim}
+                </p>
+
+                <div
+                  className="rounded-md border p-4"
+                  style={{
+                    background: "var(--surface-card)",
+                    borderColor: hairline(tokens.ink.primary, 9),
+                  }}
+                >
+                  <Chart />
+                </div>
+
+                <p className="mt-3 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
+                  <span className="font-bold">Against it:</span> {caveat}
+                </p>
+              </section>
+            ))}
+
+            {/* Also not a travel section, and not a presentation question either. It
+                is here because the honest answer is a null one, which is the third
+                kind of thing this page exists to hold: too thin to headline the main
+                page, and too easy to misread to leave undrawn. */}
+            <section id="grad-school" className="scroll-mt-6">
               <h2
-                className="font-display text-xl font-bold"
+                className="font-display text-lg font-semibold"
                 style={{ color: tokens.ink.primary }}
               >
-                <span className="font-mono text-sm tabular-nums" style={{ color: tokens.ink.muted }}>
-                  {n}.
-                </span>{" "}
-                {title}
+                The grad school years
               </h2>
-              <p className="mt-1 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-                {aim}
+              <p className="mb-2 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
+                I was in school from August 2023 to May 2025. Two rolling lines over the whole log,
+                rating and volume, on one time axis with the span shaded on both. Neither line does
+                anything at the shading, which is the finding.
               </p>
-            </div>
 
-            <div
-              className="rounded-sm p-5"
-              style={{ background: tokens.surface.card, border: `1px solid ${tokens.ink.grid}` }}
-            >
-              <Chart />
-            </div>
-
-            <p className="mt-3 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
-              <span className="font-bold">Against it:</span> {caveat}
-            </p>
-          </section>
-        ))}
-
-        {/* Also not a travel section, and not a presentation question either. It
-            is here because the honest answer is a null one, which is the third
-            kind of thing this page exists to hold: too thin to headline the main
-            page, and too easy to misread to leave undrawn. */}
-        <section id="grad-school">
-          <div className="mb-4">
-            <h2 className="font-display text-xl font-bold" style={{ color: tokens.ink.primary }}>
-              <span
-                className="font-mono text-sm tabular-nums"
-                style={{ color: tokens.ink.muted }}
+              <div
+                className="rounded-md border p-4"
+                style={{
+                  background: "var(--surface-card)",
+                  borderColor: hairline(tokens.ink.primary, 9),
+                }}
               >
-                3.
-              </span>{" "}
-              The grad school years
-            </h2>
-            <p className="mt-1 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-              I was in school from August 2023 to May 2025. Two rolling lines over the whole log,
-              rating and volume, on one time axis with the span shaded on both. Neither line does
-              anything at the shading, which is the finding and also the reason it needs the rest
-              of the section.
-            </p>
-          </div>
+                <GradSchoolEra stats={eraStats} />
+              </div>
 
-          <div
-            className="rounded-sm p-5"
-            style={{ background: tokens.surface.card, border: `1px solid ${tokens.ink.grid}` }}
-          >
-            <GradSchoolEra stats={eraStats} />
+              <p className="mt-3 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
+                <span className="font-bold">Why it is here and not on the main page:</span> the
+                section spends more words refusing the causal reading than stating the finding.
+                That is the right ratio and a bad fit for a page a stranger skims, because a null
+                result needs its method shown before it means anything. It also carries the
+                correction to a figure an earlier draft got wrong.
+              </p>
+            </section>
           </div>
-
-          <p className="mt-3 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
-            <span className="font-bold">Why it is here and not on the main page:</span> the
-            section spends more words refusing the causal reading than stating the finding, which
-            is the right ratio and a bad fit for a page a stranger skims. A null result needs its
-            method shown before it means anything, so most of what follows is about which window
-            each line uses and what the charts cannot establish. It also carries the correction to
-            a figure an earlier draft of this page got wrong.
-          </p>
-        </section>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

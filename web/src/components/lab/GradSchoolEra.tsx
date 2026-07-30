@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { hairline, useTheme, type Tokens } from "@/lib/theme";
 import { useWidth } from "@/lib/useWidth";
 import { fmt1 } from "@/lib/format";
+import { LabTip } from "./LabTip";
 import {
   GRAD_SCHOOL,
   monthLabel,
@@ -52,6 +53,16 @@ const MT = 28;
 const MB = 20;
 const LABEL_H = 10;
 
+/** "Mar 12, 2024", for a rating point, which closes on one watch. */
+function dayLabel(iso: string): string {
+  return new Date(iso + "T00:00:00Z").toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 /** A value axis rounded out to whole `step`s, so its ticks read as numbers. */
 function niceDomain(values: number[], step: number): [number, number] {
   return [
@@ -69,12 +80,19 @@ type Geometry = {
   years: { year: number; px: number }[];
 };
 
+/** One point on a rolling line, with the date the reader is shown for it. */
+type LinePoint = { time: number; value: number; label: string };
+
 /**
  * One line under the shared band.
  *
  * Takes the geometry rather than building it, which is what keeps the two panels
  * honest about sitting on one axis. Only the lower panel draws year labels: two
  * identical year rows stacked 150px apart is chrome repeated, not orientation.
+ *
+ * The hover readout snaps to the nearest point by x while the box follows the
+ * cursor. A rolling line is a value AT A DATE, and a tooltip placed at the raw
+ * pointer would report the point next to the one the marker is sitting on.
  */
 function RollingChart({
   title,
@@ -83,15 +101,18 @@ function RollingChart({
   domain,
   geo,
   tokens,
+  format,
   bandLabel = false,
   axis = false,
 }: {
   title: string;
   caption: string;
-  points: { time: number; value: number }[];
+  points: LinePoint[];
   domain: [number, number];
   geo: Geometry;
   tokens: Tokens;
+  /** The hovered value as the tooltip states it, units included. */
+  format: (v: number) => string;
   bandLabel?: boolean;
   axis?: boolean;
 }) {
@@ -99,6 +120,29 @@ function RollingChart({
   const [lo, hi] = domain;
   const y = (v: number) => MT + (1 - (v - lo) / (hi - lo)) * plotH;
   const bandTop = MT - (bandLabel ? LABEL_H : 0);
+  const svgRef = useRef<SVGSVGElement>(null);
+  // figW travels with the hover, off the same rect as the hit test, so the clamp
+  // is told the width the pointer was measured against and not a later one.
+  const [hover, setHover] = useState<{ x: number; y: number; figW: number; at: LinePoint } | null>(
+    null,
+  );
+
+  const at = (e: React.MouseEvent): typeof hover => {
+    const svg = svgRef.current;
+    if (!svg || points.length === 0) return null;
+    const rect = svg.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    let best = points[0];
+    let bestD = Infinity;
+    for (const p of points) {
+      const d = Math.abs(geo.x(p.time) - px);
+      if (d < bestD) {
+        bestD = d;
+        best = p;
+      }
+    }
+    return { x: px, y: e.clientY - rect.top, figW: rect.width, at: best };
+  };
 
   const d = points
     .map((p, i) => `${i === 0 ? "M" : "L"}${geo.x(p.time).toFixed(1)},${y(p.value).toFixed(1)}`)
@@ -112,83 +156,128 @@ function RollingChart({
       <p className="mb-1 text-[11px]" style={{ color: tokens.ink.muted }}>
         {caption}
       </p>
-      <svg width={geo.plotW + ML + MR} height={H} role="img" aria-label={`${title}. ${caption}`}>
-        <rect
-          x={geo.bandX0}
-          y={bandTop}
-          width={geo.bandX1 - geo.bandX0}
-          height={MT + plotH - bandTop}
-          fill={hairline(tokens.ink.primary, 7)}
-        />
-        {[geo.bandX0, geo.bandX1].map((bx) => (
-          <line
-            key={bx}
-            x1={bx}
-            y1={bandTop}
-            x2={bx}
-            y2={MT + plotH}
-            stroke={tokens.ink.axis}
-            strokeWidth={1}
+      {/* Relative, so the tooltip is placed against the plot rather than against
+          the section. The pointer offset is measured off this same box. */}
+      <div className="relative">
+        <svg
+          ref={svgRef}
+          width={geo.plotW + ML + MR}
+          height={H}
+          role="img"
+          aria-label={`${title}. ${caption}`}
+          onMouseMove={(e) => setHover(at(e))}
+          onMouseLeave={() => setHover(null)}
+        >
+          <rect
+            x={geo.bandX0}
+            y={bandTop}
+            width={geo.bandX1 - geo.bandX0}
+            height={MT + plotH - bandTop}
+            fill={hairline(tokens.ink.primary, 7)}
           />
-        ))}
-        {bandLabel && (
-          <text
-            x={(geo.bandX0 + geo.bandX1) / 2}
-            y={bandTop - 5}
-            textAnchor="middle"
-            fontSize={11}
-            fill={tokens.ink.secondary}
-          >
-            in school, {monthLabel(GRAD_SCHOOL.start)} to {monthLabel(GRAD_SCHOOL.end)}
-          </text>
-        )}
-
-        {[lo, hi].map((v) => (
-          <g key={v}>
+          {[geo.bandX0, geo.bandX1].map((bx) => (
             <line
-              x1={ML}
-              y1={y(v)}
-              x2={ML + geo.plotW}
-              y2={y(v)}
-              stroke={tokens.ink.grid}
-              strokeWidth={0.5}
+              key={bx}
+              x1={bx}
+              y1={bandTop}
+              x2={bx}
+              y2={MT + plotH}
+              stroke={tokens.ink.axis}
+              strokeWidth={1}
             />
-            <text
-              x={ML - 5}
-              y={y(v) + 3}
-              textAnchor="end"
-              fontSize={10}
-              fill={tokens.ink.muted}
-              className="tabular-nums"
-            >
-              {v}
-            </text>
-          </g>
-        ))}
-
-        <path
-          d={d}
-          fill="none"
-          stroke={tokens.ink.primary}
-          strokeWidth={1.5}
-          strokeLinejoin="round"
-        />
-
-        {axis &&
-          geo.years.map(({ year, px }) => (
-            <text
-              key={year}
-              x={px}
-              y={H - 5}
-              textAnchor="middle"
-              fontSize={10}
-              fill={tokens.ink.muted}
-              className="tabular-nums"
-            >
-              {year}
-            </text>
           ))}
-      </svg>
+          {bandLabel && (
+            <text
+              x={(geo.bandX0 + geo.bandX1) / 2}
+              y={bandTop - 5}
+              textAnchor="middle"
+              fontSize={11}
+              fill={tokens.ink.secondary}
+            >
+              in school, {monthLabel(GRAD_SCHOOL.start)} to {monthLabel(GRAD_SCHOOL.end)}
+            </text>
+          )}
+
+          {[lo, hi].map((v) => (
+            <g key={v}>
+              <line
+                x1={ML}
+                y1={y(v)}
+                x2={ML + geo.plotW}
+                y2={y(v)}
+                stroke={tokens.ink.grid}
+                strokeWidth={0.5}
+              />
+              <text
+                x={ML - 5}
+                y={y(v) + 3}
+                textAnchor="end"
+                fontSize={10}
+                fill={tokens.ink.muted}
+                className="tabular-nums"
+              >
+                {v}
+              </text>
+            </g>
+          ))}
+
+          <path
+            d={d}
+            fill="none"
+            stroke={tokens.ink.primary}
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+          />
+
+          {axis &&
+            geo.years.map(({ year, px }) => (
+              <text
+                key={year}
+                x={px}
+                y={H - 5}
+                textAnchor="middle"
+                fontSize={10}
+                fill={tokens.ink.muted}
+                className="tabular-nums"
+              >
+                {year}
+              </text>
+            ))}
+
+          {/* The marker, in ink and not in the accent: it is chrome. A rule the
+              full height of the plot rather than a dot alone, so the reader can see
+              which date the readout is quoting on a line this narrow. */}
+          {hover && (
+            <g>
+              <line
+                x1={geo.x(hover.at.time)}
+                x2={geo.x(hover.at.time)}
+                y1={MT}
+                y2={MT + plotH}
+                stroke={tokens.ink.axis}
+                strokeWidth={1}
+              />
+              <circle
+                cx={geo.x(hover.at.time)}
+                cy={y(hover.at.value)}
+                r={3}
+                fill={tokens.ink.primary}
+              />
+            </g>
+          )}
+        </svg>
+
+        {hover && (
+          <LabTip
+            x={hover.x}
+            y={hover.y}
+            figW={hover.figW}
+            figH={H}
+            title={hover.at.label}
+            detail={format(hover.at.value)}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -219,8 +308,19 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
     };
   }, [stats.pace, stats.rating, w]);
 
-  const ratingPoints = stats.rating.map((p) => ({ time: p.time, value: p.mean }));
-  const pacePoints = stats.pace.map((p) => ({ time: p.time, value: p.filmsPerMonth }));
+  // The label each point carries into its tooltip. The two lines are indexed
+  // differently, so they date differently: a rating point closes on a watch and
+  // names its day, a pace point closes on a month and names the month.
+  const ratingPoints = stats.rating.map((p) => ({
+    time: p.time,
+    value: p.mean,
+    label: dayLabel(p.date),
+  }));
+  const pacePoints = stats.pace.map((p) => ({
+    time: p.time,
+    value: p.filmsPerMonth,
+    label: monthLabel(p.key),
+  }));
 
   const [early, , span, after] = stats.neighbors;
   const { opens, closes, vsBefore, spanPaceRange, ratingStretch } = stats;
@@ -243,11 +343,12 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
           )}
           geo={geo}
           tokens={tokens}
+          format={(v) => `${v.toFixed(1)} mean over ${RATING_WATCHES} watches`}
           bandLabel
         />
         <RollingChart
           title="Films per month"
-          caption={`Trailing ${PACE_MONTHS} months. Different window, same axis, so the shading falls in the same place.`}
+          caption={`Trailing ${PACE_MONTHS} months. Different window, same axis and same shading.`}
           points={pacePoints}
           domain={niceDomain(
             pacePoints.map((p) => p.value),
@@ -255,6 +356,7 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
           )}
           geo={geo}
           tokens={tokens}
+          format={(v) => `${fmt1(v)} films a month, trailing ${PACE_MONTHS}`}
           axis
         />
       </div>
@@ -267,11 +369,10 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
         Two windows, because the two measures need different ones. Films per month is a rate over
         time, so it takes a {PACE_MONTHS} month window; the span is {stats.eraMonths} months, and a
         twenty-four month window would be wider than the thing it has to resolve and would come out
-        smooth across the shading whatever the viewing did. The rating takes a {RATING_WATCHES}{" "}
-        watch window instead, because a fixed stretch of days holds four watches in one month and
-        twelve in another, so a time-windowed rating would swing on how much I watched rather than
-        on how I rated it. Inside the span {RATING_WATCHES} watches covers three to seven months, so
-        that line could show a dip too.
+        smooth whatever the viewing did. The rating takes a {RATING_WATCHES} watch window instead: a
+        fixed stretch of days holds four watches in one month and twelve in another, so a
+        time-windowed rating would swing on how much I watched rather than on how I rated it.
+        Inside the span that is three to seven months, so this line could dip too.
       </p>
 
       <p className="mt-5 max-w-2xl text-sm font-bold" style={{ color: tokens.ink.primary }}>
@@ -282,23 +383,23 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
         {/* One decimal on both, not `fmt1`, which drops it on a whole number and
             would print "77.3 and 78" as though the two were measured differently. */}
         The rating line enters the span at {opens.meanRating.toFixed(1)} and leaves it at{" "}
-        {closes.meanRating.toFixed(1)}. It wanders in between, because {RATING_WATCHES} watches is a
-        narrow window and it wanders everywhere else in the log too. What is unusual is where it
-        ends up: across the span it travels {fmt1(ratingStretch.netDelta)} points net, quieter than{" "}
-        {calmerThan}% of the {ratingStretch.comparable} stretches of the same length in the log. The
-        climb that got it to {Math.round(opens.meanRating)} is finished before the shading starts,
-        running up from {fmt1(trough.mean)} in {trough.year}.
+        {closes.meanRating.toFixed(1)}. It wanders in between, as it does everywhere else in the
+        log, because {RATING_WATCHES} watches is a narrow window. What is unusual is where it ends
+        up: across the span it travels {fmt1(ratingStretch.netDelta)} points net, quieter than{" "}
+        {calmerThan}% of the {ratingStretch.comparable} stretches of the same length. The climb that
+        got it to {Math.round(opens.meanRating)} finishes before the shading starts, running up from{" "}
+        {fmt1(trough.mean)} in {trough.year}.
       </p>
 
       <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-        The pace line is not flat inside the span and it would be wrong to call it so. It falls to{" "}
+        The pace line is not flat inside the span. It falls to{" "}
         {fmt1(spanPaceRange.low.filmsPerMonth)} films a month by{" "}
         {monthLabel(spanPaceRange.low.key)} and recovers to{" "}
         {fmt1(spanPaceRange.high.filmsPerMonth)} by {monthLabel(spanPaceRange.high.key)}, finishing
-        higher than it began. What it does not do is break at either edge. The fall from the early
-        years is over before the span opens, and the steepest decline anywhere in the log comes
-        after it closes rather than during it: {fmt1(after.per30)} watches per 30 days in the twelve
-        months after, against {fmt1(span.per30)} inside.
+        higher than it began. What it does not do is break at either edge: the fall from the early
+        years is over before the span opens, and the steepest decline in the log comes after it
+        closes rather than during it, {fmt1(after.per30)} watches per 30 days in the twelve months
+        after against {fmt1(span.per30)} inside.
       </p>
 
       {/* The honest comparison, and the reason this section does not quote the
@@ -339,8 +440,7 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
           What this cannot do is show that nothing happened.
         </p>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-          A chart cannot establish an absence, and none of this proves school changed nothing about
-          how I watched. Set the span against the year on each side and{" "}
+          A chart cannot establish an absence. Set the span against the year on each side and{" "}
           {vsBefore.ratingIsNoise
             ? `the rating moves ${fmt1(vsBefore.ratingDiff)} points, inside what ${span.watches} watches can resolve`
             : `the rating moves ${fmt1(vsBefore.ratingDiff)} points, which is now large enough to read, so this sentence needs rewriting`}
@@ -353,7 +453,7 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
         </p>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
           An earlier draft of this section reported the span rating 5.0 points above everything
-          outside it. That was real arithmetic and a bad comparison: {early.watches} of the{" "}
+          outside it. Real arithmetic, bad comparison: {early.watches} of the{" "}
           {stats.outsideWatches} watches outside the span sit in the early years at a mean of{" "}
           {fmt1(early.meanRating)}, so the figure was mostly measuring the distance from 2019. Set
           against the years on either side, it goes away.

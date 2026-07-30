@@ -35,6 +35,25 @@
   color-scheme: dark;
 }
 
+/* The left column, shared by the landing page's filter rail and the lab's
+   section rail. Two different payloads, one geometry: the pages only read as
+   one site if the content column starts at the same x on both, so the width
+   lives here once instead of as a utility class each page could drift from.
+
+   A custom property and a media query rather than an inline style, because the
+   value is breakpoint-dependent: below lg neither page has a rail. The landing
+   page's aside is a drawer at that width and the lab's is a card in the flow,
+   so this rule deliberately says nothing about the small screen. */
+:root {
+  --rail-width: 18rem;
+}
+@media (min-width: 64rem) {
+  .rail-column {
+    width: var(--rail-width);
+    flex-shrink: 0;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

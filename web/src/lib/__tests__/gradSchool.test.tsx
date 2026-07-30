@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import dataset from "../../../public/data/cinemetrics.json";
 import { GradSchoolEra } from "@/components/lab/GradSchoolEra";
@@ -336,5 +336,77 @@ describe("what the section is required to print", () => {
   it("never spends the accent on era chrome", () => {
     const { container } = mount();
     expect(container.innerHTML).not.toMatch(/#c01023|#ff4757/i);
+  });
+
+  /**
+   * The hover readout, which is what makes a wandering line legible without
+   * smoothing it. jsdom has no layout, so every rect is zero wide and the hit
+   * test lands on the leftmost point of whichever line was hovered. That is
+   * enough to prove the parts under test: which SERIES answered, that it named a
+   * DATE and a VALUE, and that the box clamps on screen rather than hanging off
+   * the left edge the way an unclamped one would at x=0.
+   */
+  describe("the hover readout", () => {
+    const tip = (container: HTMLElement) =>
+      container.querySelector<HTMLElement>(".pointer-events-none");
+
+    it("shows nothing until the pointer is over a panel", () => {
+      expect(tip(mount().container)).toBeNull();
+    });
+
+    it("reads the rating line as a mean at a date", () => {
+      const { container } = mount();
+      const svg = container.querySelectorAll("svg")[0];
+      fireEvent.mouseMove(svg, { clientX: 0, clientY: 40 });
+      const text = (tip(container)?.textContent ?? "").replace(/\s+/g, " ");
+      // The first point of the rating line: the watch its 40-watch window closes
+      // on, and the mean over that window.
+      const first = stats.rating[0];
+      expect(text).toContain(first.mean.toFixed(1));
+      expect(text).toContain(`over ${RATING_WATCHES} watches`);
+      expect(text).toContain(String(Number(first.date.slice(8, 10))));
+      expect(text).toContain(first.date.slice(0, 4));
+    });
+
+    it("reads the pace line as a rate at a month, not as the rating", () => {
+      const { container } = mount();
+      const svg = container.querySelectorAll("svg")[1];
+      fireEvent.mouseMove(svg, { clientX: 0, clientY: 40 });
+      const text = (tip(container)?.textContent ?? "").replace(/\s+/g, " ");
+      const first = stats.pace[0];
+      expect(text).toContain("films a month");
+      expect(text).toContain(`trailing ${PACE_MONTHS}`);
+      // Two lines on one axis with two different windows: a readout that quoted
+      // the rating window here would be describing the panel above.
+      expect(text).not.toContain(`${RATING_WATCHES} watches`);
+      expect(text).toContain(String(first.filmsPerMonth % 1 === 0 ? first.filmsPerMonth : first.filmsPerMonth.toFixed(1)));
+    });
+
+    it("clamps the box inside the figure and leaves the marks alone", () => {
+      const { container } = mount();
+      const svg = container.querySelectorAll("svg")[0];
+      fireEvent.mouseMove(svg, { clientX: 0, clientY: 40 });
+      // jsdom lays nothing out, so the figure measures zero and the barcode's
+      // clamp pins the box flush left at its 4px gutter. Centered on the pointer
+      // it would start 92px left of the figure instead.
+      expect(tip(container)?.style.left).toBe("4px");
+      expect(tip(container)?.style.pointerEvents).not.toBe("auto");
+      // The marker is a rule and a dot, so the assertions above about two rects
+      // and one path per panel still hold while a tooltip is up.
+      expect(container.querySelectorAll("rect")).toHaveLength(2);
+      for (const s of container.querySelectorAll("svg")) {
+        expect(s.querySelectorAll("path")).toHaveLength(1);
+      }
+      expect(svg.querySelectorAll("circle")).toHaveLength(1);
+    });
+
+    it("drops the readout when the pointer leaves", () => {
+      const { container } = mount();
+      const svg = container.querySelectorAll("svg")[0];
+      fireEvent.mouseMove(svg, { clientX: 0, clientY: 40 });
+      expect(tip(container)).not.toBeNull();
+      fireEvent.mouseLeave(svg);
+      expect(tip(container)).toBeNull();
+    });
   });
 });

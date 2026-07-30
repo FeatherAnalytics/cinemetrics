@@ -64,13 +64,12 @@ export function TravelCallout({ stats }: { stats: TravelStats }) {
             against{" "}
             <span className="font-mono tabular-nums">{ratingLabel(ordinary.meanRating)}</span>, a
             gap of <span className="font-mono">{signedLabel(stats.ratingDiff)}</span> points on{" "}
-            <span className="font-mono tabular-nums">{travel.ratingN}</span> watches, which is
-            smaller than the standard error of{" "}
+            <span className="font-mono tabular-nums">{travel.ratingN}</span> watches, smaller than
+            the standard error of{" "}
             <span className="font-mono tabular-nums">{ratingLabel(stats.ratingDiffSe)}</span> that
             comes with it. Both medians are{" "}
-            <span className="font-mono tabular-nums">{travel.medianRating}</span>. There is no
-            finding here about flying making a film worse, only about how many of them fit in a
-            day.
+            <span className="font-mono tabular-nums">{travel.medianRating}</span>. No finding here
+            about flying making a film worse, only about how many fit in a day.
           </>
         ) : (
           <>
