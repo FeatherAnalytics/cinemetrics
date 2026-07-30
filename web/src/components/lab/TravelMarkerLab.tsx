@@ -11,21 +11,29 @@ import { useTheme, type Tokens } from "@/lib/theme";
 import type { Dataset } from "@/lib/types";
 
 /**
- * SECTION 4. Three candidate marks for a flown watch, at the sizes and angles the
- * swim lane would actually draw them.
+ * Three candidate marks for a flown watch, at the sizes and angles the swim lane
+ * actually draws them.
  *
- * The question is whether a plane silhouette can replace the dart. `planePath`'s
- * own doc comment argues it cannot, on the grounds that a fuselage, swept wings
- * and a tailplane merge into one blob "at the size these charts draw marks", and
- * cites the solstice sun's core at r 3.2. But `PlaneMarker` defaults to r 5, not
- * 3.2, so the argument was calibrated against a smaller mark than the one that
- * ships. That is worth re-examining rather than taking on trust, which is what
- * this section is for.
+ * THE QUESTION IS ANSWERED AND THIS SECTION IS DUE FOR DELETION. The owner picked
+ * the top-down silhouette at r 5, and `planePath` now draws it. What remains here
+ * is the record of the comparison, kept only until the page is next edited. A
+ * decision aid outlives its usefulness the moment the decision is made; leaving it
+ * up turns a settled question back into an open one for the next reader.
  *
- * NOTHING HERE IS WIRED TO PRODUCTION. `travel.tsx` and `SwimLaneChart.tsx` are
- * untouched; the dart stays the shipping mark until the owner picks. The dart
- * shown here is the real `planePath` rather than a copy, so the candidate cannot
- * be compared against a stale duplicate of the thing it would replace.
+ * What it settled, in case this outlives the report:
+ *
+ * - The dart's old justification was measured against the wrong size. It argued a
+ *   silhouette's parts merge into a blob, citing r 3.2, but the mark ships at r 5,
+ *   where they resolve cleanly.
+ * - Fill at r 5: dart 0.57x an ordinary dot, top-down 0.70x, side profile 0.65x.
+ *   All three are LIGHTER than the dot they replace, so shape is cheap. Size is
+ *   not, and the default stayed at 5 for that reason.
+ * - The side profile lost because its fin and wing are ~2.5px at r 5 and do not
+ *   separate, and its asymmetry fights the return rotation.
+ *
+ * The shipping row carries `path: null` and renders the real `PlaneMarker`, so this
+ * comparison always shows what actually ships rather than a copy of it. The dart is
+ * a local duplicate because production no longer has that geometry to lend.
  */
 
 /**
@@ -72,48 +80,21 @@ export function pathArea(d: string): number {
 }
 
 /**
- * CANDIDATE A: a top-down airliner. Nose along +x, sized by `r` nose to center.
+ * THE RETIRED DART. Four points, nose along +x.
  *
- * Essentially the dart plus a tailplane and a chord on the wing, which is what
- * makes the ✈ glyph read as a plane and the dart read as an arrowhead. Twenty
- * points against the dart's four: a swept wing needs a leading edge, a tip chord
- * and a trailing edge before it stops looking like a triangle, and the tailplane
- * needs the same again at half the span.
- *
- * Symmetric about y=0, so it is the only candidate whose silhouette is unchanged
- * by the sign of the rotation.
+ * A local copy, and the only geometry here that is deliberately duplicated. It was
+ * `planePath` until the owner picked the top-down silhouette off this comparison;
+ * production no longer draws it, so this file has to carry it to keep showing what
+ * the change was FROM. Nothing else may use it.
  */
-export function topDownPath(cx: number, cy: number, r: number): string {
-  // Every tip is kept inside 1.01r. `r` is nose to center rather than a bounding
-  // radius, and the dart's own wingtips sit at 1.022r, but the grid lays its cells
-  // out on r, so a candidate reaching 1.2r would overlap the next size column and
-  // make the size comparison show something other than size.
-  const half: [number, number][] = [
-    [1.0, 0.0], // nose
-    [0.5, -0.14], // forward fuselage, full width
-    [0.15, -0.15], // wing leading edge, root
-    [-0.36, -0.9], // wing tip, leading
-    [-0.5, -0.86], // wing tip, trailing
-    [-0.25, -0.16], // wing trailing edge, root
-    [-0.6, -0.16], // aft fuselage
-    [-0.78, -0.46], // tailplane tip, leading
-    [-0.9, -0.44], // tailplane tip, trailing
-    [-0.97, -0.14], // tailplane root, trailing
-    [-1.0, 0.0], // tail cone
-  ];
+export function retiredDartPath(cx: number, cy: number, r: number): string {
   const pts: [number, number][] = [
-    ...half,
-    // Mirror everything but the nose and the tail cone, which sit on the axis.
-    ...half
-      .slice(1, -1)
-      .reverse()
-      .map(([x, y]) => [x, -y] as [number, number]),
+    [r, 0],
+    [-0.78 * r, -0.66 * r],
+    [-0.34 * r, 0],
+    [-0.78 * r, 0.66 * r],
   ];
-  return pathFrom(
-    pts.map(([x, y]) => [x * r, y * r] as [number, number]),
-    cx,
-    cy,
-  );
+  return pathFrom(pts, cx, cy);
 }
 
 /**
@@ -164,25 +145,27 @@ export type Variant = {
 export const VARIANTS: Variant[] = [
   {
     id: "dart",
-    label: "Dart (shipping)",
+    label: "Dart (retired)",
     points: 4,
-    note: "Four points. Says flight and direction, nothing else.",
-    // Null means "render the real PlaneMarker", so the shipping mark in this
-    // comparison is the shipping mark and not a copy of it.
-    path: null,
+    note: "Four points. Said flight and direction and nothing else, and read as an arrowhead rather than a plane. What the mark used to be.",
+    path: retiredDartPath,
   },
   {
     id: "top-down",
-    label: "Top-down silhouette",
+    label: "Top-down silhouette (shipping)",
     points: 20,
-    note: "The dart plus a tailplane and a wing chord. Symmetric, so the leg only tilts it.",
-    path: topDownPath,
+    note: "The dart plus a tailplane and a wing chord. Symmetric, so the leg only tilts it. Chosen, and now what `planePath` draws.",
+    // Null means "render the real PlaneMarker", so the shipping mark in this
+    // comparison is the shipping component and not a copy of it. That pointer moved
+    // from the dart to this row when the promotion landed, which is the whole
+    // record of the decision.
+    path: null,
   },
   {
     id: "side",
-    label: "Side profile",
+    label: "Side profile (rejected)",
     points: 14,
-    note: "Fin up, wing down. The only candidate whose shape itself says climbing or descending.",
+    note: "Fin up, wing down. Its fin and wing are each about 2.5px at r 5 and do not separate from the fuselage, and being asymmetric it fights the +35 return rotation.",
     path: sideProfilePath,
   },
 ];

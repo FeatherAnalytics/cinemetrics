@@ -68,38 +68,86 @@ const LEG_ANGLE: Record<TravelLeg, number> = {
 };
 
 /**
- * A dart, nose pointing along +x, sized by `r` (nose to center).
+ * A top-down airliner, nose pointing along +x, sized by `r` (nose to center).
  *
- * Deliberately not a plane. An accurate silhouette needs a fuselage, swept wings
- * and a tailplane resolved separately, and at the size these charts draw marks —
- * the solstice sun's core is r 3.2 in the swim lane — those three parts merge into
- * one blob. A four-point dart keeps the two things the mark has to say, that it is
- * a flight and which way it was going, at any size a dot is legible at.
+ * This was a four-point dart until the candidates were drawn side by side at true
+ * size behind `/lab`. The dart's justification was that a fuselage, swept wings and
+ * a tailplane "merge into one blob" at chart size, citing the solstice sun's core
+ * at r 3.2. That argument was measured against the wrong mark: `PlaneMarker`
+ * defaults to r 5, 56% larger, and at r 5 the three parts resolve cleanly. The
+ * silhouette reads as an aircraft; the dart read as an arrowhead.
+ *
+ * SIZE IS THE EXPENSIVE AXIS, NOT SHAPE, which is the other thing that comparison
+ * settled. Fill areas at r 5, against the 38.5 square pixels of the r 3.5 dot an
+ * ordinary watch draws:
+ *
+ *     dart          22.1 px2   0.57x a dot
+ *     this shape    26.9 px2   0.70x a dot
+ *
+ * Both are LIGHTER than the dot they replace. A flight is salient because it is
+ * wider (about 10 px across against the dot's 7) and never fades below 0.9 opacity
+ * where a dot averages 0.79, not because it carries more ink. So the 20 points here
+ * cost almost nothing, while raising `r` would cost real weight: at r 7 this shape
+ * reaches 1.37x a dot and starts to shout. Change the outline freely. Do not raise
+ * the default without measuring again.
+ *
+ * A SIDE PROFILE WAS TRIED AND REJECTED. Fin above, wing below, 14 points. Its fin
+ * and wing are each about 0.5r, which is 2.5 px at r 5, and they do not separate
+ * from the fuselage; it read as a lumpy wedge. Being asymmetric it also fought the
+ * +35 return rotation instead of reinforcing it. This shape is mirror-symmetric
+ * about its own axis, so the leg angle only ever tilts it.
+ *
+ * Every tip is kept inside 1.01r. `r` is nose to center and not a bounding radius
+ * (the old dart's wingtips sat at 1.022r), but callers lay marks out on `r`, so a
+ * wing reaching much past it would collide with its neighbors.
  */
 export function planePath(cx: number, cy: number, r: number): string {
+  // Half the outline, nose to tail along the upper side. The lower half is this
+  // mirrored, which is what guarantees the symmetry the leg rotation depends on.
+  const half: [number, number][] = [
+    [1.0, 0.0], // nose
+    [0.5, -0.14], // forward fuselage, full width
+    [0.15, -0.15], // wing leading edge, root
+    [-0.36, -0.9], // wing tip, leading
+    [-0.5, -0.86], // wing tip, trailing
+    [-0.25, -0.16], // wing trailing edge, root
+    [-0.6, -0.16], // aft fuselage
+    [-0.78, -0.46], // tailplane tip, leading
+    [-0.9, -0.44], // tailplane tip, trailing
+    [-0.97, -0.14], // tailplane root, trailing
+    [-1.0, 0.0], // tail cone
+  ];
+  // The nose and the tail cone sit on the axis, so they are not mirrored.
   const pts: [number, number][] = [
-    [r, 0],
-    [-0.78 * r, -0.66 * r],
-    [-0.34 * r, 0],
-    [-0.78 * r, 0.66 * r],
+    ...half,
+    ...half
+      .slice(1, -1)
+      .reverse()
+      .map(([x, y]) => [x, -y] as [number, number]),
   ];
   return (
     "M" +
-    pts.map(([dx, dy]) => `${(cx + dx).toFixed(2)},${(cy + dy).toFixed(2)}`).join("L") +
+    pts
+      .map(([dx, dy]) => `${(cx + dx * r).toFixed(2)},${(cy + dy * r).toFixed(2)}`)
+      .join("L") +
     "Z"
   );
 }
 
 /**
- * The mark for a watch flown rather than sat through: an ink dart, angled by leg.
+ * The mark for a watch flown rather than sat through: a plane, angled by leg.
  *
- * Ink and not the accent. Crimson is spent on genre identity and the heart, and
- * twenty crimson marks scattered through the lanes would read as twenty Horror
- * films. A silhouette is what a plane looks like anyway.
+ * `r` DEFAULTS TO 5 AND SHOULD STAY THERE. See `planePath`: the shape is cheap and
+ * the size is not. Every candidate at r 5 covers less ink than an ordinary dot,
+ * and r 7 covers 1.37x one.
  *
- * Follows `SunMarker`'s conventions: pointer handlers belong on the parent group,
- * and `color` defaults to the light constant so pure callers see stable output
- * while a chart passes the active theme's token.
+ * The default `color` is the light ink constant, so pure callers see stable output.
+ * Real charts pass the film's GENRE color rather than a token: the lane encodes
+ * genre in hue and rating in height, and an ink glyph would silently drop the first
+ * for every watch this mark takes over. The shape carries "flown", which leaves the
+ * hue free to go on meaning what it means everywhere else.
+ *
+ * Follows `SunMarker`'s conventions: pointer handlers belong on the parent group.
  */
 export function PlaneMarker({
   x,

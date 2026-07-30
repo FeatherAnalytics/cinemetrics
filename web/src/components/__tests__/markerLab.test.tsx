@@ -6,10 +6,10 @@ import {
   LEG_ANGLE,
   LEGS,
   pathArea,
+  retiredDartPath,
   SIZES,
   TravelMarkerLab,
   sideProfilePath,
-  topDownPath,
   VARIANTS,
 } from "@/components/lab/TravelMarkerLab";
 import { PlaneMarker, planePath, TRAVEL_DAYS, type TravelLeg } from "@/lib/travel";
@@ -31,8 +31,8 @@ describe("the candidate marker geometry", () => {
     // assumption `planePath` makes. A candidate whose nose sat anywhere else
     // would silently point the wrong way at every leg angle.
     for (const [name, path] of [
-      ["dart", planePath],
-      ["top-down", topDownPath],
+      ["retired dart", retiredDartPath],
+      ["shipping top-down", planePath],
       ["side profile", sideProfilePath],
     ] as const) {
       const first = coords(path(0, 0, 10))[0];
@@ -42,7 +42,7 @@ describe("the candidate marker geometry", () => {
   });
 
   it("scales linearly with r and translates with the center", () => {
-    for (const path of [topDownPath, sideProfilePath]) {
+    for (const path of [retiredDartPath, planePath, sideProfilePath]) {
       const at1 = coords(path(0, 0, 1));
       const at6 = coords(path(0, 0, 6));
       expect(at6.length).toBe(at1.length);
@@ -66,8 +66,8 @@ describe("the candidate marker geometry", () => {
     // other than size".
     const BOUND = 10 * 1.03;
     for (const [name, path] of [
-      ["dart", planePath],
-      ["top-down", topDownPath],
+      ["retired dart", retiredDartPath],
+      ["shipping top-down", planePath],
       ["side profile", sideProfilePath],
     ] as const) {
       const worst = Math.max(...coords(path(0, 0, 10)).map(([x, y]) => Math.hypot(x, y)));
@@ -78,7 +78,7 @@ describe("the candidate marker geometry", () => {
   it("builds the top-down silhouette symmetric about its own axis", () => {
     // The claim made on the page: the top-down view is the only candidate the leg
     // angle merely tilts, because its outline is mirror-symmetric.
-    const pts = coords(topDownPath(0, 0, 10));
+    const pts = coords(planePath(0, 0, 10));
     const ys = pts.map(([, y]) => y).sort((a, b) => a - b);
     for (let i = 0; i < ys.length; i++) {
       expect(ys[i]).toBeCloseTo(-ys[ys.length - 1 - i], 5);
@@ -96,16 +96,17 @@ describe("the candidate marker geometry", () => {
 
   it("keeps the silhouettes more detailed than the dart, as their labels claim", () => {
     const counts = {
-      dart: coords(planePath(0, 0, 10)).length,
-      "top-down": coords(topDownPath(0, 0, 10)).length,
+      dart: coords(retiredDartPath(0, 0, 10)).length,
+      "top-down": coords(planePath(0, 0, 10)).length,
       side: coords(sideProfilePath(0, 0, 10)).length,
     };
     expect(counts.dart).toBe(4);
     // The page prints a point count per variant. Asserted so the label cannot
     // drift away from the shape it describes.
     for (const v of VARIANTS) {
+      // `path: null` is the shipping row, which draws through PlaneMarker.
       const actual =
-        v.path == null ? counts.dart : coords(v.path(0, 0, 10)).length;
+        v.path == null ? counts["top-down"] : coords(v.path(0, 0, 10)).length;
       expect(actual, v.label).toBe(v.points);
     }
     expect(counts["top-down"]).toBeGreaterThan(counts.dart);
@@ -247,12 +248,29 @@ describe("the rendered comparison", () => {
 });
 
 describe("the section leaves production alone", () => {
-  it("renders the shipping dart through PlaneMarker itself, not a copy", () => {
-    // `path: null` is the marker for "use the real component". If a future edit
-    // gave the dart its own local path, the comparison would start measuring a
-    // duplicate against the thing it was duplicated from.
+  it("points `path: null` at whatever currently ships, and only at that", () => {
+    // `path: null` means "use the real PlaneMarker". Exactly one row may carry it,
+    // and it has to be the row labelled as shipping, or the comparison starts
+    // measuring a duplicate against the thing it was duplicated from.
+    //
+    // The pointer moved from the dart to the top-down row when the promotion
+    // landed. That move IS the record of the decision, so it is asserted rather
+    // than left to the label.
+    const shipping = VARIANTS.filter((v) => v.path == null);
+    expect(shipping).toHaveLength(1);
+    expect(shipping[0].id).toBe("top-down");
+    expect(shipping[0].label).toContain("shipping");
+
     const dart = VARIANTS.find((v) => v.id === "dart")!;
-    expect(dart.path).toBeNull();
+    expect(dart.path).toBe(retiredDartPath);
+    expect(dart.label).toContain("retired");
+  });
+
+  it("keeps the retired dart's geometry as it was, not as production draws now", () => {
+    // The point of still showing it. If this ever equalled `planePath` the page
+    // would be comparing the new mark against itself.
+    expect(retiredDartPath(0, 0, 5)).not.toBe(planePath(0, 0, 5));
+    expect(coords(retiredDartPath(0, 0, 5)).length).toBe(4);
   });
 
   it("draws the dart candidate identically to the shipping mark", () => {
@@ -262,6 +280,6 @@ describe("the section leaves production alone", () => {
     // First cell is r 5, first leg is depart, drawn at the cell's first mark slot.
     const legs: TravelLeg[] = LEGS;
     expect(legs[0]).toBe("depart");
-    expect(firstCellPath).toBe(planePath(58, 22, 5));
+    expect(firstCellPath).toBe(retiredDartPath(58, 22, 5));
   });
 });

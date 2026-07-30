@@ -105,14 +105,83 @@ describe("travelLeg", () => {
   });
 });
 
-describe("PlaneMarker", () => {
-  it("draws a four-point dart around the point it is given", () => {
+/** Every coordinate pair in a closed `M x,y L x,y ... Z` outline. */
+function coords(d: string): [number, number][] {
+  return (d.match(/-?[\d.]+,-?[\d.]+/g) ?? []).map((p) => {
+    const [x, y] = p.split(",").map(Number);
+    return [x, y] as [number, number];
+  });
+}
+
+describe("planePath", () => {
+  it("draws a closed twenty-point silhouette around the point it is given", () => {
+    // Was a four-point dart. The count is pinned because the doc comment quotes it
+    // as the price of the shape, and a comment quoting a number the code no longer
+    // produces is worse than no comment.
     const d = planePath(100, 50, 5);
-    expect(d.match(/L/g)?.length).toBe(3);
+    expect(coords(d).length).toBe(20);
     expect(d.startsWith("M105.00,50.00")).toBe(true);
     expect(d.endsWith("Z")).toBe(true);
   });
 
+  it("puts the nose on the +x axis at exactly r", () => {
+    // Every caller rotates about the center to point the mark along its leg, so a
+    // nose off the axis would aim every angle slightly wrong.
+    const [nose] = coords(planePath(0, 0, 10));
+    expect(nose[0]).toBeCloseTo(10, 5);
+    expect(nose[1]).toBeCloseTo(0, 5);
+  });
+
+  it("is mirror-symmetric about its own axis", () => {
+    // The property the leg rotation rests on: a symmetric outline is only ever
+    // TILTED by the angle. The rejected side profile was asymmetric and read wrong
+    // at +35 for exactly this reason.
+    const ys = coords(planePath(0, 0, 10))
+      .map(([, y]) => y)
+      .sort((a, b) => a - b);
+    for (let i = 0; i < ys.length; i++) {
+      expect(ys[i]).toBeCloseTo(-ys[ys.length - 1 - i], 5);
+    }
+  });
+
+  it("keeps every tip inside 1.01r, so marks laid out on r do not collide", () => {
+    const worst = Math.max(...coords(planePath(0, 0, 10)).map(([x, y]) => Math.hypot(x, y)));
+    expect(worst).toBeLessThanOrEqual(10.1);
+  });
+
+  it("scales linearly with r and translates with the center", () => {
+    const at1 = coords(planePath(0, 0, 1));
+    const at6 = coords(planePath(0, 0, 6));
+    const moved = coords(planePath(100, 50, 6));
+    expect(at6.length).toBe(at1.length);
+    for (let i = 0; i < at1.length; i++) {
+      expect(at6[i][0]).toBeCloseTo(at1[i][0] * 6, 1);
+      expect(at6[i][1]).toBeCloseTo(at1[i][1] * 6, 1);
+      expect(moved[i][0]).toBeCloseTo(at6[i][0] + 100, 1);
+      expect(moved[i][1]).toBeCloseTo(at6[i][1] + 50, 1);
+    }
+  });
+
+  it("stays lighter than the dot it replaces at the shipping size", () => {
+    // The measurement the promotion turned on, and the guard on the size default.
+    // Shape is cheap, size is not: this must keep costing less ink than an r 3.5
+    // dot, or the mark has quietly become the heaviest thing in the lane.
+    const pts = coords(planePath(0, 0, 5));
+    let sum = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const [x1, y1] = pts[i];
+      const [x2, y2] = pts[(i + 1) % pts.length];
+      sum += x1 * y2 - x2 * y1;
+    }
+    const area = Math.abs(sum) / 2;
+    const dotArea = Math.PI * 3.5 ** 2;
+    expect(area).toBeCloseTo(26.9, 1);
+    expect(area / dotArea).toBeLessThan(1);
+    expect(area / dotArea).toBeCloseTo(0.7, 2);
+  });
+});
+
+describe("PlaneMarker", () => {
   it("angles the nose up leaving, down returning, and flat mid-trip", () => {
     const rotation = (leg: TravelLeg) => {
       const { container } = render(
@@ -123,9 +192,42 @@ describe("PlaneMarker", () => {
       return container.querySelector("path")!.getAttribute("transform");
     };
     // SVG rotates clockwise with y pointing down, so a nose-up climb is negative.
+    //
+    // Asserted on the RENDERED transform string of the component under test, and
+    // on all three legs. An earlier guard elsewhere checked only that "some path on
+    // the page carried rotate(-35 ...)", which the real PlaneMarker satisfied no
+    // matter what the code being tested did, and a 15-degree drift went green.
     expect(rotation("depart")).toBe("rotate(-35 10 20)");
     expect(rotation("return")).toBe("rotate(35 10 20)");
     expect(rotation("level")).toBe("rotate(0 10 20)");
+  });
+
+  it("keeps depart and return exactly opposite, and level flat", () => {
+    // The angles are a set, not three independent numbers: an outbound climb and a
+    // homeward descent that did not mirror each other would make the two legs
+    // unreadable against one another.
+    const angle = (leg: TravelLeg) => {
+      const { container } = render(
+        <svg>
+          <PlaneMarker x={0} y={0} leg={leg} />
+        </svg>,
+      );
+      return Number(container.querySelector("path")!.getAttribute("transform")!.match(/-?[\d.]+/)![0]);
+    };
+    expect(angle("depart")).toBe(-angle("return"));
+    expect(angle("level")).toBe(0);
+    expect(angle("depart")).toBeLessThan(0);
+  });
+
+  it("defaults to r 5, the size the shape was measured at", () => {
+    // Pinned because `planePath`'s whole weight argument is stated at r 5. Raising
+    // the default silently would invalidate the comment above it.
+    const { container } = render(
+      <svg>
+        <PlaneMarker x={0} y={0} leg="level" />
+      </svg>,
+    );
+    expect(container.querySelector("path")!.getAttribute("d")).toBe(planePath(0, 0, 5));
   });
 
   it("defaults to the light ink so pure callers see stable output", () => {
