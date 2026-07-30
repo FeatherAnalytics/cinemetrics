@@ -107,10 +107,6 @@ def _enrich(tmdb_id: int) -> dict[str, str] | None:
         prefer_omdb=True,
         omdb_countries=True,
         include_lang_collection=True,
-        # candidate_enrichment.csv predates poster_path and has no such column;
-        # CANDIDATE_CSV_COLUMNS omits it, and strict=True below would raise on
-        # the leftover key if the shared builder still emitted it.
-        include_poster_path=False,
         # Same four candidate-only columns fetch_candidates.py fills. The two
         # writers share one seed, so a row appended here must have the same
         # shape as one the candidate fetcher would have written.

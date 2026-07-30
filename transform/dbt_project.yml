@@ -70,6 +70,7 @@ seeds:
         imdb_rating: double
         imdb_votes: bigint
         box_office: bigint
+        poster_path: varchar
     poster_slices:
       +schema: enrichment
       +column_types:

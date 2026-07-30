@@ -31,10 +31,11 @@ FILM_CSV_COLUMNS = BASE_COLUMNS + LANG_COLLECTION_COLUMNS
 # The column order of transform/seeds/candidate_enrichment.csv, which is NOT the
 # same file schema despite being built by the same row builder.
 #
-# It predates poster_path and does not carry it, and it carries four columns the
-# film seed does not. Its order is fixed by the 7,770 rows already committed, so
-# it is dictated by the file rather than derived from BASE_COLUMNS — deriving it
-# is what shifted poster_path into original_language.
+# It carries four columns the film seed does not (title, release_date,
+# tmdb_rating, tmdb_votes) and puts poster_path last rather than mid-row. Its
+# order is fixed by the 7,770 rows already committed, so it is dictated by the
+# file rather than derived from BASE_COLUMNS — deriving it is what shifted
+# poster_path into original_language.
 #
 # A single shared list here was a real corruption bug, not a near miss:
 # test_writer_columns_match_the_seed_header pins both against the bytes on disk.
@@ -44,6 +45,7 @@ CANDIDATE_CSV_COLUMNS = [
     "director", "actors", "rated", "production_countries",
     "original_language", "collection",
     "title", "release_date", "tmdb_rating", "tmdb_votes",
+    "poster_path",
 ]
 
 # The candidate-only columns. TMDB serves all four in the detail payload the
@@ -107,10 +109,10 @@ def build_enrichment_row(
     include_lang_collection True -> append original_language + collection (TMDB).
     strip_text             True  -> strip text fields (rebuild_enrichment.py).
                            False -> preserve text as-is (update/fetch_candidates).
-    include_poster_path     True  -> emit poster_path (film_enrichment.csv).
-                           False -> omit it (candidate_enrichment.csv has no
-                                    such column; a stray key here would trip
-                                    dict_writer's strict=True at write time).
+    include_poster_path     True  -> emit poster_path (both enrichment seeds).
+                           False -> omit it, for a caller whose column list has
+                                    no slot for it; a stray key would trip
+                                    dict_writer's strict=True at write time.
     include_candidate_meta  True  -> emit title/release_date/tmdb_rating/
                                     tmdb_votes (candidate_enrichment.csv only).
                            False -> omit them (film_enrichment.csv has no such

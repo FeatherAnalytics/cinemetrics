@@ -84,6 +84,11 @@ models:
       - name: tmdb_id
         description: TMDB film identifier — the primary candidate key.
         tests: [unique, not_null]
+      - name: poster_path
+        description: >
+          TMDB poster image path, e.g. "/abc123.jpg". NULL when TMDB serves no
+          poster. Same convention as dim_film.poster_path: the CDN host and size
+          segment are the renderer's choice and are not stored here.
 
   - name: dim_watchlist
     description: >

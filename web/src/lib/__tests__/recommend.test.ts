@@ -29,10 +29,12 @@ function dense(s: SparseVec, dims = 4): number[] {
 }
 
 const METADATA: Record<number, CandidateMetadata> = {
-  1: { title: "Film A", year: 2020, genres: "Sci-Fi", language: "en", runtime: 120, rated: "R", director: "", actors: "", keywords: "", imdb_id: "tt0000001", production_countries: "US", metascore: 80, rt_rating: 85, imdb_rating: 8.0 },
-  2: { title: "Film B", year: 2019, genres: "Sci-Fi", language: "en", runtime: 90, rated: "PG-13", director: "", actors: "", keywords: "", imdb_id: "tt0000002", production_countries: "US", metascore: 75, rt_rating: 80, imdb_rating: 7.5 },
-  3: { title: "Film C", year: 2021, genres: "Comedy", language: "fr", runtime: 110, rated: "R", director: "", actors: "", keywords: "", imdb_id: "tt0000003", production_countries: "FR", metascore: 70, rt_rating: 75, imdb_rating: 7.0 },
-  4: { title: "Film D", year: 2018, genres: "Sci-Fi, Drama", language: "de", runtime: 150, rated: "R", director: "", actors: "", keywords: "", imdb_id: "tt0000004", production_countries: "DE", metascore: 90, rt_rating: 92, imdb_rating: 8.5 },
+  1: { title: "Film A", year: 2020, genres: "Sci-Fi", language: "en", runtime: 120, rated: "R", director: "", actors: "", keywords: "", imdb_id: "tt0000001", production_countries: "US", metascore: 80, rt_rating: 85, imdb_rating: 8.0, poster: "/a.jpg" },
+  2: { title: "Film B", year: 2019, genres: "Sci-Fi", language: "en", runtime: 90, rated: "PG-13", director: "", actors: "", keywords: "", imdb_id: "tt0000002", production_countries: "US", metascore: 75, rt_rating: 80, imdb_rating: 7.5, poster: "/b.jpg" },
+  3: { title: "Film C", year: 2021, genres: "Comedy", language: "fr", runtime: 110, rated: "R", director: "", actors: "", keywords: "", imdb_id: "tt0000003", production_countries: "FR", metascore: 70, rt_rating: 75, imdb_rating: 7.0, poster: "/c.jpg" },
+  // Null poster: TMDB serves no art for some candidates and the card has to
+  // lay out without one.
+  4: { title: "Film D", year: 2018, genres: "Sci-Fi, Drama", language: "de", runtime: 150, rated: "R", director: "", actors: "", keywords: "", imdb_id: "tt0000004", production_countries: "DE", metascore: 90, rt_rating: 92, imdb_rating: 8.5, poster: null },
 };
 
 const DATA: EmbeddingData = { dims: 4, vectors: VECTORS, metadata: METADATA };

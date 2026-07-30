@@ -49,5 +49,10 @@ def build_embeddings_export(
             "rt_rating": _clean(f.get("rt_rating")),
             "imdb_rating": _clean(f.get("imdb_rating")),
             "imdb_id": _clean(f.get("imdb_id")) or "",
+            # TMDB image path, e.g. "/abc123.jpg", not a URL: the CDN host and
+            # size segment belong to the card that renders it. None where TMDB
+            # serves no art, so the card can lay out text-only rather than
+            # requesting an empty path.
+            "poster": _clean(f.get("poster_path")) or None,
         }
     return {"dims": int(matrix.shape[1]), "vectors": vectors, "metadata": metadata}

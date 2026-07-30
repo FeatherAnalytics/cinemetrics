@@ -65,6 +65,7 @@ DETAIL = {
     "release_date": "1994-09-23",
     "vote_average": 7.34,
     "vote_count": 1234,
+    "poster_path": "/abc123.jpg",
     "genres": [{"name": "Drama"}],
     "keywords": {"keywords": []},
     "runtime": 100,
@@ -107,6 +108,37 @@ def test_new_candidate_row_fills_every_candidate_only_column(cache_dir, monkeypa
     assert row["release_date"] == "1994-09-23"
     assert row["tmdb_rating"] == "7.3"
     assert row["tmdb_votes"] == "1234"
+
+
+def test_new_candidate_row_carries_poster_path(cache_dir, monkeypatch):
+    monkeypatch.setattr(fc, "_tmdb_get", lambda *a, **k: DETAIL)
+    assert fc._enrich_tmdb(444)["poster_path"] == "/abc123.jpg"
+
+
+def test_new_candidate_row_writes_under_the_seeds_real_header(cache_dir, monkeypatch):
+    """The row must write against the header on disk, not a list in the code.
+
+    fetch_candidates.py appends with strict=True, so a key with no column raises
+    and a column with no key would silently write blank.
+    """
+    import csv
+    import io
+
+    from ingest.csvio import dict_writer
+
+    monkeypatch.setattr(fc, "_tmdb_get", lambda *a, **k: DETAIL)
+    row = fc._enrich_tmdb(444)
+
+    seed = Path(__file__).resolve().parents[1] / "transform" / "seeds" / "candidate_enrichment.csv"
+    with open(seed, encoding="utf-8", newline="") as fh:
+        header = next(csv.reader(fh))
+
+    out = io.StringIO()
+    writer = dict_writer(out, header, strict=True)
+    writer.writerow(row)  # must not raise
+    written = dict(zip(header, next(csv.reader(io.StringIO(out.getvalue()))), strict=True))
+    assert written["title"] == "Fake Film"
+    assert written["poster_path"] == "/abc123.jpg"
 
 
 def test_both_candidate_writers_produce_the_same_row(cache_dir, monkeypatch):

@@ -167,10 +167,6 @@ def _enrich_tmdb(tmdb_id: int) -> dict | None:
         prefer_omdb=True,
         omdb_countries=True,
         include_lang_collection=True,
-        # candidate_enrichment.csv predates poster_path and has no such column;
-        # CANDIDATE_CSV_COLUMNS omits it, and strict=True below would raise on
-        # the leftover key if the shared builder still emitted it.
-        include_poster_path=False,
         # title, release_date, tmdb_rating and tmdb_votes exist in the seed only
         # because one-off backfills added them. Without this flag every candidate
         # written here lands with no title, which is what put nameless films on

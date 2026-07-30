@@ -189,11 +189,12 @@ def test_film_csv_columns_includes_poster_path():
     assert "poster_path" in FILM_CSV_COLUMNS
 
 
-def test_candidate_csv_columns_excludes_poster_path():
-    # candidate_enrichment.csv predates poster_path and has no such column.
+def test_candidate_csv_columns_ends_with_poster_path():
+    # candidate_enrichment.csv gained poster_path last, after the four
+    # candidate-only columns, rather than mid-row where the film seed puts it.
     from ingest.enrich import CANDIDATE_CSV_COLUMNS
 
-    assert "poster_path" not in CANDIDATE_CSV_COLUMNS
+    assert CANDIDATE_CSV_COLUMNS[-1] == "poster_path"
 
 
 @pytest.mark.parametrize(
@@ -206,7 +207,7 @@ def test_candidate_csv_columns_excludes_poster_path():
         (  # scripts/fetch_candidates.py, scripts/enrich_watchlist.py
             dict(
                 prefer_omdb=True, omdb_countries=True, include_lang_collection=True,
-                include_poster_path=False, include_candidate_meta=True,
+                include_candidate_meta=True,
             ),
             "CANDIDATE_CSV_COLUMNS",
         ),
@@ -225,11 +226,10 @@ def test_every_row_key_has_a_column(kwargs, columns_name):
     # silently dropped, and dict_writer's strict=True now turns it into a raise
     # at write time -- this catches it at test time instead.
     #
-    # It also guards the inverse: build_enrichment_row unconditionally emitted
-    # poster_path regardless of caller, which would raise under strict=True
-    # once candidate_enrichment.csv's writers got their own column list (no
-    # poster_path in it) -- include_poster_path=False is what fetch_candidates.py
-    # and enrich_watchlist.py now pass to avoid that.
+    # It also guards the inverse: a key emitted for a caller whose column list
+    # has no slot for it raises under strict=True on the next write. That is
+    # what include_poster_path and include_candidate_meta exist to control --
+    # the two seeds do not carry the same columns.
     from ingest import enrich
 
     row = build_enrichment_row(
@@ -254,11 +254,10 @@ def test_strict_writer_rejects_a_key_no_column_accepts():
 def test_candidate_row_writes_under_strict_with_the_real_call_shape():
     """fetch_candidates.py and enrich_watchlist.py both write with strict=True.
 
-    Both call build_enrichment_row with include_poster_path=False for exactly
-    this reason: without it, the row carries a leftover poster_path key that
-    CANDIDATE_CSV_COLUMNS has no slot for, and strict=True raises on every
-    write -- trading the original silent-corruption bug for a guaranteed
-    crash on the next candidate found.
+    Every key the builder emits for that call shape must have a column in
+    CANDIDATE_CSV_COLUMNS, or strict=True raises on every write -- trading the
+    original silent-corruption bug for a guaranteed crash on the next candidate
+    found.
     """
     import io
 
@@ -269,7 +268,7 @@ def test_candidate_row_writes_under_strict_with_the_real_call_shape():
         TMDB, OMDB,
         tmdb_id="27205", imdb_id="tt1375666",
         prefer_omdb=True, omdb_countries=True, include_lang_collection=True,
-        include_poster_path=False, include_candidate_meta=True,
+        include_candidate_meta=True,
     )
     w = dict_writer(io.StringIO(), CANDIDATE_CSV_COLUMNS, strict=True)
     w.writerow(row)  # must not raise

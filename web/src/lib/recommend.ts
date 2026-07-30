@@ -13,6 +13,8 @@ export type CandidateMetadata = {
   rt_rating: number | null;
   imdb_rating: number | null;
   imdb_id: string;
+  /** TMDB image path, e.g. "/abc123.jpg". Null where TMDB serves no art. */
+  poster: string | null;
 };
 
 /**

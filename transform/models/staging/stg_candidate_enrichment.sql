@@ -1,7 +1,7 @@
 -- One row per candidate film (not yet rated), typed from the candidate
 -- enrichment seed. NOT the same schema as stg_film_enrichment: this seed
--- has no poster_path, and carries title/release_date/tmdb_rating/tmdb_votes
--- that the film seed does not.
+-- carries title/release_date/tmdb_rating/tmdb_votes that the film seed does
+-- not, and puts poster_path last rather than mid-row.
 select
     try_cast(tmdb_id as integer)     as tmdb_id,
     imdb_id,
@@ -31,6 +31,9 @@ select
     -- imdb_rating/imdb_votes, which come from OMDb and cover far less of the
     -- pool; see scripts/backfill_tmdb_scores.py.
     try_cast(tmdb_rating as double)  as tmdb_rating,
-    try_cast(tmdb_votes as integer)  as tmdb_votes
+    try_cast(tmdb_votes as integer)  as tmdb_votes,
+    -- Empty for the films TMDB serves no poster for; NULL says "no art" rather
+    -- than pointing the CDN at an empty path.
+    nullif(poster_path, '')          as poster_path
 from {{ ref('candidate_enrichment') }}
 where tmdb_id is not null
