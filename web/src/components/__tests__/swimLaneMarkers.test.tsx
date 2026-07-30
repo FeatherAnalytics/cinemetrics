@@ -6,7 +6,8 @@ import { FAV_IDS } from "@/lib/fourFavs";
 import { SOLSTICE_WATCH } from "@/lib/solstice";
 import { ExplorerProvider } from "@/lib/store";
 import { ThemeProvider } from "@/lib/theme";
-import { TRAVEL_DAYS } from "@/lib/travel";
+import { planePath, TRAVEL_DAYS } from "@/lib/travel";
+import { starPath } from "@/lib/favMarker";
 import type { Dataset } from "@/lib/types";
 
 /**
@@ -24,22 +25,40 @@ const favWatches = data.watches.filter((w) => FAV_IDS.has(w.tmdb_id));
 const favOnTravelDay = favWatches.filter((w) => TRAVEL_DAYS[w.date] != null);
 const travelWatches = data.watches.filter((w) => TRAVEL_DAYS[w.date] != null);
 
+/** Segments in a closed path, which is how the two marks are told apart below. */
+const segments = (d: string) => d.match(/L/g)?.length ?? 0;
+
+/**
+ * The segment count each mark happens to draw, ASKED OF THE FUNCTIONS rather than
+ * written down.
+ *
+ * What this file tests is which mark wins, not what either one looks like. The
+ * plane's outline is under active review behind `/lab` and has already changed
+ * once, so a literal here would turn every future reshaping of it into a failure
+ * in a test about precedence. Reading the counts from `planePath` and `starPath`
+ * keeps the two distinguishable however either is drawn.
+ */
+const PLANE_SEGMENTS = segments(planePath(0, 0, 5));
+const STAR_SEGMENTS = segments(starPath(0, 0, 5));
+
 /**
  * Which mark a path is, read off its own geometry rather than a test hook.
  *
- * `planePath` emits four points and `starPath` ten, so the line count separates
- * them with nothing added to the chart for the test's benefit. The solstice sun
- * draws lines and a circle and so never lands here at all.
+ * The solstice sun draws lines and a circle rather than a path, so it never lands
+ * here at all.
  */
-function markCounts(container: Element): { darts: number; stars: number } {
-  let darts = 0;
+function markCounts(container: Element): { planes: number; stars: number } {
+  // A shape that drew the same number of segments as the other would make every
+  // count below meaningless, and it would do it silently.
+  expect(PLANE_SEGMENTS, "the two marks must stay distinguishable").not.toBe(STAR_SEGMENTS);
+  let planes = 0;
   let stars = 0;
   for (const p of container.querySelectorAll("svg path")) {
-    const lines = (p.getAttribute("d") ?? "").match(/L/g)?.length ?? 0;
-    if (lines === 3) darts += 1;
-    if (lines === 9) stars += 1;
+    const n = segments(p.getAttribute("d") ?? "");
+    if (n === PLANE_SEGMENTS) planes += 1;
+    if (n === STAR_SEGMENTS) stars += 1;
   }
-  return { darts, stars };
+  return { planes, stars };
 }
 
 function mount() {
@@ -70,18 +89,18 @@ describe("which mark wins when a watch qualifies for two", () => {
    * blocks. Swapping them back is a two-line edit that breaks nothing else and
    * that no other assertion in the suite would notice.
    */
-  it("draws a star, not a dart, for a favorite watched on a travel day", () => {
+  it("draws a star, not a plane, for a favorite watched on a travel day", () => {
     expect(favOnTravelDay).toHaveLength(1);
     expect(favOnTravelDay[0].date).toBe("2023-10-10");
 
     const { container } = mount();
-    const { darts, stars } = markCounts(container);
+    const { planes, stars } = markCounts(container);
 
     // Every favorite watch keeps its star, including the flown one.
     expect(stars).toBe(favWatches.length);
-    // And that one watch is the difference in the dart count: the rest of its
+    // And that one watch is the difference in the plane count: the rest of its
     // day is still flown, so the flight does not go unmarked.
-    expect(darts).toBe(travelWatches.length - favOnTravelDay.length);
+    expect(planes).toBe(travelWatches.length - favOnTravelDay.length);
   });
 
   it("leaves the solstice sun ahead of both", () => {

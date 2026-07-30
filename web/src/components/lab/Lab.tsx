@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { useTheme } from "@/lib/theme";
 import type { Dataset } from "@/lib/types";
 import { computeTravelStats, ratioLabel, signedLabel } from "@/lib/travelStats";
+import { computeEraStats } from "@/lib/gradSchool";
+import { GradSchoolEra } from "./GradSchoolEra";
 import { TravelComparison } from "./TravelComparison";
 import { TravelCallout } from "./TravelCallout";
 import { TravelMarkerLab } from "./TravelMarkerLab";
@@ -50,6 +52,7 @@ type Prototype = {
 export function Lab({ data }: { data: Dataset }) {
   const { tokens } = useTheme();
   const stats = useMemo(() => computeTravelStats(data), [data]);
+  const eraStats = useMemo(() => computeEraStats(data), [data]);
 
   const prototypes: Prototype[] = [
     {
@@ -210,6 +213,43 @@ export function Lab({ data }: { data: Dataset }) {
             weight figures under the grid are measured rather than judged by eye, and they
             contradict the usual complaint: at r 5 every candidate covers less ink than the dot it
             replaces.
+          </p>
+        </section>
+
+        {/* Also not a travel section, and not a presentation question either. It
+            is here because the finding is real, thin, and easy to misread, which
+            is the third kind of thing this page exists to hold. */}
+        <section id="grad-school">
+          <div className="mb-4">
+            <h2 className="font-display text-xl font-bold" style={{ color: tokens.ink.primary }}>
+              <span
+                className="font-mono text-sm tabular-nums"
+                style={{ color: tokens.ink.muted }}
+              >
+                4.
+              </span>{" "}
+              The grad school years
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
+              I was in school from August 2023 to May 2025. This marks the span on a plain time
+              axis and reports what the viewing did inside it, which is fewer films and higher
+              ratings.
+            </p>
+          </div>
+
+          <div
+            className="rounded-sm p-5"
+            style={{ background: tokens.surface.card, border: `1px solid ${tokens.ink.grid}` }}
+          >
+            <GradSchoolEra stats={eraStats} />
+          </div>
+
+          <p className="mt-3 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
+            <span className="font-bold">Why it is here and not on the main page:</span> the
+            rating gap is the one figure on this page large enough to survive its own error bars,
+            and it is also the one most likely to be read as a cause. The section spends more
+            words refusing that reading than stating the finding, which is the right ratio and a
+            bad fit for a page a stranger skims.
           </p>
         </section>
       </div>
