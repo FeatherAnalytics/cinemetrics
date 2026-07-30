@@ -1,16 +1,17 @@
-// What the numbers do across the years I was in grad school, and what they do on
-// either side of it.
+// What the viewing did across the years I was in grad school, on a rolling basis
+// and against the stretches either side of it.
 //
 // Reads a raw `Dataset` and needs no store or provider, for the same reason
 // `travelStats` does not: the figures are library-wide and a filter that cut them
 // would leave the copy quoting a number the reader cannot interpret.
 //
-// The adjacent windows are not decoration. The in-span mean beats the whole
-// outside by five points, and the outside is seven and a half years long, so
-// "outside" is mostly a period that predates the span by years. Comparing the era
-// against the twelve months on each side of it is what turns a real gap into a
-// visibly confounded one, and this module computes both so the copy cannot quote
-// the flattering figure alone.
+// THE COMPARISON THIS MODULE REFUSES TO MAKE is the span against everything
+// outside it. That split reports the span rating 5.0 points high, and the figure
+// is an artifact: "outside" is 626 watches of which 480 are the high-volume,
+// low-rated stretch from 2019 to mid-2022, so it mostly measures the distance
+// from that period rather than anything about school. `neighbors` replaces it.
+// Against the twelve months on each side the span moves the mean by under a
+// point.
 
 import type { Dataset } from "./types";
 
@@ -23,108 +24,138 @@ import type { Dataset } from "./types";
  */
 export const GRAD_SCHOOL = { start: "2023-08-01", end: "2025-05-31" } as const;
 
-/** One side of the split. Both sides carry the same fields, computed one way. */
-export type EraSplit = {
-  /** Calendar days, inclusive, clipped to the days the log actually covers. */
-  days: number;
-  watches: number;
-  /** Watches per 30 days. The pace figure, and it goes the unflattering way. */
-  per30: number;
-  ratingN: number;
-  meanRating: number;
-  sdRating: number;
-  seRating: number;
+/**
+ * Width of the rolling window, in months. TWELVE, AND THE REASON IS LOAD-BEARING.
+ *
+ * The span is 22 months. A 24-month window is WIDER THAN THE THING IT HAS TO
+ * RESOLVE: every window overlapping the span would also carry months from outside
+ * it, so the line would be smooth across the span by construction, and its
+ * flatness would be a property of the method rather than a fact about the
+ * viewing. Flatness a method could not have contradicted is not evidence of
+ * anything.
+ *
+ * Twelve spans the era roughly twice, so a real dip inside it would show. That is
+ * the entire basis for reading anything into the line not dipping.
+ *
+ * DO NOT WIDEN THIS TO SMOOTH THE LINE. It would destroy the finding rather than
+ * tidy it. `keeps the window narrower than the era` in the tests fails if this
+ * ever reaches the length of the span.
+ */
+export const TREND_MONTHS = 12;
+
+/** Months since year zero, so two "YYYY-MM" strings compare and subtract. */
+export function monthIndex(iso: string): number {
+  return Number(iso.slice(0, 4)) * 12 + Number(iso.slice(5, 7)) - 1;
+}
+
+/** The inverse of `monthIndex`, back to "YYYY-MM". */
+function monthKey(m: number): string {
+  return `${String(Math.floor(m / 12)).padStart(4, "0")}-${String((m % 12) + 1).padStart(2, "0")}`;
+}
+
+/** One point on both rolling lines: the window ENDING at this month. */
+export type RollingPoint = {
+  /** Month index of the window's last month. */
+  month: number;
+  /** "2023-08". */
+  key: string;
+  filmsPerMonth: number;
+  /** Null only if a whole window held no rated watch, which this log never does. */
+  meanRating: number | null;
 };
 
-/** A mean over one stretch of the calendar, for the confound check. */
+/** A stretch of the calendar summarized on both measures. */
 export type Window = {
   label: string;
   start: string;
   end: string;
   watches: number;
+  days: number;
+  /** Watches per 30 days. */
+  per30: number;
+  meanRating: number;
+  sdRating: number;
+};
+
+/** The span measured against one of its neighbors, on both measures. */
+export type Contrast = {
+  label: string;
+  /** Span mean minus the other window's mean, in rating points. Signed. */
+  ratingDiff: number;
+  ratingZ: number;
+  /**
+   * Whether the rating difference is indistinguishable from none.
+   *
+   * LOOKED UP and never written into the copy, so no sentence can go on asserting
+   * a gap after the data stops holding one. The prose branches on this.
+   */
+  ratingIsNoise: boolean;
+  /** Span watch rate divided by the other window's. 1.0 is no difference. */
+  rateRatio: number;
+  rateZ: number;
+  volumeIsNoise: boolean;
+};
+
+/** What the two rolling lines read at one edge of the span. */
+export type Edge = {
+  key: string;
+  filmsPerMonth: number;
   meanRating: number;
 };
 
 export type EraStats = {
-  /** First and last watch date in the log, which bounds every day count here. */
   logStart: string;
   logEnd: string;
-  inSpan: EraSplit;
-  outside: EraSplit;
-  /** In-span mean minus outside mean, in rating points. Signed. */
-  ratingDiff: number;
-  ratingDiffSe: number;
-  /** The gap in standard errors. Around 4.6 today, so this one is not noise. */
-  ratingDiffZ: number;
-  /**
-   * Whether the gap is indistinguishable from no gap.
-   *
-   * Looked up rather than asserted in the copy, the same way `travelStats` does
-   * it: the travel finding's answer is yes and this one's is no, and a sentence
-   * that hardcoded either would go on saying it after the data changed.
-   */
-  ratingGapIsNoise: boolean;
-  /** Mean rating per calendar year, in order. The climb the caveat turns on. */
-  yearlyMeans: { year: number; n: number; mean: number }[];
+  /** Length of the span in whole months. 22 today, and the reason the window is 12. */
+  eraMonths: number;
+  /** The span's own size. Not a comparison, so it is safe to state plainly. */
+  span: Window;
   /**
    * The log cut into four stretches in date order: the early years, the twelve
-   * months before the span, the span, and the twelve months after.
+   * months before the span, the span, the twelve months after.
    *
-   * The confound, in four numbers. If school were doing the work, the third
-   * would step up from the second and the fourth would step back down. It does
-   * neither, and the first is where the whole five point gap actually comes
-   * from.
+   * This is what replaces the span-against-everything-else split. See the header.
    */
   neighbors: Window[];
-  /** Watch counts for the months either side of the start date. */
-  boundaryMonths: { month: string; watches: number }[];
-  /** Every watch as a point on the strip. Sorted by date. */
-  points: { date: string; rating: number | null }[];
   /**
-   * Trailing mean rating, one entry per rated watch in date order.
+   * Every watch not inside the span.
    *
-   * A trailing window over WATCHES and not over days, because the pace is not
-   * constant: a fixed number of days holds 4 watches in one month and 12 in
-   * another, so a day window would swing on how much I watched rather than on how
-   * I rated. `TREND_WINDOW` watches is about four months at the log's average
-   * pace and is the same amount of evidence at every point on the line.
+   * NOT the sum of the other three `neighbors`. Those two flanking windows are
+   * deliberately 365 days each so the comparison either side of the span is
+   * symmetric, which leaves the tail of the log past the last of them uncovered.
+   * The copy quotes this when it explains what the discarded 5.0 point figure was
+   * measuring against, and that figure was computed against ALL of them.
    */
-  trend: { date: string; mean: number }[];
+  outsideWatches: number;
+  /** The span against the year before it, and against the year after. */
+  vsBefore: Contrast;
+  vsAfter: Contrast;
+  /** Both rolling lines, one entry per month a window can close on. */
+  series: RollingPoint[];
+  /** What each line reads as the span opens and as it closes. */
+  opens: Edge;
+  closes: Edge;
+  /** The lowest and highest the volume line goes strictly inside the span. */
+  spanVolumeRange: { low: Edge; high: Edge };
+  /** Mean rating per calendar year, in order. The clearest look at the climb. */
+  yearlyMeans: { year: number; n: number; mean: number }[];
 };
-
-/** Watches averaged into each point of the trailing trend line. */
-export const TREND_WINDOW = 40;
 
 const DAY_MS = 86_400_000;
 
-/** Inclusive day count between two ISO dates. */
 function daysInclusive(start: string, end: string): number {
   return Math.floor((Date.parse(end) - Date.parse(start)) / DAY_MS) + 1;
 }
 
-function inSpan(date: string): boolean {
-  return date >= GRAD_SCHOOL.start && date <= GRAD_SCHOOL.end;
+function shiftDays(date: string, delta: number): string {
+  return new Date(Date.parse(date) + delta * DAY_MS).toISOString().slice(0, 10);
 }
 
-function split(days: number, ratings: number[], watches: number): EraSplit {
-  const n = ratings.length;
-  const mean = n === 0 ? 0 : ratings.reduce((a, b) => a + b, 0) / n;
-  // Sample standard deviation: these watches are a sample of the viewing I might
-  // have done in the period, not the population of it.
-  const sd = n < 2 ? 0 : Math.sqrt(ratings.reduce((a, r) => a + (r - mean) ** 2, 0) / (n - 1));
-  return {
-    days,
-    watches,
-    per30: days === 0 ? 0 : (watches / days) * 30,
-    ratingN: n,
-    meanRating: mean,
-    sdRating: sd,
-    seRating: n === 0 ? 0 : sd / Math.sqrt(n),
-  };
+function mean(xs: number[]): number {
+  return xs.length === 0 ? 0 : xs.reduce((a, b) => a + b, 0) / xs.length;
 }
 
-/** Mean rating over an inclusive date range, for one row of the confound check. */
-function windowMean(
+function summarize(
   rows: { date: string; rating: number | null }[],
   label: string,
   start: string,
@@ -132,122 +163,169 @@ function windowMean(
 ): Window {
   const hit = rows.filter((r) => r.date >= start && r.date <= end);
   const rated = hit.map((r) => r.rating).filter((r): r is number => r != null);
+  const m = mean(rated);
+  // Sample standard deviation: these are a sample of the viewing I might have
+  // done in the stretch, not the population of it.
+  const sd =
+    rated.length < 2
+      ? 0
+      : Math.sqrt(rated.reduce((a, r) => a + (r - m) ** 2, 0) / (rated.length - 1));
+  const days = Math.max(1, daysInclusive(start, end));
   return {
     label,
     start,
     end,
     watches: hit.length,
-    meanRating: rated.length === 0 ? 0 : rated.reduce((a, b) => a + b, 0) / rated.length,
+    days,
+    per30: (hit.length / days) * 30,
+    meanRating: m,
+    sdRating: sd,
   };
 }
 
-/** Shift an ISO date by whole days, staying in UTC. */
-function shiftDays(date: string, delta: number): string {
-  return new Date(Date.parse(date) + delta * DAY_MS).toISOString().slice(0, 10);
+/**
+ * The span against one neighbor, on both measures.
+ *
+ * The rating uses a two-sample z on the difference of means. The volume uses the
+ * LOG OF THE RATE RATIO rather than a difference of rates, because watch counts
+ * are counts over unequal exposures and the standard error of a rate difference
+ * is not the honest statistic for them. `sqrt(1/k1 + 1/k2)` is the usual Poisson
+ * approximation to the standard error of a log rate ratio.
+ */
+function contrast(span: Window, other: Window, label: string): Contrast {
+  const ratingSe = Math.sqrt(
+    span.sdRating ** 2 / Math.max(1, span.watches) +
+      other.sdRating ** 2 / Math.max(1, other.watches),
+  );
+  const ratingDiff = span.meanRating - other.meanRating;
+  const ratingZ = ratingSe === 0 ? 0 : ratingDiff / ratingSe;
+
+  const rateRatio = other.per30 === 0 ? 0 : span.per30 / other.per30;
+  const rateSe = Math.sqrt(1 / Math.max(1, span.watches) + 1 / Math.max(1, other.watches));
+  const rateZ = rateRatio <= 0 ? 0 : Math.log(rateRatio) / rateSe;
+
+  return {
+    label,
+    ratingDiff,
+    ratingZ,
+    ratingIsNoise: Math.abs(ratingZ) < 1.96,
+    rateRatio,
+    rateZ,
+    volumeIsNoise: Math.abs(rateZ) < 1.96,
+  };
+}
+
+/**
+ * Both rolling lines over the whole log, at the given window width in months.
+ *
+ * Exported so a test can run it at other widths and show what widening costs.
+ *
+ * A point sits at the LAST month of its window, which is the ordinary reading of
+ * a trailing average and is what the caption says. It also means the early points
+ * inside the span still carry months from before it: the window is wholly inside
+ * the span only from its twelfth month on.
+ */
+export function rollingSeries(
+  rows: { date: string; rating: number | null }[],
+  width: number,
+): RollingPoint[] {
+  if (rows.length === 0) return [];
+  const byMonth = new Map<number, { date: string; rating: number | null }[]>();
+  for (const r of rows) {
+    const m = monthIndex(r.date);
+    byMonth.set(m, [...(byMonth.get(m) ?? []), r]);
+  }
+  const first = monthIndex(rows[0].date);
+  const last = monthIndex(rows[rows.length - 1].date);
+
+  const out: RollingPoint[] = [];
+  for (let end = first + width - 1; end <= last; end++) {
+    const win: { date: string; rating: number | null }[] = [];
+    for (let m = end - width + 1; m <= end; m++) win.push(...(byMonth.get(m) ?? []));
+    const rated = win.map((r) => r.rating).filter((r): r is number => r != null);
+    out.push({
+      month: end,
+      key: monthKey(end),
+      // Divided by the window width, not by the number of months that held a
+      // watch: a month with nothing in it is a real zero, not a gap.
+      filmsPerMonth: win.length / width,
+      meanRating: rated.length === 0 ? null : mean(rated),
+    });
+  }
+  return out;
+}
+
+const asEdge = (p: RollingPoint): Edge => ({
+  key: p.key,
+  filmsPerMonth: p.filmsPerMonth,
+  meanRating: p.meanRating ?? 0,
+});
+
+/** The series point at a given month, or the nearest earlier one. */
+function readAt(series: RollingPoint[], key: string): Edge {
+  const m = monthIndex(key);
+  return asEdge([...series].reverse().find((p) => p.month <= m) ?? series[0]);
 }
 
 export function computeEraStats(data: Dataset): EraStats {
-  const points = data.watches
+  const rows = data.watches
     .map((w) => ({ date: w.date, rating: w.rating }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  const logStart = points[0].date;
-  const logEnd = points[points.length - 1].date;
+  const logStart = rows[0].date;
+  const logEnd = rows[rows.length - 1].date;
 
-  // Clipped to the log rather than taken from the constants. The span sits well
-  // inside the log today, so the clip changes nothing, but a day count that ran
-  // past either end would be counting calendar the data cannot speak for.
-  const spanStart = GRAD_SCHOOL.start > logStart ? GRAD_SCHOOL.start : logStart;
-  const spanEnd = GRAD_SCHOOL.end < logEnd ? GRAD_SCHOOL.end : logEnd;
-  const spanDays = Math.max(0, daysInclusive(spanStart, spanEnd));
-  const outsideDays = daysInclusive(logStart, logEnd) - spanDays;
-
-  const rated = (rows: typeof points) =>
-    rows.map((r) => r.rating).filter((r): r is number => r != null);
-  const within = points.filter((p) => inSpan(p.date));
-  const without = points.filter((p) => !inSpan(p.date));
-
-  const inside = split(spanDays, rated(within), within.length);
-  const outside = split(outsideDays, rated(without), without.length);
-
-  const ratingDiff = inside.meanRating - outside.meanRating;
-  const ratingDiffSe = Math.sqrt(inside.seRating ** 2 + outside.seRating ** 2);
+  const span = summarize(rows, "in school", GRAD_SCHOOL.start, GRAD_SCHOOL.end);
+  const yearBefore = shiftDays(GRAD_SCHOOL.start, -365);
+  const before = summarize(rows, "12 months before", yearBefore, shiftDays(GRAD_SCHOOL.start, -1));
+  const after = summarize(
+    rows,
+    "12 months after",
+    shiftDays(GRAD_SCHOOL.end, 1),
+    shiftDays(GRAD_SCHOOL.end, 365),
+  );
+  const early = summarize(rows, "the early years", logStart, shiftDays(yearBefore, -1));
 
   const byYear = new Map<number, number[]>();
-  for (const p of points) {
-    if (p.rating == null) continue;
-    const y = Number(p.date.slice(0, 4));
-    byYear.set(y, [...(byYear.get(y) ?? []), p.rating]);
+  for (const r of rows) {
+    if (r.rating == null) continue;
+    const y = Number(r.date.slice(0, 4));
+    byYear.set(y, [...(byYear.get(y) ?? []), r.rating]);
   }
   const yearlyMeans = [...byYear.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([year, rs]) => ({ year, n: rs.length, mean: rs.reduce((a, b) => a + b, 0) / rs.length }));
+    .map(([year, rs]) => ({ year, n: rs.length, mean: mean(rs) }));
 
-  const byMonth = new Map<string, number>();
-  for (const p of points) {
-    const m = p.date.slice(0, 7);
-    byMonth.set(m, (byMonth.get(m) ?? 0) + 1);
-  }
-  // Three months on each side of the start. Wide enough to show there is no step
-  // at the boundary and narrow enough that a reader can check it by eye.
-  const startMonth = GRAD_SCHOOL.start.slice(0, 7);
-  const boundaryMonths = [...byMonth.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .filter(([m]) => Math.abs(monthIndex(m) - monthIndex(startMonth)) <= 3)
-    .map(([month, watches]) => ({ month, watches }));
+  const series = rollingSeries(rows, TREND_MONTHS);
 
-  const yearBefore = shiftDays(GRAD_SCHOOL.start, -365);
-  const neighbors = [
-    windowMean(points, "the early years", logStart, shiftDays(yearBefore, -1)),
-    windowMean(points, "12 months before", yearBefore, shiftDays(GRAD_SCHOOL.start, -1)),
-    windowMean(points, "in school", GRAD_SCHOOL.start, GRAD_SCHOOL.end),
-    windowMean(
-      points,
-      "12 months after",
-      shiftDays(GRAD_SCHOOL.end, 1),
-      shiftDays(GRAD_SCHOOL.end, 365),
-    ),
-  ];
-
-  const trend: { date: string; mean: number }[] = [];
-  const ratedPoints = points.filter((p): p is { date: string; rating: number } => p.rating != null);
-  // Starts at the WINDOWth watch, not the first. A trailing mean over three
-  // watches is not the same statistic as one over forty, and drawing both on one
-  // line would put the noisiest part of it at the left edge where a reader reads
-  // the trend's starting level off it.
-  for (let i = TREND_WINDOW - 1; i < ratedPoints.length; i++) {
-    const win = ratedPoints.slice(i - TREND_WINDOW + 1, i + 1);
-    trend.push({
-      date: ratedPoints[i].date,
-      mean: win.reduce((a, p) => a + p.rating, 0) / TREND_WINDOW,
-    });
-  }
+  const inside = series.filter(
+    (p) => p.month >= monthIndex(GRAD_SCHOOL.start) && p.month <= monthIndex(GRAD_SCHOOL.end),
+  );
+  const byVolume = [...inside].sort((a, b) => a.filmsPerMonth - b.filmsPerMonth);
 
   return {
     logStart,
     logEnd,
-    inSpan: inside,
-    outside,
-    ratingDiff,
-    ratingDiffSe,
-    ratingDiffZ: ratingDiffSe === 0 ? 0 : ratingDiff / ratingDiffSe,
-    ratingGapIsNoise: Math.abs(ratingDiff) <= 1.96 * ratingDiffSe,
+    eraMonths: monthIndex(GRAD_SCHOOL.end) - monthIndex(GRAD_SCHOOL.start) + 1,
+    span,
+    neighbors: [early, before, span, after],
+    outsideWatches: rows.length - span.watches,
+    vsBefore: contrast(span, before, before.label),
+    vsAfter: contrast(span, after, after.label),
+    series,
+    opens: readAt(series, GRAD_SCHOOL.start),
+    closes: readAt(series, GRAD_SCHOOL.end),
+    spanVolumeRange: {
+      low: asEdge(byVolume[0]),
+      high: asEdge(byVolume[byVolume.length - 1]),
+    },
     yearlyMeans,
-    neighbors,
-    boundaryMonths,
-    points,
-    trend,
   };
 }
 
-/** Months since 1970, so two "YYYY-MM" strings can be compared by distance. */
-function monthIndex(month: string): number {
-  return Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7));
-}
-
-/** "Aug 2023". The strip's own axis prints years, so this is for the prose. */
+/** "Aug 2023". The charts print years, so this is for the prose. */
 export function monthLabel(iso: string): string {
-  return new Date(iso + "T00:00:00Z").toLocaleString("en-US", {
+  return new Date(iso.slice(0, 7) + "-01T00:00:00Z").toLocaleString("en-US", {
     month: "short",
     year: "numeric",
     timeZone: "UTC",

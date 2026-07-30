@@ -180,7 +180,16 @@ export function Lab({ data }: { data: Dataset }) {
         {/* Not a third presentation of the travel finding, so it is rendered here
             rather than added to `prototypes`: its question is which MARK a flown
             watch should take, and "against it" is the wrong footer for a
-            comparison that exists to be inconclusive until the owner picks. */}
+            comparison that existed to be inconclusive until the owner picked.
+
+            The owner has now picked, in 1c6424a: `planePath` draws the top-down
+            silhouette and the swim lane flies it. By its own terms this section
+            has expired and should be deleted, which is what its component's doc
+            comment says a decision aid is for. Left standing only because the
+            call to remove it belongs to whoever owns the mark, not to this file.
+            The copy below is corrected to say what actually ships, since a
+            section arguing about a choice already made must at least not
+            misreport which way it went. */}
         <section id="markers">
           <div className="mb-4">
             <h2 className="font-display text-xl font-bold" style={{ color: tokens.ink.primary }}>
@@ -193,9 +202,10 @@ export function Lab({ data }: { data: Dataset }) {
               Travel marker comparison
             </h2>
             <p className="mt-1 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-              Whether a plane silhouette can replace the dart. Three candidates at three sizes and
-              all three leg angles, then the same three in a real field of dots. Nothing here is
-              wired to the swim lane; the dart ships until this is decided.
+              Whether a plane silhouette could replace the dart. Three candidates at three sizes
+              and all three leg angles, then the same three in a real field of dots. Decided: the
+              top-down silhouette is what the swim lane now flies, so this section is a record of
+              how the choice was made rather than an open question.
             </p>
           </div>
 
@@ -217,8 +227,9 @@ export function Lab({ data }: { data: Dataset }) {
         </section>
 
         {/* Also not a travel section, and not a presentation question either. It
-            is here because the finding is real, thin, and easy to misread, which
-            is the third kind of thing this page exists to hold. */}
+            is here because the honest answer is a null one, which is the third
+            kind of thing this page exists to hold: too thin to headline the main
+            page, and too easy to misread to leave undrawn. */}
         <section id="grad-school">
           <div className="mb-4">
             <h2 className="font-display text-xl font-bold" style={{ color: tokens.ink.primary }}>
@@ -231,9 +242,9 @@ export function Lab({ data }: { data: Dataset }) {
               The grad school years
             </h2>
             <p className="mt-1 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-              I was in school from August 2023 to May 2025. This marks the span on a plain time
-              axis and reports what the viewing did inside it, which is fewer films and higher
-              ratings.
+              I was in school from August 2023 to May 2025. Two rolling lines over the whole log,
+              volume and rating, sharing one time axis with the span shaded on both. The question
+              is what either line does when it reaches the shading.
             </p>
           </div>
 
@@ -246,10 +257,11 @@ export function Lab({ data }: { data: Dataset }) {
 
           <p className="mt-3 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
             <span className="font-bold">Why it is here and not on the main page:</span> the
-            rating gap is the one figure on this page large enough to survive its own error bars,
-            and it is also the one most likely to be read as a cause. The section spends more
-            words refusing that reading than stating the finding, which is the right ratio and a
-            bad fit for a page a stranger skims.
+            answer is a null one, and a null result needs its method shown before it means
+            anything. Most of the words below are spent on which window was used and on what the
+            charts cannot establish, which is the right ratio for a claim of this kind and a bad
+            fit for a page a stranger skims. It also carries the correction to a figure an earlier
+            draft of this page got wrong.
           </p>
         </section>
       </div>

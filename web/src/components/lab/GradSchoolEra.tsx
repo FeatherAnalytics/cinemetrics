@@ -1,284 +1,356 @@
 "use client";
 
-import { hairline, useTheme } from "@/lib/theme";
+import { useMemo } from "react";
+import { hairline, useTheme, type Tokens } from "@/lib/theme";
 import { useWidth } from "@/lib/useWidth";
 import { fmt1 } from "@/lib/format";
-import { GRAD_SCHOOL, monthLabel, TREND_WINDOW, type EraStats } from "@/lib/gradSchool";
+import {
+  GRAD_SCHOOL,
+  monthIndex,
+  monthLabel,
+  TREND_MONTHS,
+  type EraStats,
+  type RollingPoint,
+} from "@/lib/gradSchool";
 
 /**
- * The years I was in school, marked on a chronological strip.
+ * The years I was in school, marked on two rolling lines that share one time axis.
  *
  * The swim lane cannot host this. It wraps the log into one lane per year, so a
- * span running from August of one year to May of another would be drawn as two
- * disconnected pieces on two rows, which is the opposite of what a span is for.
- * A bracket needs an unbroken time axis, so the strip is its own small chart.
+ * span running August to May would be drawn as two disconnected pieces on two
+ * rows, which is the opposite of what a span is.
  *
- * Two bands under one x axis, each answering one question:
+ * TWO CHARTS AND ONE SHARED SCALE. The band and the x domain are computed once in
+ * the parent and handed to both panels rather than each panel deriving its own.
+ * That is not only less code: a reader comparing two charts has to be able to
+ * trust that the shading sits in the same place on both, and the cheapest way to
+ * earn that is for there to be exactly one copy of the geometry.
  *
- * - The line is the trailing mean rating, so the reader can see WHEN the ratings
- *   moved. This is the band the caveat lives on, because the climb visibly
- *   predates the bracket.
- * - The rug under it is one tick per watch, so the reader can see the pace. The
- *   span is the thinner stretch, which is the direction people do not expect.
+ * Individual ratings are deliberately not plotted behind the rating line. On a 0
+ * to 100 axis 795 dots flatten it to nearly straight, and the shape of that line
+ * is the whole content of the section.
  *
- * Individual ratings are deliberately not plotted. 795 dots across a 0 to 100
- * axis would flatten the trend line into a nearly straight one, and the claim on
- * this page is about the mean and not about any single watch.
- *
- * No accent anywhere. Crimson is genre identity, the diverging ramp and the
- * heart, and an era band is chrome.
+ * No accent anywhere. An era band is chrome, and crimson is genre identity, the
+ * diverging ramp and the heart.
  */
 
-const H = 196;
-const ML = 30;
+const H = 150;
+const ML = 34;
 const MR = 12;
-/** Room above the plot for the bracket and its label. */
-const MT = 34;
+/**
+ * Room above a plot. Enough that the band label, which only the upper panel
+ * carries, clears the top of the SVG: its baseline sits at `MT - LABEL_H - 5`,
+ * and an 11px label needs about 11px of headroom above the box to not be cut.
+ */
+const MT = 28;
 const MB = 20;
-/** The rug's own strip, between the plot floor and the year axis. */
-const RUG_H = 16;
+const LABEL_H = 10;
 
-/** A rating axis rounded out to whole fives, so its ticks are readable numbers. */
-function niceDomain(values: number[]): [number, number] {
-  const lo = Math.min(...values);
-  const hi = Math.max(...values);
-  return [Math.floor((lo - 1) / 5) * 5, Math.ceil((hi + 1) / 5) * 5];
+/** A value axis rounded out to whole `step`s, so its ticks read as numbers. */
+function niceDomain(values: number[], step: number): [number, number] {
+  return [
+    Math.floor(Math.min(...values) / step) * step,
+    Math.ceil(Math.max(...values) / step) * step,
+  ];
 }
 
-export function GradSchoolEra({ stats }: { stats: EraStats }) {
-  const { tokens } = useTheme();
-  const [ref, w] = useWidth(720, 320);
+type Geometry = {
+  /** Month index to pixel. */
+  x: (month: number) => number;
+  bandX0: number;
+  bandX1: number;
+  plotW: number;
+  years: { year: number; px: number }[];
+};
 
-  const t0 = Date.parse(stats.logStart);
-  const t1 = Date.parse(stats.logEnd);
-  const plotW = Math.max(1, w - ML - MR);
-  const plotH = H - MT - MB - RUG_H;
-  const x = (iso: string) => ML + ((Date.parse(iso) - t0) / (t1 - t0)) * plotW;
-
-  const [lo, hi] = niceDomain(stats.trend.map((p) => p.mean));
+/**
+ * One rolling line under the shared band.
+ *
+ * Takes the geometry rather than building it, which is what keeps the two panels
+ * honest about sitting on one axis. Only the lower panel draws year labels: two
+ * identical year rows stacked 150px apart is chrome repeated, not orientation.
+ */
+function RollingChart({
+  title,
+  caption,
+  series,
+  value,
+  domain,
+  decimals,
+  geo,
+  tokens,
+  bandLabel = false,
+  axis = false,
+}: {
+  title: string;
+  caption: string;
+  series: RollingPoint[];
+  value: (p: RollingPoint) => number | null;
+  domain: [number, number];
+  decimals: number;
+  geo: Geometry;
+  tokens: Tokens;
+  bandLabel?: boolean;
+  axis?: boolean;
+}) {
+  const plotH = H - MT - MB;
+  const [lo, hi] = domain;
   const y = (v: number) => MT + (1 - (v - lo) / (hi - lo)) * plotH;
+  const bandTop = MT - (bandLabel ? LABEL_H : 0);
 
-  const bandX0 = x(GRAD_SCHOOL.start);
-  const bandX1 = x(GRAD_SCHOOL.end);
-  const rugTop = MT + plotH + 4;
-
-  const line = stats.trend
-    .map((p, i) => `${i === 0 ? "M" : "L"}${x(p.date).toFixed(1)},${y(p.mean).toFixed(1)}`)
+  const d = series
+    .map((p) => {
+      const v = value(p);
+      return v == null ? null : `${geo.x(p.month).toFixed(1)},${y(v).toFixed(1)}`;
+    })
+    .filter((s): s is string => s != null)
+    .map((s, i) => `${i === 0 ? "M" : "L"}${s}`)
     .join("");
 
-  // One tick per whole year the log reaches into.
-  const years: number[] = [];
-  const lastYear = new Date(t1).getUTCFullYear();
-  for (let yr = new Date(t0).getUTCFullYear(); yr <= lastYear; yr++) years.push(yr);
-
-  const [early, before, inside, after] = stats.neighbors;
-
-  // Looked up rather than written into the sentence. Both of these are claims
-  // about where a turn happens, and a hardcoded year or month would go on being
-  // asserted after the data stopped supporting it.
-  const trough = stats.yearlyMeans.reduce((a, b) => (b.mean < a.mean ? b : a));
-  const busiestBoundary = stats.boundaryMonths.reduce((a, b) => (b.watches > a.watches ? b : a));
-  const boundaryPeakPrecedes = busiestBoundary.month < GRAD_SCHOOL.start.slice(0, 7);
-
   return (
-    <div>
-      <div ref={ref} style={{ maxWidth: "100%" }}>
-        <svg
-          width={w}
-          height={H}
-          role="img"
-          aria-label="Watch dates and trailing mean rating, with the grad school span bracketed"
-        >
-          {/* The band, drawn behind everything. A wash and a pair of end rules
-              rather than a filled block: the span is a label on the axis, not a
-              category the marks belong to, and a solid fill would read as one. */}
-          <rect
-            x={bandX0}
-            y={MT - 12}
-            width={bandX1 - bandX0}
-            height={plotH + 12 + RUG_H + 4}
-            fill={hairline(tokens.ink.primary, 7)}
-          />
-          {[bandX0, bandX1].map((bx) => (
-            <line
-              key={bx}
-              x1={bx}
-              y1={MT - 12}
-              x2={bx}
-              y2={MT + plotH + RUG_H + 4}
-              stroke={tokens.ink.axis}
-              strokeWidth={1}
-            />
-          ))}
-          {/* The bracket proper: a rule with the two end stops, above the plot so
-              it reads as an annotation on time rather than a mark in the data. */}
+    <div className="mt-3">
+      <p className="text-sm font-bold" style={{ color: tokens.ink.primary }}>
+        {title}
+      </p>
+      <p className="mb-1 text-[11px]" style={{ color: tokens.ink.muted }}>
+        {caption}
+      </p>
+      <svg width={geo.plotW + ML + MR} height={H} role="img" aria-label={`${title}. ${caption}`}>
+        <rect
+          x={geo.bandX0}
+          y={bandTop}
+          width={geo.bandX1 - geo.bandX0}
+          height={MT + plotH - bandTop}
+          fill={hairline(tokens.ink.primary, 7)}
+        />
+        {[geo.bandX0, geo.bandX1].map((bx) => (
           <line
-            x1={bandX0}
-            y1={MT - 12}
-            x2={bandX1}
-            y2={MT - 12}
-            stroke={tokens.ink.secondary}
-            strokeWidth={1.5}
+            key={bx}
+            x1={bx}
+            y1={bandTop}
+            x2={bx}
+            y2={MT + plotH}
+            stroke={tokens.ink.axis}
+            strokeWidth={1}
           />
+        ))}
+        {bandLabel && (
           <text
-            x={(bandX0 + bandX1) / 2}
-            y={MT - 18}
+            x={(geo.bandX0 + geo.bandX1) / 2}
+            y={bandTop - 5}
             textAnchor="middle"
             fontSize={11}
             fill={tokens.ink.secondary}
           >
             in school, {monthLabel(GRAD_SCHOOL.start)} to {monthLabel(GRAD_SCHOOL.end)}
           </text>
+        )}
 
-          {/* Rating gridlines. Two, at the ends of the domain, because a trailing
-              mean is read as a level and three more rules would be scaffolding. */}
-          {[lo, hi].map((v) => (
-            <g key={v}>
-              <line
-                x1={ML}
-                y1={y(v)}
-                x2={ML + plotW}
-                y2={y(v)}
-                stroke={tokens.ink.grid}
-                strokeWidth={0.5}
-              />
-              <text
-                x={ML - 5}
-                y={y(v) + 3}
-                textAnchor="end"
-                fontSize={10}
-                fill={tokens.ink.muted}
-                className="tabular-nums"
-              >
-                {v}
-              </text>
-            </g>
-          ))}
-
-          <path
-            d={line}
-            fill="none"
-            stroke={tokens.ink.primary}
-            strokeWidth={1.5}
-            strokeLinejoin="round"
-          />
-
-          {/* The rug: every watch, on its own date. Ticks overlap heavily in a busy
-              month, which is the point of drawing them rather than binning them
-              into a bar per month that would need its own axis. */}
-          {stats.points.map((p, i) => (
+        {[lo, hi].map((v) => (
+          <g key={v}>
             <line
-              key={i}
-              x1={x(p.date)}
-              y1={rugTop}
-              x2={x(p.date)}
-              y2={rugTop + RUG_H - 6}
-              stroke={tokens.ink.mark}
-              strokeWidth={0.75}
-              strokeOpacity={0.45}
+              x1={ML}
+              y1={y(v)}
+              x2={ML + geo.plotW}
+              y2={y(v)}
+              stroke={tokens.ink.grid}
+              strokeWidth={0.5}
             />
-          ))}
-
-          <line
-            x1={ML}
-            y1={rugTop + RUG_H - 4}
-            x2={ML + plotW}
-            y2={rugTop + RUG_H - 4}
-            stroke={tokens.ink.axis}
-            strokeWidth={0.5}
-          />
-          {years.map((yr) => (
             <text
-              key={yr}
-              x={x(`${yr}-01-01` < stats.logStart ? stats.logStart : `${yr}-01-01`)}
-              y={H - 6}
+              x={ML - 5}
+              y={y(v) + 3}
+              textAnchor="end"
+              fontSize={10}
+              fill={tokens.ink.muted}
+              className="tabular-nums"
+            >
+              {v.toFixed(decimals)}
+            </text>
+          </g>
+        ))}
+
+        <path
+          d={d}
+          fill="none"
+          stroke={tokens.ink.primary}
+          strokeWidth={1.5}
+          strokeLinejoin="round"
+        />
+
+        {axis &&
+          geo.years.map(({ year, px }) => (
+            <text
+              key={year}
+              x={px}
+              y={H - 5}
               textAnchor="middle"
               fontSize={10}
               fill={tokens.ink.muted}
               className="tabular-nums"
             >
-              {yr}
+              {year}
             </text>
           ))}
-        </svg>
+      </svg>
+    </div>
+  );
+}
+
+export function GradSchoolEra({ stats }: { stats: EraStats }) {
+  const { tokens } = useTheme();
+  const [ref, w] = useWidth(720, 320);
+
+  const geo = useMemo<Geometry>(() => {
+    const first = stats.series[0].month;
+    const last = stats.series[stats.series.length - 1].month;
+    const plotW = Math.max(1, w - ML - MR);
+    const x = (m: number) => ML + ((m - first) / Math.max(1, last - first)) * plotW;
+    const years: { year: number; px: number }[] = [];
+    for (let yr = Math.ceil(first / 12); yr * 12 <= last; yr++) {
+      years.push({ year: yr, px: x(yr * 12) });
+    }
+    return {
+      x,
+      plotW,
+      bandX0: x(monthIndex(GRAD_SCHOOL.start)),
+      bandX1: x(monthIndex(GRAD_SCHOOL.end)),
+      years,
+    };
+  }, [stats.series, w]);
+
+  const volumeDomain = niceDomain(
+    stats.series.map((p) => p.filmsPerMonth),
+    2,
+  );
+  const ratingDomain = niceDomain(
+    stats.series.map((p) => p.meanRating).filter((r): r is number => r != null),
+    5,
+  );
+
+  const [early, , span, after] = stats.neighbors;
+  const { opens, closes, vsBefore, spanVolumeRange } = stats;
+  // Looked up rather than indexed. The sentence below names the year the climb
+  // started from, and hardcoding a position in the list would keep asserting it
+  // after a worse year arrived.
+  const trough = stats.yearlyMeans.reduce((a, b) => (b.mean < a.mean ? b : a));
+
+  return (
+    <div>
+      <div ref={ref} style={{ maxWidth: "100%" }}>
+        <RollingChart
+          title="Films per month"
+          caption={`Trailing ${TREND_MONTHS} months, plotted at the month the window closes.`}
+          series={stats.series}
+          value={(p) => p.filmsPerMonth}
+          domain={volumeDomain}
+          decimals={0}
+          geo={geo}
+          tokens={tokens}
+          bandLabel
+        />
+        <RollingChart
+          title="Mean rating"
+          caption="Same window and the same axis, so the shading falls in the same place on both."
+          series={stats.series}
+          value={(p) => p.meanRating}
+          domain={ratingDomain}
+          decimals={0}
+          geo={geo}
+          tokens={tokens}
+          axis
+        />
       </div>
 
-      <p className="mt-1 text-[11px]" style={{ color: tokens.ink.muted }}>
-        Line: trailing mean rating over {TREND_WINDOW} watches. Ticks: one per watch.
+      {/* Why the window is what it is, told to the reader and not only to the next
+          developer. It is the reason a flat line means anything here, so leaving
+          the argument in a code comment alone would hide it from the people who
+          need it to trust the chart. */}
+      <p className="mt-3 max-w-2xl text-[11px]" style={{ color: tokens.ink.muted }}>
+        Twelve months and not twenty-four. The span is {stats.eraMonths} months, so a twenty-four
+        month window would be wider than the thing it has to resolve and would come out smooth
+        across the shading whatever the viewing did. Twelve covers the span about twice, so a real
+        dip inside it would show.
       </p>
 
-      {/* The four figures, both sides, so no number is quoted without its
-          baseline. Percent-free and unrounded past one decimal, because the
-          in-span side rests on 169 watches. */}
-      <table className="mt-5 w-full max-w-md text-sm">
+      <p className="mt-5 max-w-2xl text-sm font-bold" style={{ color: tokens.ink.primary }}>
+        The trend walks straight through it.
+      </p>
+
+      <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
+        The rating line enters the span at {fmt1(opens.meanRating)} and leaves it at{" "}
+        {fmt1(closes.meanRating)}. Neither edge produces a step, and the climb that got it up there
+        is finished before the shading starts: it runs from {fmt1(trough.mean)} in {trough.year} to{" "}
+        {fmt1(opens.meanRating)} by {monthLabel(GRAD_SCHOOL.start)}.
+      </p>
+
+      <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
+        The volume line is not flat inside the span and it would be wrong to call it so. It falls
+        to {fmt1(spanVolumeRange.low.filmsPerMonth)} films a month by{" "}
+        {monthLabel(spanVolumeRange.low.key)} and recovers to{" "}
+        {fmt1(spanVolumeRange.high.filmsPerMonth)} by {monthLabel(spanVolumeRange.high.key)},
+        finishing higher than it began. What it does not do is break at either edge. The fall from
+        the early years is over before the span opens, and the steepest decline anywhere in the log
+        comes after it closes rather than during it: {fmt1(after.per30)} watches per 30 days in the
+        twelve months after, against {fmt1(span.per30)} inside.
+      </p>
+
+      {/* The honest comparison, and the reason this section does not quote the
+          span against everything else. Four rows rather than a sentence, so a
+          reader who only skims still sees that the level was already up before the
+          shading starts. */}
+      <table className="mt-5 w-full max-w-lg text-sm">
         <thead>
           <tr style={{ color: tokens.ink.muted }}>
             <th className="py-1 text-left font-normal" />
-            <th className="py-1 text-right font-normal">In school</th>
-            <th className="py-1 text-right font-normal">Outside it</th>
+            <th className="py-1 text-right font-normal">Watches</th>
+            <th className="py-1 text-right font-normal">Per 30 days</th>
+            <th className="py-1 text-right font-normal">Mean rating</th>
           </tr>
         </thead>
         <tbody className="tabular-nums" style={{ color: tokens.ink.primary }}>
-          {[
-            ["Days", String(stats.inSpan.days), String(stats.outside.days)],
-            ["Watches", String(stats.inSpan.watches), String(stats.outside.watches)],
-            ["Per 30 days", fmt1(stats.inSpan.per30), fmt1(stats.outside.per30)],
-            ["Mean rating", fmt1(stats.inSpan.meanRating), fmt1(stats.outside.meanRating)],
-          ].map(([label, a, b]) => (
-            <tr key={label} style={{ borderTop: `1px solid ${tokens.ink.grid}` }}>
+          {stats.neighbors.map((win) => (
+            <tr
+              key={win.label}
+              style={{
+                borderTop: `1px solid ${tokens.ink.grid}`,
+                fontWeight: win.label === span.label ? 700 : 400,
+              }}
+            >
               <td className="py-1" style={{ color: tokens.ink.secondary }}>
-                {label}
+                {win.label}
               </td>
-              <td className="py-1 text-right">{a}</td>
-              <td className="py-1 text-right">{b}</td>
+              <td className="py-1 text-right">{win.watches}</td>
+              <td className="py-1 text-right">{fmt1(win.per30)}</td>
+              <td className="py-1 text-right">{fmt1(win.meanRating)}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      <p className="mt-5 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-        {stats.ratingGapIsNoise ? (
-          <>
-            The gap between the two mean ratings is {fmt1(stats.ratingDiff)} points on{" "}
-            {stats.inSpan.ratingN} watches, inside its own interval, so there is nothing here to
-            read.
-          </>
-        ) : (
-          <>
-            I rated {fmt1(stats.ratingDiff)} points higher in school than out of it,{" "}
-            {fmt1(Math.abs(stats.ratingDiffZ))} standard errors on {stats.inSpan.ratingN} watches.
-            Unlike the travel gap, that is too large to be chance. I also watched less: {""}
-            {fmt1(stats.inSpan.per30)} films per 30 days against {fmt1(stats.outside.per30)}.
-          </>
-        )}
-      </p>
-
-      {/* The caveat, and it is the more important half of the section. The figure
-          above is real and its obvious reading is wrong, so the four windows are
-          rendered rather than described: a reader who only skims the table should
-          still be unable to miss that the level was already up before the
-          bracket opens. */}
       <div className="mt-6 border-t pt-4" style={{ borderColor: tokens.ink.grid }}>
         <p className="max-w-2xl text-sm font-bold" style={{ color: tokens.ink.primary }}>
-          What this does not show is a cause.
+          What this cannot do is show that nothing happened.
         </p>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-          My ratings have been climbing since {trough.year}, and the climb starts years before
-          the bracket opens. The yearly means run{" "}
-          {stats.yearlyMeans.map((m) => fmt1(m.mean)).join(", ")}, so most of the rise had already
-          happened by {monthLabel(GRAD_SCHOOL.start)}. Cut the log into the span and the stretches
-          on either side of it and the level barely moves: {fmt1(before.meanRating)} in the twelve
-          months before, {fmt1(inside.meanRating)} inside, {fmt1(after.meanRating)} in the twelve
-          months after. The {fmt1(stats.ratingDiff)} point gap is almost entirely the early years,
-          which are {early.watches} of the {stats.outside.watches} watches on the outside at a mean
-          of {fmt1(early.meanRating)}.
+          A chart cannot establish an absence, and none of this proves school changed nothing about
+          how I watched. Set the span against the year on each side and{" "}
+          {vsBefore.ratingIsNoise
+            ? `the rating moves ${fmt1(vsBefore.ratingDiff)} points, inside what ${span.watches} watches can resolve`
+            : `the rating moves ${fmt1(vsBefore.ratingDiff)} points, which is now large enough to read, so this sentence needs rewriting`}
+          , and{" "}
+          {vsBefore.volumeIsNoise
+            ? "the viewing rate is indistinguishable from the year before it"
+            : "the viewing rate now differs from the year before it, so this sentence needs rewriting"}
+          . An earlier draft of this section reported the span rating 5.0 points above everything
+          outside it. That was real arithmetic and a bad comparison: {early.watches} of the{" "}
+          {stats.outsideWatches} watches outside the span sit in the early years at a mean of{" "}
+          {fmt1(early.meanRating)}, so the figure was mostly measuring the distance from 2019.
         </p>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-          The pace has no boundary either. The months around the start date run{" "}
-          {stats.boundaryMonths.map((m) => m.watches).join(", ")} watches, and the busiest of them
-          is {boundaryPeakPrecedes ? "before school began" : "inside the span"}. So: this is when I
-          was in school, and this is what the numbers do inside it. It is not evidence that school
-          did it.
+          What the charts do support is narrower and still worth having. Across {stats.eraMonths}{" "}
+          months that had every reason to interrupt the habit, on a window narrow enough to have
+          caught it, neither line does anything it was not already doing. So: this is when I was in
+          school, and this is where the lines went. Make of it what you like.
         </p>
       </div>
     </div>
