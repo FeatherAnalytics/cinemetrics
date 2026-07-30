@@ -50,6 +50,12 @@ def main() -> None:
     con.close()
 
     have = existing()
+    # "" means both "never fetched" and "fetched, the CDN served nothing", so a
+    # poster that 404s permanently is retried on every run. Kept that way on
+    # purpose: it is one request per such film per night, image.tmdb.org has no
+    # daily cap, and a poster added to TMDB later is picked up for free. The
+    # alternative is a third state in a two-column seed whose only reader maps
+    # "" to NULL, which costs more than the requests do.
     todo = [(str(t), p) for t, p in films if not have.get(str(t))]
     print(f"{len(films)} films with posters, {len(have)} already sliced, {len(todo)} to fetch")
 

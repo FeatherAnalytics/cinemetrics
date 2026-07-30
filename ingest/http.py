@@ -89,7 +89,8 @@ def _get_json(
                     "script, so running from outside the repo finds no key at all."
                 )
             if resp.status_code == 429:
-                time.sleep(2 + attempt)
+                if attempt < attempts - 1:
+                    time.sleep(2 + attempt)
                 continue
         except requests.exceptions.SSLError as exc:
             # Must be caught before RequestException, which is its parent.
@@ -99,7 +100,9 @@ def _get_json(
                 continue  # retry at once, now verifying against the OS store
         except requests.RequestException:
             pass
-        time.sleep(1 + attempt)
+        # No backoff after the last attempt: nothing follows it to back off for.
+        if attempt < attempts - 1:
+            time.sleep(1 + attempt)
     if ssl_failures == attempts and last_ssl is not None:
         raise RuntimeError(
             f"TLS verification failed for {url} on every attempt. If this machine "
@@ -144,7 +147,11 @@ def get_bytes(
                 continue
         except requests.RequestException:
             pass
-        time.sleep(1 + attempt)
+        # No backoff after the last attempt. Unguarded, a poster the CDN will
+        # never serve idled here for three seconds past the point of giving up,
+        # once per film, in a loop that runs over the whole catalogue.
+        if attempt < attempts - 1:
+            time.sleep(1 + attempt)
     return b""
 
 

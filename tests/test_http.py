@@ -106,6 +106,44 @@ def test_get_bytes_returns_empty_when_every_attempt_fails():
     assert out == b""
 
 
+def test_get_bytes_does_not_sleep_after_the_final_failed_attempt(monkeypatch):
+    """Backoff buys a later attempt, so the last one has nothing to buy.
+
+    Unguarded this slept ~3s per hopeless URL, over a loop that walks the whole
+    catalogue.
+    """
+    slept = []
+    monkeypatch.setattr(http.time, "sleep", lambda *a, **k: slept.append(a))
+
+    def fetch(url, timeout=None):
+        return FakeResp(404, {})
+
+    assert http.get_bytes("https://image.tmdb.org/t/p/w92/gone.jpg", fetch=fetch) == b""
+    assert len(slept) == 2  # attempts=3, so two gaps between three tries
+
+
+def test_json_get_does_not_sleep_after_the_final_failed_attempt(monkeypatch):
+    slept = []
+    monkeypatch.setattr(http.time, "sleep", lambda *a, **k: slept.append(a))
+
+    def fetch(url, params=None, timeout=None):
+        return FakeResp(500, {})
+
+    assert http.tmdb_get("movie/9", api_key="KEY", fetch=fetch) == {}
+    assert len(slept) == 3  # attempts=4
+
+
+def test_json_get_does_not_sleep_after_a_final_429(monkeypatch):
+    slept = []
+    monkeypatch.setattr(http.time, "sleep", lambda *a, **k: slept.append(a))
+
+    def fetch(url, params=None, timeout=None):
+        return FakeResp(429, {})
+
+    assert http.tmdb_get("movie/10", api_key="KEY", fetch=fetch) == {}
+    assert len(slept) == 3  # attempts=4
+
+
 def test_get_bytes_does_not_sleep_on_a_successful_first_call(monkeypatch):
     slept = []
     monkeypatch.setattr(http.time, "sleep", lambda *a, **k: slept.append(a))
