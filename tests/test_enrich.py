@@ -201,7 +201,7 @@ def test_candidate_csv_columns_ends_with_poster_path():
     ("kwargs", "columns_name"),
     [
         (  # scripts/update.py
-            dict(prefer_omdb=True, omdb_countries=True, include_lang_collection=False),
+            dict(prefer_omdb=True, omdb_countries=True, include_lang_collection=True),
             "FILM_CSV_COLUMNS",
         ),
         (  # scripts/fetch_candidates.py, scripts/enrich_watchlist.py
@@ -220,16 +220,18 @@ def test_candidate_csv_columns_ends_with_poster_path():
         ),
     ],
 )
-def test_every_row_key_has_a_column(kwargs, columns_name):
-    # The regression this guards: a key added to build_enrichment_row without a
-    # matching entry in the target column list. That is how poster_path was
-    # silently dropped, and dict_writer's strict=True now turns it into a raise
-    # at write time -- this catches it at test time instead.
+def test_row_keys_equal_the_column_list(kwargs, columns_name):
+    # Each case is the flag combination a real writer passes. The commented
+    # script name is the caller, and it has to stay true: the update.py case
+    # used to pass include_lang_collection=False, a shape no caller has, so the
+    # test proved nothing about the code that runs.
     #
-    # It also guards the inverse: a key emitted for a caller whose column list
-    # has no slot for it raises under strict=True on the next write. That is
-    # what include_poster_path and include_candidate_meta exist to control --
-    # the two seeds do not carry the same columns.
+    # Equality, not a subset. The regression that started this was poster_path
+    # emitted by the builder with no column to land in, which a subset catches.
+    # The mirror image is a column the builder stopped emitting, and that one is
+    # invisible to both a subset check and to dict_writer: strict=True raises on
+    # an extra key, but a MISSING key just writes a blank cell, so a dropped
+    # field reaches the seed as an empty column rather than as an error.
     from ingest import enrich
 
     row = build_enrichment_row(
@@ -237,7 +239,7 @@ def test_every_row_key_has_a_column(kwargs, columns_name):
         tmdb_id="27205", imdb_id="tt1375666",
         **kwargs,
     )
-    assert set(row) <= set(getattr(enrich, columns_name))
+    assert set(row) == set(getattr(enrich, columns_name))
 
 
 def test_strict_writer_rejects_a_key_no_column_accepts():
