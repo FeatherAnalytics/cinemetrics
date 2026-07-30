@@ -1,7 +1,6 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import dataset from "../../../public/data/cinemetrics.json";
-import { TravelSmallMultiple } from "@/components/lab/TravelSmallMultiple";
 import { TravelComparison } from "@/components/lab/TravelComparison";
 import { TravelCallout } from "@/components/lab/TravelCallout";
 import { computeTravelStats } from "@/lib/travelStats";
@@ -11,14 +10,17 @@ const stats = computeTravelStats(dataset as unknown as Dataset);
 
 type Panel = (props: { stats: typeof stats }) => React.JSX.Element;
 
+/**
+ * The two travel panels left on the page.
+ *
+ * There were three. The small multiple was cut: ten columns of one to four films
+ * is too little data for a chart with axes, and the callout already said the same
+ * thing in prose. The comparison survived the cut because it is the only one that
+ * can answer whether 2.10 films a day is a lot, which the callout can assert and
+ * cannot show. Both of those are still whole-panel claims, so the agreement
+ * assertions below are what stops the surviving pair from drifting apart.
+ */
 const PANELS: [string, Panel][] = [
-  ["small multiple", TravelSmallMultiple],
-  ["comparison", TravelComparison],
-  ["callout", TravelCallout],
-];
-
-/** The panels that quote a mean rating. The small multiple quotes the gap instead. */
-const MEAN_PANELS: [string, Panel][] = [
   ["comparison", TravelComparison],
   ["callout", TravelCallout],
 ];
@@ -30,15 +32,15 @@ function textOf(P: Panel): string {
 }
 
 /**
- * The whole point of putting the three prototypes behind one stats module: they
- * are three PRESENTATIONS of one finding, so the review is a choice of drawing
- * and not a choice between three different claims.
+ * The whole point of putting the travel prototypes behind one stats module: they
+ * are PRESENTATIONS of one finding, so the review is a choice of drawing and not
+ * a choice between different claims.
  *
  * These assert on rendered text rather than on the module, because the failure
  * being guarded against is a panel formatting a figure its own way. The stats
- * tests prove the numbers; nothing but this proves all three print them.
+ * tests prove the numbers; nothing but this proves both panels print them.
  */
-describe("the three travel prototypes agree with each other", () => {
+describe("the travel prototypes agree with each other", () => {
   beforeEach(() => {
     // jsdom has no layout, so the comparison panel's width observer needs a
     // stand-in. Same shim as barTweens.test.tsx.
@@ -75,9 +77,10 @@ describe("the three travel prototypes agree with each other", () => {
   });
 
   /**
-   * The one claim none of these may make. A panel that shows a rating and leaves
-   * the reader to infer a difference would be stating something the data does not
-   * hold, so each has to say the gap is noise IN WORDS and not only in marks.
+   * The one claim neither of these may make. A panel that shows a rating and
+   * leaves the reader to infer a difference would be stating something the data
+   * does not hold, so each has to say the gap is noise IN WORDS and not only in
+   * marks.
    */
   it("says out loud that the rating does not move", () => {
     expect(stats.ratingGapIsNoise).toBe(true);
@@ -95,15 +98,13 @@ describe("the three travel prototypes agree with each other", () => {
 
   it("quotes both means wherever it quotes one", () => {
     // A panel showing only the travel mean would invite the reader to supply the
-    // baseline from nowhere.
-    for (const [name, P] of MEAN_PANELS) {
+    // baseline from nowhere. Both survivors quote a mean, so this now covers the
+    // same set as the tests above rather than a subset of it.
+    for (const [name, P] of PANELS) {
       const text = textOf(P);
       expect(text, `${name} travel mean`).toContain(stats.travel.meanRating.toFixed(1));
       expect(text, `${name} ordinary mean`).toContain(stats.ordinary.meanRating.toFixed(1));
     }
-    // The small multiple quotes the GAP and the medians instead of the two means,
-    // because its cells already carry every individual rating.
-    expect(textOf(TravelSmallMultiple)).toContain("1.6");
   });
 
   it("never spends the accent on travel chrome", () => {
@@ -115,12 +116,12 @@ describe("the three travel prototypes agree with each other", () => {
     }
   });
 
-  it("draws one dart per flight day in the panels that show days", () => {
-    // 10 days in the small multiple plus its 3-mark leg legend, 10 again in the
-    // callout. The comparison shows no days, so it draws no darts.
+  it("draws one dart per flight day in the panel that shows days", () => {
+    // The callout is the only survivor that shows individual days. The comparison
+    // shows none, so it draws no darts, and that difference is the reason both
+    // are still here.
     const darts = (P: Panel) =>
       render(<P stats={stats} />).container.querySelectorAll("svg path").length;
-    expect(darts(TravelSmallMultiple)).toBe(stats.travel.days + 3);
     expect(darts(TravelCallout)).toBe(stats.travel.days);
     expect(darts(TravelComparison)).toBe(0);
   });
@@ -130,8 +131,7 @@ describe("the three travel prototypes agree with each other", () => {
     for (const day of stats.days) {
       for (const film of day.films) expect(text, film.title).toContain(film.title);
     }
-    // And the small multiple cannot, which is the real difference between the two
-    // and the answer to whether they collapsed into the same prototype.
-    expect(textOf(TravelSmallMultiple)).not.toContain("Cocaine Bear");
+    // And the comparison cannot, which is the real difference between the two.
+    expect(textOf(TravelComparison)).not.toContain("Cocaine Bear");
   });
 });

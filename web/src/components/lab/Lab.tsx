@@ -4,28 +4,36 @@ import { useMemo } from "react";
 import { useTheme } from "@/lib/theme";
 import type { Dataset } from "@/lib/types";
 import { computeTravelStats, ratioLabel, signedLabel } from "@/lib/travelStats";
-import { TravelSmallMultiple } from "./TravelSmallMultiple";
 import { TravelComparison } from "./TravelComparison";
 import { TravelCallout } from "./TravelCallout";
 import { TravelMarkerLab } from "./TravelMarkerLab";
 
 /**
- * The unlisted surface behind `/lab`: prototypes under review, before one of them
- * is promoted to the main page.
+ * The unlisted surface behind `/lab`: a permanent home for work that has not
+ * earned a place on the main page.
  *
- * This is the job the route was built for. It spent one phase reframed as a home
- * for retired charts, which is what emptied it out, because a chart good enough to
- * keep and redundant enough to move is rare and a chart that is WRONG gets deleted
- * instead. Prototyping is the recurring need: the alternative is trying three
- * presentations of one finding on the only page anybody reads.
+ * PERMANENT, not a staging area that empties. The route spent one phase framed as
+ * a home for retired charts, which is what emptied it, because a chart good enough
+ * to keep and redundant enough to move is rare and a chart that is WRONG gets
+ * deleted instead. The need that actually recurs is the opposite one: something
+ * worth looking at that is not yet worth publishing, either because a finding is
+ * still choosing a presentation, or because a decision about a mark is open, or
+ * because a number wants more data behind it before it means anything.
+ *
+ * Sections leave. They are promoted, or they are deleted once whatever question
+ * they were asking is answered, and both are normal. The small multiple that used
+ * to sit at the top of this page is the worked example: ten columns of one to four
+ * films is too little data for a chart with axes, and the callout below said the
+ * same thing better in prose, so it went. What survived that cut is the comparison,
+ * because it is the only one that answers whether 2.10 films a day is a lot, which
+ * the callout can assert and cannot show.
  *
  * NO FILTER RAIL, and no `ExplorerProvider`. Deliberate, and the opposite of what
- * the route carried before. The tenants here are three presentations of ONE
- * finding measured on 21 watches, and the review question is which presentation
- * reads best. A filter that cut those 21 down to 4 would give each panel a
- * different number and turn the comparison into a comparison of arithmetic. The
- * figures are library-wide and every panel reads them from one
- * `computeTravelStats` call, so the three cannot disagree.
+ * the route carried before. The travel panels present ONE finding measured on 21
+ * watches, and a filter that cut those 21 down to 4 would give each panel a
+ * different number and turn a comparison of presentations into a comparison of
+ * arithmetic. Everything here reads library-wide figures from one
+ * `computeTravelStats` or `computeEraStats` call, so no two sections can disagree.
  */
 
 type Prototype = {
@@ -45,18 +53,8 @@ export function Lab({ data }: { data: Dataset }) {
 
   const prototypes: Prototype[] = [
     {
-      id: "small-multiple",
-      n: 1,
-      title: "Small multiple",
-      aim: "One column per flight, films stacked inside it. Reads as: here are the flights, and here is what I watched on each.",
-      caveat: `Ten columns of one to four films is very little data for a chart with axes. The y axis has four values on it and the tallest column reaches ${Math.max(
-        ...stats.days.map((d) => d.films.length),
-      )}. The rating wash is close to unreadable at this size, which is why each cell also prints its number, and a chart whose encoding needs the number printed beside it is most of the way to being a table.`,
-      Chart: () => <TravelSmallMultiple stats={stats} />,
-    },
-    {
       id: "comparison",
-      n: 2,
+      n: 1,
       title: "Comparison",
       aim: `Travel days against ordinary days on the measures that answer. The headline is ${ratioLabel(
         stats.filmsPerDayRatio,
@@ -67,9 +65,9 @@ export function Lab({ data }: { data: Dataset }) {
     },
     {
       id: "callout",
-      n: 3,
+      n: 2,
       title: "Callout",
-      aim: "No axes. The trips named, the films listed, the figures inline. The cheapest of the three.",
+      aim: "No axes. The trips named, the films listed, the figures inline. The cheaper of the two.",
       caveat:
         "Prose does not scale and does not compare. It cannot show the ordinary-day baseline as anything but a number in a sentence, and if a reader wants to know whether 2.10 is a lot, this panel can only assert that it is.",
       Chart: () => <TravelCallout stats={stats} />,
@@ -83,23 +81,26 @@ export function Lab({ data }: { data: Dataset }) {
           className="font-mono text-xs tracking-[0.2em] uppercase"
           style={{ color: tokens.ink.muted }}
         >
-          Unlisted · under review
+          Unlisted · permanent
         </p>
         <h1
           className="font-display text-3xl font-bold tracking-tight"
           style={{ color: tokens.ink.primary }}
         >
-          Three ways to say one thing about flying
+          The lab
         </h1>
         <p className="mt-3 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-          Prototypes waiting on a decision. All three draw the same figures from the same
-          function, so the choice between them is a choice of presentation and not of claim.
-          Nothing links here.
+          Work that has not earned a place on the main page. Some of it is a finding still
+          choosing how to be drawn, some of it is an open question about a mark, and some of it
+          is a number that wants more data behind it before it means much. Sections leave when
+          they are decided, promoted or deleted. Nothing links here and nothing will.
         </p>
       </header>
 
-      {/* The claim, and the non-claim, stated once at the top so no panel below has
-          to carry the whole caveat on its own. */}
+      {/* The claim, and the non-claim, stated once so neither travel panel has to
+          carry the whole caveat on its own. Scoped to those two in the heading,
+          because sections 3 and 4 are not about flying and a bare "the finding"
+          at the top of the page would read as governing them too. */}
       <div
         className="mb-12 border-t border-b py-4"
         style={{ borderColor: tokens.ink.grid }}
@@ -107,7 +108,7 @@ export function Lab({ data }: { data: Dataset }) {
         <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
           <div>
             <dt className="font-bold" style={{ color: tokens.ink.primary }}>
-              The finding
+              The travel finding, for sections 1 and 2
             </dt>
             <dd className="mt-0.5" style={{ color: tokens.ink.secondary }}>
               {ratioLabel(stats.filmsPerDayRatio)} more films per day in the air, and a flight day
@@ -117,14 +118,14 @@ export function Lab({ data }: { data: Dataset }) {
           </div>
           <div>
             <dt className="font-bold" style={{ color: tokens.ink.primary }}>
-              Not a finding
+              Not a travel finding
             </dt>
             <dd className="mt-0.5" style={{ color: tokens.ink.secondary }}>
               {stats.ratingGapIsNoise ? (
                 <>
                   The rating does not move. {signedLabel(stats.ratingDiff)} points, interval{" "}
                   {signedLabel(stats.ratingDiffCi[0])} to {signedLabel(stats.ratingDiffCi[1])},
-                  both medians {stats.travel.medianRating}. No panel here may imply I rate a film
+                  both medians {stats.travel.medianRating}. Neither panel may imply I rate a film
                   worse for having watched it on a plane.
                 </>
               ) : (
@@ -173,10 +174,10 @@ export function Lab({ data }: { data: Dataset }) {
           </section>
         ))}
 
-        {/* Section 4 is not a fourth presentation of the travel finding, so it is
-            rendered here rather than added to `prototypes`: its question is which
-            MARK a flown watch should take, and "against it" is the wrong footer
-            for a comparison that exists to be inconclusive until the owner picks. */}
+        {/* Not a third presentation of the travel finding, so it is rendered here
+            rather than added to `prototypes`: its question is which MARK a flown
+            watch should take, and "against it" is the wrong footer for a
+            comparison that exists to be inconclusive until the owner picks. */}
         <section id="markers">
           <div className="mb-4">
             <h2 className="font-display text-xl font-bold" style={{ color: tokens.ink.primary }}>
@@ -184,7 +185,7 @@ export function Lab({ data }: { data: Dataset }) {
                 className="font-mono text-sm tabular-nums"
                 style={{ color: tokens.ink.muted }}
               >
-                4.
+                3.
               </span>{" "}
               Travel marker comparison
             </h2>
