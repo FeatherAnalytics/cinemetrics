@@ -124,7 +124,7 @@ selects from it, [`export_web.py`](../scripts/export_web.py) does not export it,
 [`build_watchlist_seed.py`](../scripts/build_watchlist_seed.py) and the model is typed and tested,
 but the branch stops there — it is staged and ready rather than in use.
 
-Current scale: <!--stat:watches-->795<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->7,770<!--/stat--> recommendation candidates, <!--stat:dbt_models-->9<!--/stat--> dbt models, <!--stat:dbt_seeds-->5<!--/stat--> seeds, <!--stat:dbt_tests-->35<!--/stat--> data tests.
+Current scale: <!--stat:watches-->795<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->7,770<!--/stat--> recommendation candidates, <!--stat:dbt_models-->9<!--/stat--> dbt models, <!--stat:dbt_seeds-->5<!--/stat--> seeds, <!--stat:dbt_tests-->36<!--/stat--> data tests.
 
 Those figures are generated — see [Keeping the figures honest](#keeping-the-figures-honest). The
 dashboard header and the share card derive their own counts separately at build time, from
@@ -218,7 +218,7 @@ Everything is free-tier and stateless except the object store.
 
 **[`ci.yml`](../.github/workflows/ci.yml)** — on pull requests to `main`. Three independent
 jobs: `lint` (ruff + eslint), `data` (`dbt deps` then `dbt build`, which runs all
-<!--stat:dbt_tests-->35<!--/stat--> tests), and `web` (vitest + Next.js build).
+<!--stat:dbt_tests-->36<!--/stat--> tests), and `web` (vitest + Next.js build).
 
 **[`deploy.yml`](../.github/workflows/deploy.yml)** — on push to `main` and on manual dispatch.
 Builds the web bundle and publishes to Pages. Concurrency group `pages`, no
