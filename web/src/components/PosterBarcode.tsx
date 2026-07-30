@@ -13,8 +13,37 @@ import type { EnrichedWatch } from "@/lib/types";
 // barcode next door already draws 795 of them.
 const H = 132;
 
+// The hover tooltip. A fixed width rather than a shrink-to-fit box, because the
+// edge clamp below has to know how wide the thing is before it is laid out, and
+// titles run from "Us" to "Everything Everywhere All at Once": measuring would
+// make the clamp depend on which film the pointer happens to be over.
+const TIP_W = 252;
+const TIP_PAD = 4;
+
+// 72px wide, so 108 tall at the 2:3 a poster always is. The old 38px was sized
+// to fit a caption strip and showed a smudge; 72 is roughly the point where the
+// art, the title treatment and a face become recognisable. It also keeps the
+// whole tooltip under the barcode's own 132px height, so the readout stays
+// smaller than the hero it describes.
+const POSTER_W = 72;
+
 /**
- * The readout under the barcode.
+ * The tooltip's left edge, in pixels from the figure's left, for a pointer at
+ * `x` over a figure `figW` wide.
+ *
+ * The barcode spans the full card, so a box merely centred on the pointer hangs
+ * off the page at both ends: the first stripe would put half the tooltip left of
+ * zero and the last would push it past the right edge. Clamping the left edge
+ * into [pad, figW - TIP_W - pad] keeps it on screen and lets it slide along the
+ * end of the barcode instead. When the figure is narrower than the tooltip the
+ * lower bound wins, which pins it flush left rather than off screen.
+ */
+export function tipLeft(x: number, figW: number, tipW = TIP_W, pad = TIP_PAD): number {
+  return Math.max(pad, Math.min(x - tipW / 2, figW - tipW - pad));
+}
+
+/**
+ * The barcode's hover readout.
  *
  * Ratings are shown in STARS. my_rating is 0-100 and star_rating is 0-5 with a
  * factor of exactly 20; starLabel is the same helper the rating axes use, so
@@ -34,7 +63,10 @@ export function PosterBarcode() {
   const { filtered, setSelected } = useExplorer();
   const { tokens } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [hover, setHover] = useState<EnrichedWatch | null>(null);
+  // x and figW travel with the watch: both come off the same getBoundingClientRect
+  // as the hit test, so the tooltip is placed from the geometry that picked the
+  // film rather than from a second, later measurement.
+  const [hover, setHover] = useState<{ x: number; figW: number; w: EnrichedWatch } | null>(null);
 
   const watches = useMemo(
     () => [...filtered].sort((a, b) => a.d.getTime() - b.d.getTime()),
@@ -97,18 +129,23 @@ export function PosterBarcode() {
 
   if (watches.length === 0) return null;
 
-  const at = (clientX: number): EnrichedWatch | null => {
+  const at = (clientX: number): { x: number; figW: number; w: EnrichedWatch } | null => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
-    const i = Math.floor(((clientX - rect.left) / rect.width) * watches.length);
-    return watches[Math.max(0, Math.min(watches.length - 1, i))] ?? null;
+    const x = clientX - rect.left;
+    const i = Math.floor((x / rect.width) * watches.length);
+    const w = watches[Math.max(0, Math.min(watches.length - 1, i))];
+    return w ? { x, figW: rect.width, w } : null;
   };
 
-  const poster = hover ? posterUrl(hover.film?.poster) : null;
+  const poster = hover ? posterUrl(hover.w.film?.poster) : null;
 
   return (
-    <figure className="m-0">
+    // Relative, so the tooltip is placed against the figure. The figure is the
+    // canvas's own box, so a pointer offset measured off the canvas is already
+    // in the tooltip's coordinate space.
+    <figure className="relative m-0">
       <canvas
         ref={canvasRef}
         style={{ display: "block", width: "100%", height: H, cursor: "pointer" }}
@@ -119,45 +156,74 @@ export function PosterBarcode() {
         onMouseMove={(e) => setHover(at(e.clientX))}
         onMouseLeave={() => setHover(null)}
         onClick={(e) => {
-          const w = at(e.clientX);
-          if (w) setSelected(w.tmdb_id);
+          const hit = at(e.clientX);
+          if (hit) setSelected(hit.w.tmdb_id);
         }}
       />
-      {/* The caption holds its height whether or not a film is hovered, so the
-          page below does not jump as the pointer crosses the barcode. */}
-      <figcaption
-        className="mt-2 flex min-h-[62px] items-center gap-3 text-sm"
-        style={{ color: tokens.ink.secondary }}
-      >
-        {hover ? (
-          <>
-            {poster && (
-              /* A plain img, not next/image: this is a static export, so the
-                 optimizer is unavailable and would need `unoptimized` anyway. */
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={poster}
-                alt=""
-                style={{ width: 38, aspectRatio: "2/3", objectFit: "cover", borderRadius: 2 }}
-              />
-            )}
-            <span>
-              <span className="font-semibold" style={{ color: tokens.ink.primary }}>
-                {hover.film?.title ?? hover.tmdb_id}
-              </span>
-              <br />
+
+      {/* Clear of the canvas rather than of the pointer, and BELOW it.
+          The swim lane hangs its tooltip off the point's own y, but every stripe
+          here spans the full 132px: following the pointer's y would bob the box up
+          and down a film's height for no information and would sit the readout on
+          top of the hero. Anchored to an edge it tracks the pointer sideways only
+          and the barcode stays whole. Below rather than above because a 124px box
+          lifted over the canvas covers this section's own heading, its blurb and
+          the story chips above them, while downward it covers the caption, which
+          is the one line the tooltip has just made redundant. */}
+      {hover && (
+        <div
+          className="pointer-events-none absolute z-10 flex gap-2 rounded-md p-2 text-xs shadow"
+          style={{
+            left: tipLeft(hover.x, hover.figW),
+            top: H + 8,
+            width: TIP_W,
+            background: tokens.ink.primary,
+            color: tokens.ink.surface,
+          }}
+        >
+          {poster && (
+            /* A plain img, not next/image: this is a static export, so the
+               optimizer is unavailable and would need `unoptimized` anyway. */
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={poster}
+              alt=""
+              style={{
+                width: POSTER_W,
+                flexShrink: 0,
+                aspectRatio: "2/3",
+                objectFit: "cover",
+                borderRadius: 2,
+              }}
+            />
+          )}
+          {/* min-w-0 so a long title wraps inside the fixed width instead of
+              pushing the box wider than the clamp was told it is. */}
+          <div className="min-w-0">
+            <div className="font-medium break-words">
+              {hover.w.film?.title ?? hover.w.tmdb_id}
+            </div>
+            {/* A dimmed version of the tooltip's own text color, not a fixed gray:
+                the background is ink.primary (inverted relative to the page), so
+                the muted tone has to invert with it too. */}
+            <div style={{ color: tokens.ink.surface, opacity: 0.75 }}>
               {barcodeLabel({
-                date: hover.date,
-                genre: primaryGenre(hover.film),
-                rating: hover.rating,
+                date: hover.w.date,
+                genre: primaryGenre(hover.w.film),
+                rating: hover.w.rating,
               })}
-            </span>
-          </>
-        ) : (
-          <span style={{ color: tokens.ink.muted }}>
-            {watches.length} watches. Hover for the film.
-          </span>
-        )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* The count and the invitation stay on the page instead of moving into the
+          tooltip. They are the only thing telling a reader the barcode answers to
+          a pointer at all, and a hover affordance that only appears on hover is no
+          affordance. Static now, so unlike the readout it used to hold there is
+          nothing left that can change height under the pointer. */}
+      <figcaption className="mt-2 text-sm" style={{ color: tokens.ink.muted }}>
+        {watches.length} watches. Hover for the film.
       </figcaption>
     </figure>
   );
