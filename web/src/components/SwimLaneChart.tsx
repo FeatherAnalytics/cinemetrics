@@ -160,10 +160,29 @@ export function SwimLaneChart() {
             </g>
           );
         }
+        // A profile favorite takes a star instead of a dot, in its genre color.
+        // Checked after the solstice sun, which marks one named watch and is the
+        // most specific of the three, and BEFORE the plane.
+        //
+        // The star beating the plane is the owner's call, reversing an earlier
+        // one that ran the other way. It decides exactly one watch: The Nice Guys
+        // on 2023-10-10, the only favorite in the log ever watched on a travel
+        // day. The star wins because it is the rarer fact. Four films out of the
+        // whole library carry one, while that date already draws two other darts,
+        // so the day still reads as flown without a third. Giving the dart the
+        // position instead would leave this the one place on the page where a
+        // favorite goes unmarked, which is a worse loss than a cluster of two.
+        if (isFav(p.w.tmdb_id)) {
+          return (
+            <g key={i} opacity={p.op} style={{ cursor: "pointer" }} {...handlers}>
+              <StarMarker x={p.x} y={p.y} r={p.r + 2.4} fill={favColor(p.w.film, tokens)} />
+            </g>
+          );
+        }
         // A watch flown rather than sat through takes a plane. Faded and lifted
         // exactly like the sun, so a filtered-out flight recedes with the ghosts.
         //
-        // In the film's GENRE color, like the favorite star below and unlike an
+        // In the film's GENRE color, like the favorite star above and unlike an
         // earlier ink version of this mark. The lane encodes two things at once,
         // genre in the hue and rating in the height, and an ink glyph silently
         // drops the first for every watch it replaces. Crimson here means Horror
@@ -179,19 +198,6 @@ export function SwimLaneChart() {
           return (
             <g key={i} opacity={op} style={{ cursor: "pointer" }} {...handlers}>
               <PlaneMarker x={p.x} y={p.y} leg={leg} color={p.color} />
-            </g>
-          );
-        }
-        // A profile favorite takes a star instead of a dot, in its genre color.
-        // Checked AFTER the solstice sun and the plane: those mark one watch and
-        // one day, and this marks a film wherever it appears, so the more specific
-        // mark keeps the position. The one case where it bites is The Nice Guys on
-        // 2023-10-10, which loses its star: the point of a travel day is that the
-        // WHOLE day was flown, and one starred dot in the cluster breaks that read.
-        if (isFav(p.w.tmdb_id)) {
-          return (
-            <g key={i} opacity={p.op} style={{ cursor: "pointer" }} {...handlers}>
-              <StarMarker x={p.x} y={p.y} r={p.r + 2.4} fill={favColor(p.w.film, tokens)} />
             </g>
           );
         }
