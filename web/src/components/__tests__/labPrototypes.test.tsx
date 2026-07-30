@@ -153,14 +153,24 @@ describe("the travel prototypes agree with each other", () => {
       expect(tips(container)).toHaveLength(0);
     });
 
-    it("gives the films-per-day row its counts, not just its bar", () => {
+    /**
+     * The counts BEHIND the bar, and only those.
+     *
+     * This used to require the rate as a prefix too, "2.10 a day · 21 watches,
+     * 10 days". The owner dropped it deliberately: the bar prints 2.10 at its
+     * own end, so the prefix repeated a number already on screen an inch away.
+     * What the face of the chart cannot show is what the rate is a rate OF, so
+     * that is what the readout is now for.
+     */
+    it("gives the films-per-day row the counts its bar cannot show", () => {
       const { travel, ordinary } = stats;
-      expect(hoverRow(0, 0).text).toBe(
-        `Travel days${travel.filmsPerDay.toFixed(2)} a day · ${travel.watches} watches, ${travel.days} days`,
-      );
+      expect(hoverRow(0, 0).text).toBe(`Travel days${travel.watches} watches over ${travel.days} days`);
       expect(hoverRow(0, 1).text).toBe(
-        `Ordinary days${ordinary.filmsPerDay.toFixed(2)} a day · ${ordinary.watches} watches, ${ordinary.days} days`,
+        `Ordinary days${ordinary.watches} watches over ${ordinary.days} days`,
       );
+      // The prefix is only safe to drop while the bar still carries the figure,
+      // so that stays asserted here rather than only in the panel-wide test.
+      expect(textOf(TravelComparison)).toContain(travel.filmsPerDay.toFixed(2));
     });
 
     it("gives the multi-film row the days behind the percentage", () => {
