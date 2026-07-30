@@ -676,10 +676,13 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
   /**
    * Do I rate a film higher on the way back than the first time through?
    *
-   * D5: `rewatch` is three-state. The 129 sheet-era rows record `false` because
-   * the Google Sheet had no such field, not because they were first viewings,
-   * so they are excluded from BOTH sides rather than silently counted as first
-   * watches, which would drag the first-watch mean toward the sheet era.
+   * D5: `rewatch` is three-state. A sheet-era row records `false` because the
+   * Google Sheet had no such field, not because it was a first viewing, so
+   * `hasKnownRewatchState` keeps it out of BOTH sides rather than letting it be
+   * counted as a first watch, which would drag the first-watch mean toward the
+   * sheet era. The 6 sheet-era rows the data can see are returns do count: the
+   * same predicate the StatBar rate uses, so this comparison and that rate never
+   * disagree about which rows are answerable.
    */
   const firstRatings: number[] = [];
   const rewatchRatings: number[] = [];

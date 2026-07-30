@@ -76,9 +76,12 @@ function bucketSpan(dates: string[], grain: Grain): string[] {
  * bar. The cumulative chart carries the genre mix, where the bands are thick
  * enough to read.
  *
- * Under first or rewatch the sheet-era months cannot be classified at all (D5),
- * so they drop out of the count and are drawn as the outlined "not recorded"
- * band instead of silently reading as zero.
+ * Under first or rewatch a sheet-era watch that the data cannot place cannot be
+ * classified at all (D5), so it drops out of the count and is drawn in the
+ * outlined "not recorded" band instead of silently reading as a first viewing.
+ * `hasKnownRewatchState` decides that, and it is the SAME predicate the StatBar
+ * rate divides by, so the band and the headline rate always agree on which rows
+ * the data can speak for.
  */
 export function ViewingVelocity() {
   const { all, filtered, filters, setSelection } = useExplorer();

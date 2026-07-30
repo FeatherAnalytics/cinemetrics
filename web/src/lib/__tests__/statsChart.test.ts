@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import dataset from "../../../public/data/cinemetrics.json";
+import { computeRewatchShare } from "../stats";
 import {
   anova,
   anovaCaption,
@@ -16,7 +18,7 @@ import {
   ticksEvery,
   tukey,
 } from "../statsChart";
-import type { EnrichedWatch } from "../types";
+import type { Dataset, EnrichedWatch } from "../types";
 
 describe("chicagoParts", () => {
   // The stored date IS the Chicago calendar date, so these must come straight
@@ -154,15 +156,70 @@ describe("insetRect", () => {
 });
 
 describe("hasKnownRewatchState", () => {
-  const w = (liked: boolean | null) => ({ liked }) as EnrichedWatch;
+  const w = (liked: boolean | null, returned = false) => ({ liked, returned }) as EnrichedWatch;
 
-  it("treats a null like as an unrecorded rewatch state", () => {
+  it("treats a sheet-era row the data cannot place as unrecorded", () => {
     expect(hasKnownRewatchState(w(null))).toBe(false);
   });
 
   it("accepts both like values as recorded", () => {
     expect(hasKnownRewatchState(w(true))).toBe(true);
     expect(hasKnownRewatchState(w(false))).toBe(true);
+  });
+
+  it("accepts a sheet-era row the data can see is a return", () => {
+    // `returned` comes from watch order, which is era-independent, so the row is
+    // answerable even though it recorded no flag of its own.
+    expect(hasKnownRewatchState(w(null, true))).toBe(true);
+  });
+});
+
+/**
+ * The predicate against the COMMITTED payload rather than a fixture.
+ *
+ * A fixture is how the divergence hid. Two copies of this function disagreed on
+ * exactly the rows where `liked` is null and `returned` is true, and every
+ * hand-built case in this file happened to agree with both, so the suite stayed
+ * green while the page rendered two rewatch rates against each other.
+ *
+ * Counts are asserted as relationships, not as literals: a daily job appends to
+ * this dataset, so `expect(672)` would be red tomorrow for no reason. The
+ * figures in the comments are what the payload said when this was written.
+ */
+describe("hasKnownRewatchState against the real dataset", () => {
+  const watches = (dataset as unknown as Dataset).watches as EnrichedWatch[];
+  const sheetEra = watches.filter((w) => w.liked == null);
+  const rescued = sheetEra.filter(hasKnownRewatchState);
+
+  it("admits the sheet-era returns that a bare null check drops", () => {
+    // 6 of the 795 rows when written: 2019-04-19/11906, 2019-05-09/361292,
+    // 2019-06-29/11665, 2019-09-24/11381, 2019-10-06/530385, 2019-11-01/361292.
+    expect(rescued.length).toBeGreaterThan(0);
+    // The bare null check the stale copy used cannot see any of them, which is
+    // the whole divergence stated as an assertion.
+    expect(rescued.every((w) => w.liked == null)).toBe(true);
+  });
+
+  it("moves the rate rather than only the denominator", () => {
+    // Every rescued row is a rewatch by construction: `returned` is one of the
+    // two halves `fct_watches` ORs into `is_rewatch_effective`. So dropping them
+    // would shrink the numerator too, and understate the rate.
+    expect(rescued.every((w) => w.rewatch)).toBe(true);
+
+    const known = watches.filter(hasKnownRewatchState);
+    const bareNullCheck = watches.filter((w) => w.liked != null);
+    const rate = (ws: EnrichedWatch[]) => ws.filter((x) => x.rewatch).length / ws.length;
+    expect(rate(known)).toBeGreaterThan(rate(bareNullCheck));
+  });
+
+  it("gives the velocity band and the StatBar rate one denominator", () => {
+    // ViewingVelocity buckets by this predicate and `computeRewatchShare`
+    // divides by it. While two definitions existed these were 31.7% and 32.3%
+    // on the same page; they can only diverge again if the import is unpicked.
+    const known = watches.filter(hasKnownRewatchState);
+    const letterboxdEra = watches.length - sheetEra.length;
+    expect(known.length).toBe(letterboxdEra + rescued.length);
+    expect(computeRewatchShare(watches)).toBe(known.filter((w) => w.rewatch).length / known.length);
   });
 });
 

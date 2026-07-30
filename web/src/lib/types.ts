@@ -136,8 +136,11 @@ export type EnrichedWatch = Watch & {
    * narrower than `liked` in meaning and wider in coverage. Rates use THIS field;
    * `liked` stays exactly as the pipeline recorded it.
    *
-   * ⚠️ NOT an era marker. `hasKnownRewatchState` keys off raw `liked` on purpose:
-   * these 31 rows are still sheet-era and still recorded no rewatch flag.
+   * ⚠️ NOT an era marker, so `hasKnownRewatchState` never reads it. That
+   * predicate takes raw `liked`, widened by `returned` rather than by the heart:
+   * a recovered heart says only that the FILM was seen again, which is evidence
+   * about affection and none at all about whether the row recorded a rewatch
+   * flag. These rows are still sheet-era and still recorded none.
    */
   heart: boolean | null;
 };
