@@ -183,6 +183,53 @@ describe("the travel prototypes agree with each other", () => {
       expect(text).toContain(`median ${travel.medianRating}`);
     });
 
+    /**
+     * The relabelling, and the reader question that forced it: how can both
+     * medians be 70 when the interval does not contain 70?
+     *
+     * Nothing was wrong with the arithmetic. "73.5 · 72.5 to 74.4 · median 70"
+     * is three bare numbers side by side, which reads as one range with a
+     * middle, and a range containing a middle it does not contain is a
+     * contradiction. The interval belongs to the MEAN and to nothing else: the
+     * ratings run 20 to 100, and on the ordinary side the mean sits above the
+     * median because more watches sit above 70 than below it. So each statistic
+     * is named where it is printed.
+     */
+    it("names the statistic each figure belongs to in the rating readout", () => {
+      const { ordinary } = stats;
+      const half = 1.96 * ordinary.seRating;
+      const lo = ordinary.meanRating - half;
+      const hi = ordinary.meanRating + half;
+      // The case the labelling exists for. If the median ever moved inside the
+      // interval this guard would still hold, but the bug it documents would
+      // have gone, so the assertion records that today it does not.
+      expect(ordinary.medianRating).toBeLessThan(lo);
+      expect(hoverRow(2, 1).text).toBe(
+        `Ordinary daysmean ${ordinary.meanRating.toFixed(1)} (95% CI ${lo.toFixed(
+          1,
+        )} to ${hi.toFixed(1)}) · median ${ordinary.medianRating}`,
+      );
+      // Bare, unlabelled figures are the failure mode, so the shape that caused
+      // it may not come back: a mean immediately followed by its bounds with no
+      // word between them.
+      expect(hoverRow(2, 1).text).not.toMatch(
+        new RegExp(`${ordinary.meanRating.toFixed(1)}\\s*·\\s*${lo.toFixed(1)}`),
+      );
+    });
+
+    it("says whose interval it is in the panel's own captions, not only on hover", () => {
+      // A tooltip only answers a reader who hovers. The static page has to carry
+      // the same disambiguation or it still reads as a data range.
+      const text = textOf(TravelComparison);
+      expect(text, "heading").toContain("95% confidence intervals");
+      expect(text, "caption under the chart").toContain(
+        "95% CI for that side's mean, not the spread of the ratings",
+      );
+      // The gap between the means has an interval of its own, and it is a third
+      // statistic again. Naming it stops it being read as either side's.
+      expect(text, "caption above the chart").toContain("the 95% CI on that gap runs");
+    });
+
     it("stays on screen and out of the pointer's way", () => {
       const { container } = hoverRow(0, 0);
       const tip = container.querySelector<HTMLElement>(".pointer-events-none");

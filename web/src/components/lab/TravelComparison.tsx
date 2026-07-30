@@ -222,7 +222,7 @@ export function TravelComparison({ stats }: { stats: TravelStats }) {
             format={(v) => v.toFixed(2)}
             describe={(row) => {
               const side = row === 0 ? travel : ordinary;
-              return `${side.filmsPerDay.toFixed(2)} a day · ${side.watches} watches, ${side.days} days`;
+              return `${side.watches} watches over ${side.days} days`;
             }}
             ink={tokens.ink.primary}
             grid={tokens.ink.grid}
@@ -234,12 +234,11 @@ export function TravelComparison({ stats }: { stats: TravelStats }) {
 
         <section>
           <h4 className="text-sm font-bold" style={{ color: tokens.ink.primary }}>
-            Share of days holding more than one film
+            Share of days viewing more than one film
           </h4>
           <p className="mt-0.5 mb-2 text-xs" style={{ color: tokens.ink.muted }}>
             {ratioLabel(stats.multiFilmRatio)} likelier. {travel.multiFilmDays} of {travel.days}{" "}
-            against {ordinary.multiFilmDays} of {ordinary.days}. The sharper version of the same
-            finding, resting on the fewest assumptions.
+            against {ordinary.multiFilmDays} of {ordinary.days}.
           </p>
           <BarPair
             width={width}
@@ -248,7 +247,7 @@ export function TravelComparison({ stats }: { stats: TravelStats }) {
             format={(v) => `${Math.round(v)}%`}
             describe={(row) => {
               const side = row === 0 ? travel : ordinary;
-              return `${Math.round(side.multiFilmShare * 100)}% · ${side.multiFilmDays} of ${side.days} days`;
+              return `${side.multiFilmDays} of ${side.days} days`;
             }}
             ink={tokens.ink.primary}
             grid={tokens.ink.grid}
@@ -260,11 +259,12 @@ export function TravelComparison({ stats }: { stats: TravelStats }) {
 
         <section>
           <h4 className="text-sm font-bold" style={{ color: tokens.ink.primary }}>
-            Mean rating, with 95% intervals
+            Mean rating with 95% confidence intervals
           </h4>
           <p className="mt-0.5 mb-2 text-xs" style={{ color: tokens.ink.muted }}>
-            {stats.ratingGapIsNoise ? "Unchanged" : "Changed"}. {signedLabel(stats.ratingDiff)}{" "}
-            points on {travel.ratingN} watches, interval {signedLabel(stats.ratingDiffCi[0])} to{" "}
+            {stats.ratingGapIsNoise ? "Unchanged" : "Changed"}. The two means differ by{" "}
+            {signedLabel(stats.ratingDiff)} points over {travel.ratingN} watches, and the 95% CI on
+            that gap runs {signedLabel(stats.ratingDiffCi[0])} to{" "}
             {signedLabel(stats.ratingDiffCi[1])}, so it
             {stats.ratingGapIsNoise ? " includes no change at all" : " excludes no change"}. Both
             medians are {travel.medianRating}.
@@ -391,7 +391,16 @@ export function TravelComparison({ stats }: { stats: TravelStats }) {
 
             {/* The interval spelled out, which is the one thing this panel draws
                 that a reader cannot read off the axis: the whiskers overlap, and
-                the numbers say by how much. */}
+                the numbers say by how much.
+
+                EVERY STATISTIC HERE IS NAMED. Three bare numbers side by side
+                read as one range with a middle, so "73.5 · 72.5 to 74.4 · median
+                70" invites the question of how the median can sit outside the
+                interval. It can because the interval belongs to the MEAN and
+                nothing else: the ratings themselves run 20 to 100, and the mean
+                sits above the median because more watches sit above 70 than
+                below it. The words "mean" and "95% CI" are what stop the reader
+                reading the pair as the spread of the data. */}
             {ratingHover && (
               <LabTip
                 x={ratingHover.x}
@@ -402,17 +411,18 @@ export function TravelComparison({ stats }: { stats: TravelStats }) {
                 detail={(() => {
                   const side = ratingHover.row === 0 ? travel : ordinary;
                   const half = ratingHover.row === 0 ? halfT : halfO;
-                  return `${ratingLabel(side.meanRating)} · ${ratingLabel(
+                  return `mean ${ratingLabel(side.meanRating)} (95% CI ${ratingLabel(
                     side.meanRating - half,
-                  )} to ${ratingLabel(side.meanRating + half)} · median ${side.medianRating}`;
+                  )} to ${ratingLabel(side.meanRating + half)}) · median ${side.medianRating}`;
                 })()}
               />
             )}
           </div>
           <p className="mt-2 text-xs" style={{ color: tokens.ink.muted }}>
-            Dashed tick is the median. The axis does not start at zero, which is why these are
-            intervals and not bars: a clipped bar exaggerates a gap this size and a zeroed one
-            hides it. The interval shows how little {travel.ratingN} watches pin down.
+            Each whisker is a 95% CI for that side&apos;s mean, not the spread of the ratings, so
+            the dashed median tick can sit outside it. The axis does not start at zero, which is
+            why these are intervals and not bars: a clipped bar exaggerates a gap this size and a
+            zeroed one hides it. The interval shows how little {travel.ratingN} watches pin down.
           </p>
         </section>
       </div>
