@@ -53,6 +53,13 @@ def main() -> None:
     todo = [(str(t), p) for t, p in films if not have.get(str(t))]
     print(f"{len(films)} films with posters, {len(have)} already sliced, {len(todo)} to fetch")
 
+    # Before the fetch loop, not after it. The check used to sit below, so a
+    # preview downloaded every poster image it was previewing and then threw the
+    # slices away. Matches backfill_candidate_poster_paths.py.
+    if not args.apply:
+        print("dry run — pass --apply to write")
+        return
+
     misses = 0
     for i, (tmdb_id, path) in enumerate(todo, 1):
         try:
@@ -65,10 +72,6 @@ def main() -> None:
 
     filled = sum(1 for v in have.values() if v)
     print(f"{filled} slices, {misses} failed")
-
-    if not args.apply:
-        print("dry run — pass --apply to write")
-        return
 
     write_rows(
         SEED,

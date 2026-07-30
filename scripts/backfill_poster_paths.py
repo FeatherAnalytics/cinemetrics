@@ -53,6 +53,14 @@ def main() -> None:
     todo = [r for r in rows if not r.get("poster_path")]
     print(f"{len(rows)} rows, {len(todo)} missing poster_path")
 
+    # Before the fetch loop, not after it. The check used to sit below, so a
+    # preview spent one TMDB call per missing row -- 676 of them on the first
+    # run -- and then discarded every answer. Matches
+    # backfill_candidate_poster_paths.py, which already returns here.
+    if not args.apply:
+        print("dry run — pass --apply to write")
+        return
+
     filled = misses = 0
     for i, row in enumerate(todo, 1):
         path = fetch_poster_path(row["tmdb_id"], key)
@@ -66,10 +74,6 @@ def main() -> None:
             print(f"  {i}/{len(todo)} ...")
 
     print(f"{filled} filled, {misses} with no poster on TMDB")
-
-    if not args.apply:
-        print("dry run — pass --apply to write")
-        return
 
     write_rows(SEED, rows, FILM_CSV_COLUMNS)
     print(f"wrote {SEED.relative_to(ROOT)}")
