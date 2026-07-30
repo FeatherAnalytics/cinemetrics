@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { deltaLabel, type RatingDelta } from "@/lib/ratingDelta";
 import { useAnimatedValues } from "@/lib/useAnimatedValues";
@@ -89,7 +89,7 @@ export function RankedBars({
         className="rounded-md border border-dashed px-4 py-6 text-sm"
         style={{
           color: tokens.ink.muted,
-          borderColor: `color-mix(in srgb, ${tokens.ink.primary} 15%, transparent)`,
+          borderColor: hairline(tokens.ink.primary, 15),
         }}
       >
         No films match the current filters.

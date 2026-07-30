@@ -19,7 +19,7 @@ import {
   type Reason,
 } from "@/lib/explainClient";
 import { FilmCard } from "./FilmCard";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 
 const R2_URL = process.env.NEXT_PUBLIC_R2_URL || "";
 
@@ -272,7 +272,7 @@ export function RecommendDrawer() {
     color: active ? tokens.ui.activeText : tokens.ink.secondary,
     borderColor: active
       ? tokens.ui.active
-      : `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)`,
+      : hairline(tokens.ink.primary, 20),
   });
 
   return (
@@ -296,7 +296,7 @@ export function RecommendDrawer() {
         <div className="flex justify-center pt-2 md:hidden">
           <div
             className="h-1 w-8 rounded-full"
-            style={{ background: `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)` }}
+            style={{ background: hairline(tokens.ink.primary, 20) }}
           />
         </div>
 
@@ -363,7 +363,7 @@ export function RecommendDrawer() {
                 <div
                   key={i}
                   className="h-20 animate-pulse rounded-lg"
-                  style={{ background: `color-mix(in srgb, ${tokens.ink.primary} 5%, transparent)` }}
+                  style={{ background: hairline(tokens.ink.primary, 5) }}
                 />
               ))}
               <p className="mt-1 text-xs" style={{ color: tokens.ink.muted }}>
@@ -402,7 +402,7 @@ export function RecommendDrawer() {
                     <div className="flex min-w-[200px] items-center gap-2 md:min-w-0 md:py-1">
                       <div
                         className="flex-1 border-t"
-                        style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 12%, transparent)` }}
+                        style={{ borderColor: hairline(tokens.ink.primary, 12) }}
                       />
                       <span
                         className="whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.15em]"
@@ -412,7 +412,7 @@ export function RecommendDrawer() {
                       </span>
                       <div
                         className="flex-1 border-t"
-                        style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 12%, transparent)` }}
+                        style={{ borderColor: hairline(tokens.ink.primary, 12) }}
                       />
                     </div>
                   )}

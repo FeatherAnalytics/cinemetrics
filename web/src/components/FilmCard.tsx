@@ -4,7 +4,7 @@ import type { CandidateMetadata } from "@/lib/recommend";
 import type { Reason } from "@/lib/explainClient";
 import { GENRE_ORDER, type GenreKey } from "@/lib/palette";
 import { posterUrl } from "@/lib/fourFavs";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 
 type Props = {
   metadata: CandidateMetadata;
@@ -84,7 +84,7 @@ export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
       className="overflow-hidden rounded-lg border"
       style={{
         background: tokens.surface.card,
-        borderColor: `color-mix(in srgb, ${tokens.ink.primary} 12%, transparent)`,
+        borderColor: hairline(tokens.ink.primary, 12),
       }}
     >
       <div className="flex gap-2.5 p-3">
@@ -196,7 +196,7 @@ export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
                   key={g}
                   className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px]"
                   style={{
-                    background: `color-mix(in srgb, ${tokens.ink.primary} 5%, transparent)`,
+                    background: hairline(tokens.ink.primary, 5),
                     color: tokens.ink.secondary,
                   }}
                 >
@@ -213,7 +213,7 @@ export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
             <span
               className="rounded-full border px-1.5 py-0.5 text-[10px]"
               style={{
-                borderColor: `color-mix(in srgb, ${tokens.ink.primary} 18%, transparent)`,
+                borderColor: hairline(tokens.ink.primary, 18),
                 color: tokens.ink.muted,
               }}
             >

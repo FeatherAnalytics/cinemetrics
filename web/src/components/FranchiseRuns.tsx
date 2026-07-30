@@ -3,11 +3,10 @@
 import { useMemo, useState } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
 import { primaryGenre } from "@/lib/palette";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { trunc, fmt1 } from "@/lib/format";
 import { useAnimatedValues } from "@/lib/useAnimatedValues";
-import type { CSSProperties } from "react";
 import type { EnrichedWatch } from "@/lib/types";
 import { heartDim } from "@/lib/heartLens";
 
@@ -251,7 +250,7 @@ export function FranchiseRuns() {
         className="rounded-md border border-dashed px-4 py-6 text-sm"
         style={{
           color: tokens.ink.muted,
-          borderColor: `color-mix(in srgb, ${tokens.ink.primary} 15%, transparent)`,
+          borderColor: hairline(tokens.ink.primary, 15),
         }}
       >
         No franchise with two or more watched films under the current filters.
@@ -308,8 +307,7 @@ export function FranchiseRuns() {
         {minor.length > 0 && (
           <button
             onClick={() => setShowAll((v) => !v)}
-            className="underline decoration-dotted underline-offset-2 hover:text-[color:var(--hover-ink)]"
-            style={{ "--hover-ink": tokens.ink.primary } as CSSProperties}
+            className="underline decoration-dotted underline-offset-2 hover:text-[color:var(--foreground)]"
           >
             {showAll ? "hide" : "show"} {minor.length} two-watch franchises
           </button>

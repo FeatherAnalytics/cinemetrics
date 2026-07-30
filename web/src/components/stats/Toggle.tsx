@@ -1,6 +1,6 @@
 "use client";
 
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 
 /**
  * The pill switcher, matching the one on "Warming up or wearing out".
@@ -25,7 +25,7 @@ export function Toggle<T extends string>({
     <div
       className="flex flex-wrap overflow-hidden rounded-full border text-xs"
       style={{
-        borderColor: `color-mix(in srgb, ${tokens.ink.primary} 18%, transparent)`,
+        borderColor: hairline(tokens.ink.primary, 18),
         width: "fit-content",
       }}
       role="group"

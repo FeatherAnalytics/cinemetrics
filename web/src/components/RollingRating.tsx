@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 import { useDragRect, watchKey } from "@/lib/brush";
 import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import { useWidth } from "@/lib/useWidth";
@@ -273,7 +273,7 @@ export function RollingRating() {
         <div
           className="flex flex-wrap overflow-hidden rounded-full border text-sm"
           style={{
-            borderColor: `color-mix(in srgb, ${tokens.ink.primary} 18%, transparent)`,
+            borderColor: hairline(tokens.ink.primary, 18),
             width: "fit-content",
           }}
           role="group"

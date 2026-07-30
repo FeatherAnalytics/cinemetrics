@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useExplorer } from "@/lib/store";
 import { useRecommend } from "@/lib/recommendStore";
 import { GENRE_KEYS } from "@/lib/palette";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 import { RangeSlider } from "./RangeSlider";
 import type { TextField } from "@/lib/store";
 
@@ -32,7 +32,7 @@ function SearchInput({
         className="w-full rounded-md border px-2.5 py-1 text-sm outline-none focus:border-[color:var(--fb-accent)]"
         style={
           {
-            borderColor: `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)`,
+            borderColor: hairline(tokens.ink.primary, 20),
             background: "transparent",
             color: tokens.ink.primary,
             "--fb-accent": tokens.accent,
@@ -71,7 +71,7 @@ function SelectFilter({
       className="w-full rounded-md border px-2.5 py-1 text-sm outline-none focus:border-[color:var(--fb-accent)]"
       style={
         {
-          borderColor: `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)`,
+          borderColor: hairline(tokens.ink.primary, 20),
           background: "transparent",
           color: value ? tokens.ink.primary : tokens.ink.muted,
           "--fb-accent": tokens.accent,
@@ -173,7 +173,7 @@ export function FilterBar() {
           className="flex items-center justify-between rounded-md border px-2.5 py-1.5"
           style={{
             borderColor: tokens.accent,
-            background: `color-mix(in srgb, ${tokens.accent} 6%, transparent)`,
+            background: hairline(tokens.accent, 6),
           }}
         >
           <span className="font-mono text-[10px] uppercase tracking-[0.15em]" style={{ color: tokens.accent }}>
@@ -195,9 +195,9 @@ export function FilterBar() {
           className="flex w-fit items-center gap-1.5 rounded-full border px-3 py-1 transition hover:bg-[color:var(--fb-hover)]"
           style={
             {
-              borderColor: `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)`,
+              borderColor: hairline(tokens.ink.primary, 20),
               color: tokens.ink.secondary,
-              "--fb-hover": `color-mix(in srgb, ${tokens.ink.primary} 4%, transparent)`,
+              "--fb-hover": hairline(tokens.ink.primary, 4),
             } as React.CSSProperties
           }
         >
@@ -271,7 +271,7 @@ export function FilterBar() {
                 onClick={() => toggleGenre(g)}
                 className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition"
                 style={{
-                  borderColor: `color-mix(in srgb, ${tokens.ink.primary} 18%, transparent)`,
+                  borderColor: hairline(tokens.ink.primary, 18),
                   color: tokens.ink.secondary,
                   opacity: active ? 1 : 0.4,
                 }}
@@ -291,7 +291,7 @@ export function FilterBar() {
       <FieldGroup label="watches">
         <div
           className="flex w-fit overflow-hidden rounded-full border"
-          style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 18%, transparent)` }}
+          style={{ borderColor: hairline(tokens.ink.primary, 18) }}
         >
           {REWATCH.map((r) => (
             <button
@@ -381,7 +381,7 @@ export function FilterBar() {
       <div
         className="flex items-center justify-between border-t pt-3"
         style={{
-          borderColor: `color-mix(in srgb, ${tokens.ink.primary} 12%, transparent)`,
+          borderColor: hairline(tokens.ink.primary, 12),
           color: tokens.ink.muted,
         }}
       >
@@ -395,8 +395,7 @@ export function FilterBar() {
         </span>
         <button
           onClick={reset}
-          className="underline underline-offset-2 hover:text-[color:var(--fb-hover-ink)]"
-          style={{ "--fb-hover-ink": tokens.ink.primary } as React.CSSProperties}
+          className="underline underline-offset-2 hover:text-[color:var(--foreground)]"
         >
           reset
         </button>

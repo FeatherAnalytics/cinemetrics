@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { primaryGenre, type GenreKey } from "@/lib/palette";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 import { countryName } from "@/lib/countries";
 import { watchKey } from "@/lib/brush";
 import { fmt1 } from "@/lib/format";
@@ -222,7 +222,7 @@ export function SelectionPanel() {
       className="min-w-0 rounded-lg border p-4"
       style={{
         borderColor: tokens.accent,
-        background: `color-mix(in srgb, ${tokens.accent} 3%, transparent)`,
+        background: hairline(tokens.accent, 3),
       }}
       aria-label="Current selection"
     >
@@ -267,14 +267,8 @@ export function SelectionPanel() {
         {watchlistMode && selectedId != null ? (
           <button
             onClick={() => setSelected(null)}
-            className="rounded-full border px-3 py-1 text-xs transition hover:text-[color:var(--sp-hover)]"
-            style={
-              {
-                borderColor: `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)`,
-                color: tokens.ink.secondary,
-                "--sp-hover": tokens.ink.primary,
-              } as React.CSSProperties
-            }
+            className="rounded-full border px-3 py-1 text-xs transition hover:text-[color:var(--foreground)]"
+            style={{ borderColor: hairline(tokens.ink.primary, 20), color: tokens.ink.secondary }}
           >
             back to all films
           </button>
@@ -282,28 +276,16 @@ export function SelectionPanel() {
           <button
             onClick={() => setOpenByHand((v) => !v)}
             aria-expanded={open}
-            className="rounded-full border px-3 py-1 text-xs transition hover:text-[color:var(--sp-hover)]"
-            style={
-              {
-                borderColor: `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)`,
-                color: tokens.ink.secondary,
-                "--sp-hover": tokens.ink.primary,
-              } as React.CSSProperties
-            }
+            className="rounded-full border px-3 py-1 text-xs transition hover:text-[color:var(--foreground)]"
+            style={{ borderColor: hairline(tokens.ink.primary, 20), color: tokens.ink.secondary }}
           >
             {open ? "hide films" : "show films"}
           </button>
         ) : heartMode ? null : (
           <button
             onClick={clear}
-            className="rounded-full border px-3 py-1 text-xs transition hover:text-[color:var(--sp-hover)]"
-            style={
-              {
-                borderColor: `color-mix(in srgb, ${tokens.ink.primary} 20%, transparent)`,
-                color: tokens.ink.secondary,
-                "--sp-hover": tokens.ink.primary,
-              } as React.CSSProperties
-            }
+            className="rounded-full border px-3 py-1 text-xs transition hover:text-[color:var(--foreground)]"
+            style={{ borderColor: hairline(tokens.ink.primary, 20), color: tokens.ink.secondary }}
           >
             clear selection
           </button>
@@ -327,7 +309,7 @@ export function SelectionPanel() {
       {open && (
       <div
         className="mt-3 max-h-72 overflow-x-auto overflow-y-auto rounded border"
-        style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 10%, transparent)` }}
+        style={{ borderColor: hairline(tokens.ink.primary, 10) }}
       >
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0" style={{ background: tokens.surface.well }}>
@@ -342,8 +324,7 @@ export function SelectionPanel() {
                 >
                   <button
                     onClick={() => toggleSort(c.key)}
-                    className="inline-flex items-center gap-1 font-medium hover:text-[color:var(--sp-hover)]"
-                    style={{ "--sp-hover": tokens.ink.primary } as React.CSSProperties}
+                    className="inline-flex items-center gap-1 font-medium hover:text-[color:var(--foreground)]"
                     title={`Sort by ${c.label}`}
                   >
                     {c.label}
@@ -360,7 +341,7 @@ export function SelectionPanel() {
               <tr
                 key={r.key}
                 className="border-t"
-                style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 6%, transparent)` }}
+                style={{ borderColor: hairline(tokens.ink.primary, 6) }}
               >
                 <td className="px-3 py-1.5 font-mono text-xs tabular-nums" style={{ color: tokens.ink.secondary }}>
                   {r.date}

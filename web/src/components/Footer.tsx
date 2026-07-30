@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useExplorer } from "@/lib/store";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 
 const REPO_URL = "https://github.com/FeatherAnalytics/cinemetrics";
 // A plain anchor, not <Link>, because the dbt docs page is a static file dropped
@@ -34,7 +34,7 @@ export function Footer() {
       className="mt-12 border-t pt-6 text-xs"
       style={{
         color: tokens.ink.muted,
-        borderColor: `color-mix(in srgb, ${tokens.ink.primary} 12%, transparent)`,
+        borderColor: hairline(tokens.ink.primary, 12),
       }}
     >
       <p className="max-w-2xl">
@@ -48,8 +48,7 @@ export function Footer() {
           href={REPO_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline underline-offset-2 hover:text-[color:var(--footer-hover-ink)]"
-          style={{ "--footer-hover-ink": tokens.ink.primary } as React.CSSProperties}
+          className="underline underline-offset-2 hover:text-[color:var(--foreground)]"
         >
           Source on GitHub
         </a>
@@ -57,8 +56,7 @@ export function Footer() {
           href={DBT_DOCS_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline underline-offset-2 hover:text-[color:var(--footer-hover-ink)]"
-          style={{ "--footer-hover-ink": tokens.ink.primary } as React.CSSProperties}
+          className="underline underline-offset-2 hover:text-[color:var(--foreground)]"
         >
           Data model docs
         </a>

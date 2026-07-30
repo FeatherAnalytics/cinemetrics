@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { primaryGenre, type GenreKey } from "@/lib/palette";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 import { watchKey } from "@/lib/brush";
 import { computeResiduals } from "@/lib/stats";
 import { BAR_H, GAP } from "@/lib/barChart";
@@ -147,7 +147,7 @@ export function KeywordBars() {
         className="rounded-md border border-dashed px-4 py-6 text-sm"
         style={{
           color: tokens.ink.muted,
-          borderColor: `color-mix(in srgb, ${tokens.ink.primary} 15%, transparent)`,
+          borderColor: hairline(tokens.ink.primary, 15),
         }}
       >
         Not enough data for keyword analysis: it needs a keyword shared by{" "}

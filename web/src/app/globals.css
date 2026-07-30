@@ -4,10 +4,13 @@
    Page ground is the recessed "well" tone; chart sections sit on the raised
    "card" tone (--surface-card) so the page has depth without any chart
    needing a colour. `data-theme` (set by ThemeProvider) wins over the media
-   query in both directions, so an explicit choice always beats the OS. Charts
-   still read their own JS token set (lib/palette.ts) rather than these
-   variables — the two are kept in step by hand, not by a shared source. */
-:root {
+   query in both directions, so an explicit choice always beats the OS: an
+   explicit light is excluded from the media query by its own selector, and an
+   explicit dark is reasserted below it. Charts still read their own JS token
+   set (lib/palette.ts) rather than these variables — the two are kept in step
+   by hand, not by a shared source. */
+:root,
+:root[data-theme="light"] {
   --background: #eeece4;
   --surface-card: #fdfdfb;
   --surface-paper: #f7f6f3;
@@ -16,20 +19,13 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #131210;
     --surface-card: #1c1b17;
     --surface-paper: #171613;
     --foreground: #f2f0ea;
     color-scheme: dark;
   }
-}
-:root[data-theme="light"] {
-  --background: #eeece4;
-  --surface-card: #fdfdfb;
-  --surface-paper: #f7f6f3;
-  --foreground: #0b0b0b;
-  color-scheme: light;
 }
 :root[data-theme="dark"] {
   --background: #131210;

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { filterWatches, useExplorer } from "@/lib/store";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 import { ratingDeltaByKey } from "@/lib/ratingDelta";
 import { keywordBars } from "@/lib/watchlistChart";
 import { ChartTakeaway } from "../ChartTakeaway";
@@ -60,7 +60,7 @@ export function WatchlistKeywords() {
         className="rounded-md border border-dashed px-4 py-6 text-sm"
         style={{
           color: tokens.ink.muted,
-          borderColor: `color-mix(in srgb, ${tokens.ink.primary} 15%, transparent)`,
+          borderColor: hairline(tokens.ink.primary, 15),
         }}
       >
         No keyword is shared by {MIN_FILMS}+ films in this view. Widen the filters.

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { GENRE_ORDER, primaryGenre, type GenreKey } from "@/lib/palette";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 import { useWidth } from "@/lib/useWidth";
 import { ChartTakeaway } from "../ChartTakeaway";
 import type { WatchlistFilm } from "@/lib/types";
@@ -77,7 +77,7 @@ export function WatchlistBarcode() {
         className="rounded-md border border-dashed px-4 py-6 text-sm"
         style={{
           color: tokens.ink.muted,
-          borderColor: `color-mix(in srgb, ${tokens.ink.primary} 15%, transparent)`,
+          borderColor: hairline(tokens.ink.primary, 15),
         }}
       >
         No films match the current filters.

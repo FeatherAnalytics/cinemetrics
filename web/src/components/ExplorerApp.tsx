@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ExplorerProvider, useExplorer } from "@/lib/store";
 import { eyebrow, summaryLine } from "@/lib/summary";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 import { RecommendProvider, useRecommend } from "@/lib/recommendStore";
 import { RecommendDrawer } from "@/components/RecommendDrawer";
 import { FilterBar } from "@/components/FilterBar";
@@ -581,15 +581,12 @@ function Explorer() {
           <div className="hidden lg:block lg:shrink-0">
             <button
               onClick={() => setCollapsed(false)}
-              className="lg:sticky lg:top-6 flex h-10 w-10 items-center justify-center rounded-lg border transition hover:text-[color:var(--ea-hover)]"
-              style={
-                {
-                  borderColor: `color-mix(in srgb, ${tokens.ink.primary} 14%, transparent)`,
-                  background: tokens.surface.paper,
-                  color: tokens.ink.secondary,
-                  "--ea-hover": tokens.ink.primary,
-                } as React.CSSProperties
-              }
+              className="lg:sticky lg:top-6 flex h-10 w-10 items-center justify-center rounded-lg border transition hover:text-[color:var(--foreground)]"
+              style={{
+                borderColor: hairline(tokens.ink.primary, 14),
+                background: tokens.surface.paper,
+                color: tokens.ink.secondary,
+              }}
               aria-label="Expand filters"
               aria-expanded={false}
             >
@@ -625,10 +622,8 @@ function Explorer() {
             <button
               ref={drawerCloseRef}
               onClick={() => setDrawerOpen(false)}
-              className="rounded-full px-2 py-1 text-lg leading-none transition hover:text-[color:var(--ea-hover)]"
-              style={
-                { color: tokens.ink.secondary, "--ea-hover": tokens.ink.primary } as React.CSSProperties
-              }
+              className="rounded-full px-2 py-1 text-lg leading-none transition hover:text-[color:var(--foreground)]"
+              style={{ color: tokens.ink.secondary }}
               aria-label="Close filters"
             >
               ✕
@@ -636,15 +631,13 @@ function Explorer() {
           </div>
           <div
             className="rounded-lg border p-3 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto"
-            style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 14%, transparent)` }}
+            style={{ borderColor: hairline(tokens.ink.primary, 14) }}
           >
             <div className="mb-2 hidden justify-end lg:flex">
               <button
                 onClick={() => setCollapsed(true)}
-                className="font-mono text-[10px] uppercase tracking-[0.1em] transition hover:text-[color:var(--ea-hover)]"
-                style={
-                  { color: tokens.ink.muted, "--ea-hover": tokens.ink.primary } as React.CSSProperties
-                }
+                className="font-mono text-[10px] uppercase tracking-[0.1em] transition hover:text-[color:var(--foreground)]"
+                style={{ color: tokens.ink.muted }}
               >
                 <span aria-hidden>« </span>hide
               </button>
@@ -652,7 +645,7 @@ function Explorer() {
             <StatBar />
             <div
               className="my-3 border-t"
-              style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 10%, transparent)` }}
+              style={{ borderColor: hairline(tokens.ink.primary, 10) }}
             />
             <FilterBar />
           </div>
@@ -695,7 +688,7 @@ function Explorer() {
                       // page chrome (card ground), not a chart mark, and stays
                       // in step with `--surface-card` by design (see globals.css).
                       background: "var(--surface-card)",
-                      borderColor: `color-mix(in srgb, ${tokens.ink.primary} 9%, transparent)`,
+                      borderColor: hairline(tokens.ink.primary, 9),
                     }}
                   >
                     <Chart />

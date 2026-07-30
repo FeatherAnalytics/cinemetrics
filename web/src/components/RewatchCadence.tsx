@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { CSSProperties } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
 import { primaryGenre } from "@/lib/palette";
 import { useTheme } from "@/lib/theme";
@@ -354,8 +353,7 @@ export function RewatchCadence() {
         {unchanged.length > 0 && (
           <button
             onClick={() => setShowUnchanged((v) => !v)}
-            className="underline decoration-dotted underline-offset-2 hover:text-[color:var(--hover-ink)]"
-            style={{ "--hover-ink": tokens.ink.primary } as CSSProperties}
+            className="underline decoration-dotted underline-offset-2 hover:text-[color:var(--foreground)]"
           >
             {showUnchanged ? "hide" : "show"} {unchanged.length} unchanged
           </button>

@@ -31,6 +31,23 @@ const DARK_TOKENS: Tokens = {
   ui: DARK.ui,
 };
 
+/**
+ * A hairline: a token faded toward transparent, for the borders, rules and
+ * faint grounds that make up the page chrome.
+ *
+ * Mixing rather than picking a fixed gray is what lets one value work on both
+ * surfaces, and `color-mix` against `transparent` is the spelling every call
+ * site used by hand before this existed. The percentages stay as varied as
+ * they were: they are the shades the page actually draws, and rounding them
+ * toward each other would change what a reader sees.
+ *
+ * Takes a color rather than reading tokens itself, so a caller passes the one
+ * from `useTheme()` and the result follows the theme.
+ */
+export function hairline(color: string, pct: number): string {
+  return `color-mix(in srgb, ${color} ${pct}%, transparent)`;
+}
+
 const Ctx = createContext<{ theme: Theme; tokens: Tokens; toggle: () => void }>({
   theme: "light",
   tokens: LIGHT_TOKENS,

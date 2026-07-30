@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { type GenreKey } from "@/lib/palette";
-import { useTheme, type Tokens } from "@/lib/theme";
+import { hairline, useTheme, type Tokens } from "@/lib/theme";
 import { insetRect, lerpHex, mean, NO_DATA_STROKE } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
@@ -124,7 +124,7 @@ export function GenrePairing() {
     return (
       <div
         className="rounded-md border border-dashed px-4 py-6 text-sm"
-        style={{ borderColor: `color-mix(in srgb, ${tokens.ink.primary} 15%, transparent)`, color: tokens.ink.muted }}
+        style={{ borderColor: hairline(tokens.ink.primary, 15), color: tokens.ink.muted }}
       >
         A pairing needs two genres of {MIN_FILMS_PER_GENRE}+ rated films, which is the
         threshold a pair needs before its mean rating means anything. This filter does not

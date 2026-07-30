@@ -1,7 +1,7 @@
 "use client";
 
 import { useExplorer } from "@/lib/store";
-import { useTheme } from "@/lib/theme";
+import { hairline, useTheme } from "@/lib/theme";
 
 // The computed findings as clickable invitations. Each chip carries the story's
 // short label and, under it, the finding itself: the punchline used to be locked
@@ -26,7 +26,7 @@ export function StoryChips() {
             style={{
               borderColor: active
                 ? tokens.ui.active
-                : `color-mix(in srgb, ${tokens.ink.primary} 18%, transparent)`,
+                : hairline(tokens.ink.primary, 18),
               background: active ? tokens.ui.active : "transparent",
               color: active ? tokens.ui.activeText : tokens.ink.secondary,
             }}
