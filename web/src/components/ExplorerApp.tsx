@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { ExplorerProvider, useExplorer } from "@/lib/store";
 import { eyebrow, summaryLine } from "@/lib/summary";
 import { hairline, useTheme } from "@/lib/theme";
@@ -540,7 +541,27 @@ function Explorer() {
             className="font-display text-4xl font-bold tracking-tight"
             style={{ color: tokens.ink.primary }}
           >
-            cinemetrics<span style={{ color: tokens.accent }}>.</span>
+            cinemetrics
+            {/* The period is the way in to /lab. Nothing marks it, by design:
+                the cursor is the only tell, so a reader who runs the pointer
+                across the title finds it and a reader who does not is never
+                told there was anything to miss.
+
+                next/link and not a bare anchor. The site deploys under a
+                basePath of /cinemetrics, which Link prepends and a raw href
+                does not, so an anchor here would 404 in production and work
+                perfectly in dev.
+
+                Labelled for screen readers even though it is hidden from
+                sighted ones. An easter egg may be unadvertised; it may not be
+                a link that announces itself as "period". */}
+            <Link
+              href="/lab"
+              aria-label="The cutting room: charts that did not make the page"
+              style={{ color: tokens.accent }}
+            >
+              .
+            </Link>
           </h1>
           <ThemeToggle />
         </div>
