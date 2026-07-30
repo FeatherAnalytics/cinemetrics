@@ -47,22 +47,36 @@ export const PACE_MONTHS = 12;
 /**
  * Window for the RATING line, in WATCHES rather than in time.
  *
- * The asymmetry with `PACE_MONTHS` is deliberate and is the whole reason these
- * two lines are computed differently. The pace is not constant: a fixed span of
- * days holds four watches in one month and twelve in another, so a time-windowed
- * mean rating would swing on HOW MUCH I watched rather than on how I rated it,
- * which is precisely the confusion this section exists to avoid. Forty watches is
- * the same amount of evidence at every point on the line.
+ * IN WATCHES, and that half is not negotiable. The pace is not constant: a fixed
+ * span of days holds four watches in one month and twelve in another, so a
+ * time-windowed mean rating would swing on HOW MUCH I watched rather than on how
+ * I rated it, which is precisely the confusion this section exists to avoid. Ten
+ * watches is the same amount of evidence at every point on the line.
  *
- * It also resolves the era comfortably. Inside the span a forty-watch window
- * covers between three and seven months, well under the 22 the span runs, so this
- * line could show a dip for the same reason the pace line could.
+ * TEN IS A DELIBERATE TRADE, made with the cost known. It was forty, and forty
+ * bought a headline: the line came back to where it entered the span, 0.8 points
+ * net, quieter than 92% of comparable stretches. Ten does not. It travels 4.0
+ * points net and lands around the 30th percentile, which is middling. The owner
+ * chose the livelier line and gave up the finding, so the copy states a middling
+ * stretch rather than a still one, and `ranks the span as a middling stretch`
+ * pins that down.
  *
- * The cost is that the line is noisier than a time-smoothed one would be, and it
- * should be: that movement is real, and flattening it by widening the window
- * would be hiding data rather than reducing noise.
+ * WHAT TEN COSTS, measured against the shipped payload:
+ *
+ * - a window covers about 1.3 months at the span's pace, 169 watches over 22
+ *   months, and `ratingWindowMonths` reports the real range for windows closing
+ *   inside the span
+ * - one film moves the line by up to 6 points, because a mean over ten shifts by
+ *   a tenth of the gap between the watch arriving and the watch leaving
+ *
+ * So this is a LIGHTLY SMOOTHED SERIES AND NOT A TREND. Read it as movement.
+ * Any claim about its level at a point is a claim about ten films.
+ *
+ * It still resolves the era, which is the one property the section needs from it:
+ * `ratingWindowMonths` is far short of the 22 months the span runs, so a dip
+ * inside the span could show if there were one.
  */
-export const RATING_WATCHES = 40;
+export const RATING_WATCHES = 10;
 
 /** Months since year zero, so two "YYYY-MM" strings compare and subtract. */
 export function monthIndex(iso: string): number {
@@ -154,11 +168,13 @@ export type Edge = {
  * How much the rating line moves across the span, RANKED against every other
  * stretch of the same length in the log.
  *
- * The rank is the point. A forty-watch window is narrow enough that the line
- * visibly wanders everywhere, so "it is flat across the span" would be an eyeball
- * claim and a weak one. What is checkable is whether it wanders LESS there than it
- * does elsewhere, and by how much, so the section quotes the percentile rather
- * than asserting the shape.
+ * The rank is the point. A ten-watch window wanders visibly everywhere, so "it is
+ * flat across the span" would be an eyeball claim and a false one. What is
+ * checkable is where the span's movement sits among comparable stretches, so the
+ * section quotes the percentile rather than asserting the shape.
+ *
+ * At ten the answer is "middling", not "still". That is a real answer and the
+ * copy gives it as one: the rank locates the span, it does not vindicate it.
  */
 export type Stretch = {
   /** Highest minus lowest inside the span. */
@@ -211,11 +227,24 @@ export type EraStats = {
   spanPaceRange: { low: Edge; high: Edge };
   /** How still the rating line is across the span, against every comparable stretch. */
   ratingStretch: Stretch;
+  /**
+   * How many months a `RATING_WATCHES` window actually covers, for the windows
+   * that close inside the span. Derived, never written down: the copy quotes it
+   * to show the window is short enough to resolve the era, and that sentence was
+   * wrong for months after the window width changed underneath a hardcoded one.
+   */
+  ratingWindowMonths: { low: number; high: number };
   /** Mean rating per calendar year, in order. The clearest look at the climb. */
   yearlyMeans: { year: number; n: number; mean: number }[];
 };
 
 const DAY_MS = 86_400_000;
+
+/**
+ * Days in an average Gregorian month, 365.2425 / 12. Only ever used to turn a
+ * count of days into a readable number of months, never to index anything.
+ */
+const AVG_MONTH_DAYS = 30.436875;
 
 function daysInclusive(start: string, end: string): number {
   return Math.floor((Date.parse(end) - Date.parse(start)) / DAY_MS) + 1;
@@ -453,6 +482,18 @@ export function computeEraStats(data: Dataset): EraStats {
   const pace = paceSeries(rows, PACE_MONTHS);
   const rating = ratingTrend(rows, RATING_WATCHES);
 
+  // What a rating window is worth in months, for the windows closing inside the
+  // span. Measured off the rated rows rather than off `rating`, because a point
+  // there carries only the date its window CLOSES on and this needs both ends.
+  const rated = rows.filter((r) => r.rating != null);
+  const windowMonths: number[] = [];
+  for (let i = RATING_WATCHES - 1; i < rated.length; i++) {
+    const close = rated[i].date;
+    if (close < GRAD_SCHOOL.start || close > GRAD_SCHOOL.end) continue;
+    const open = rated[i - RATING_WATCHES + 1].date;
+    windowMonths.push((Date.parse(close) - Date.parse(open)) / DAY_MS / AVG_MONTH_DAYS);
+  }
+
   const insidePace = pace.filter(
     (p) => p.month >= monthIndex(GRAD_SCHOOL.start) && p.month <= monthIndex(GRAD_SCHOOL.end),
   );
@@ -479,6 +520,10 @@ export function computeEraStats(data: Dataset): EraStats {
     spanPaceRange: {
       low: paceEdge(byPace[0]),
       high: paceEdge(byPace[byPace.length - 1]),
+    },
+    ratingWindowMonths: {
+      low: Math.min(...windowMonths),
+      high: Math.max(...windowMonths),
     },
     ratingStretch: rankStretch(
       rating,

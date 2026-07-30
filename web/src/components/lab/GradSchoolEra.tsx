@@ -323,12 +323,11 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
   }));
 
   const [early, , span, after] = stats.neighbors;
-  const { opens, closes, vsBefore, spanPaceRange, ratingStretch } = stats;
+  const { opens, closes, vsBefore, spanPaceRange, ratingStretch, ratingWindowMonths } = stats;
   // Looked up rather than indexed. The sentence below names the year the climb
   // started from, and a hardcoded position in the list would keep asserting it
   // after a worse year arrived.
   const trough = stats.yearlyMeans.reduce((a, b) => (b.mean < a.mean ? b : a));
-  const calmerThan = Math.round(100 - ratingStretch.netPercentile);
 
   return (
     <div>
@@ -369,9 +368,11 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
         Two windows, because the two measures need different ones. Films per month is a rate over
         time, so it takes a {PACE_MONTHS} month window; the span is {stats.eraMonths} months, and a
         twenty-four month window would be wider than the thing it has to resolve. The rating takes
-        a {RATING_WATCHES} watch window instead: a fixed stretch of days holds four watches in one
-        month and twelve in another, so a time-windowed rating would swing on how much I watched
-        rather than on how I rated it.
+        a {RATING_WATCHES} watch window instead: a fixed stretch of days holds four watches one
+        month and twelve the next, so a time-windowed rating would swing on how much I watched
+        rather than on how I rated it. Inside the span one window covers{" "}
+        {fmt1(ratingWindowMonths.low)} to {fmt1(ratingWindowMonths.high)} months, well short of the
+        span. That is light smoothing, not a trend.
       </p>
 
       <p className="mt-5 max-w-2xl text-sm font-bold" style={{ color: tokens.ink.primary }}>
@@ -382,10 +383,11 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
         {/* One decimal on both, not `fmt1`, which drops it on a whole number and
             would print "77.3 and 78" as though the two were measured differently. */}
         The rating line enters the span at {opens.meanRating.toFixed(1)} and leaves it at{" "}
-        {closes.meanRating.toFixed(1)}, wandering in between as it does everywhere else in the log.
-        Across the span it travels {fmt1(ratingStretch.netDelta)} points net, quieter than{" "}
-        {calmerThan}% of the {ratingStretch.comparable} stretches of the same length. The climb that
-        got it to {Math.round(opens.meanRating)} finishes before the shading starts, running up from{" "}
+        {closes.meanRating.toFixed(1)}, wandering in between. Across the span it travels {fmt1(ratingStretch.netDelta)} points net, around the{" "}
+        {Math.round(ratingStretch.netPercentile)}th percentile of the {ratingStretch.comparable}{" "}
+        stretches of the same length. That is a middling stretch, not a still one: no stillness
+        finding here. The climb that got it to{" "}
+        {Math.round(opens.meanRating)} finishes before the shading starts, running up from{" "}
         {fmt1(trough.mean)} in {trough.year}.
       </p>
 
@@ -446,8 +448,8 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
           {vsBefore.volumeIsNoise
             ? "the viewing rate is indistinguishable"
             : "the viewing rate now differs, so this sentence needs rewriting"}
-          . The percentile above is a rank among overlapping stretches rather than a test: it says
-          the span was calm, not that its calm was surprising.
+          . The percentile above is a rank among overlapping stretches rather than a test. It
+          locates the span, which is not evidence about it.
         </p>
         {/* The correction, kept on the page rather than in the git log. The
             discarded figure is the worked example of the baseline trap this

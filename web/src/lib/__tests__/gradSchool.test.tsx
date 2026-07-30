@@ -171,8 +171,17 @@ describe("the two rolling windows", () => {
  * does not have to fail.
  */
 describe("what the lines do at the edges of the span", () => {
-  it("enters and leaves the span at the same rating", () => {
-    expect(Math.abs(stats.opens.meanRating - stats.closes.meanRating)).toBeLessThan(1);
+  /**
+   * This used to assert the opposite, and the change is the point.
+   *
+   * At a forty-watch window the line came back to where it entered, 0.8 points
+   * net, and the section led on that. The window is ten now, the line travels
+   * 4.0 points across the span, and the owner took the livelier line knowing it
+   * cost the finding. So the guard holds the copy to the weaker truth: the line
+   * MOVES across the span, and no sentence may say it returns.
+   */
+  it("does not return to where it entered, so the copy may not say it does", () => {
+    expect(Math.abs(stats.opens.meanRating - stats.closes.meanRating)).toBeGreaterThan(1);
   });
 
   it("has the rating climb finish before the span opens", () => {
@@ -193,21 +202,23 @@ describe("what the lines do at the edges of the span", () => {
   });
 
   /**
-   * The claim the whole section rests on, and the reason it is a RANK.
+   * The rank, and the reason the section no longer leads on it.
    *
-   * A 40-watch window wanders visibly everywhere, so "the rating line is flat
-   * across the span" would be an eyeball claim that the chart contradicts. What
-   * is checkable is that it ends where it started and does so more completely
-   * than most comparable stretches, which is what the copy says instead.
+   * A ten-watch window wanders visibly everywhere, so "the rating line is flat
+   * across the span" would be an eyeball claim the chart contradicts. What is
+   * checkable is where the span's movement sits among comparable stretches, and
+   * the answer is the middle. The copy says middling and says there is no
+   * stillness finding; this guard is what stops it drifting back to a headline.
    */
-  it("ranks the span among the stillest stretches by net movement", () => {
+  it("ranks the span as a middling stretch, not a still one", () => {
     expect(stats.ratingStretch.comparable).toBeGreaterThan(30);
-    expect(stats.ratingStretch.netDelta).toBeLessThan(1.5);
-    // Top decile of stillness. Anything above 25 and the copy's "quieter than"
-    // sentence is overselling a middling stretch.
-    expect(stats.ratingStretch.netPercentile).toBeLessThan(25);
-    // And the swing inside is NOT unusual, which is why the copy claims the net
-    // and not the shape.
+    // Not the top decile, which is what the earlier draft claimed at a wider
+    // window. If this ever drops under 25 the section may lead on it again, but
+    // the sentence has to be rewritten in the same commit.
+    expect(stats.ratingStretch.netPercentile).toBeGreaterThan(25);
+    expect(stats.ratingStretch.netPercentile).toBeLessThan(60);
+    // And the swing inside is unremarkable, which is why the copy claims neither
+    // the net nor the shape as a finding.
     expect(stats.ratingStretch.swing).toBeGreaterThan(5);
   });
 });
@@ -334,6 +345,34 @@ describe("what the section is required to print", () => {
     expect(textOf()).toContain("not flat inside the span");
   });
 
+  /**
+   * The stillness language, banned outright.
+   *
+   * The section carried a real finding at a forty-watch window and lost it at
+   * ten. The failure mode is a sentence that keeps the old shape on the new
+   * number, so the words that would do it may not appear at all.
+   */
+  it("claims no stillness in words either, now that the rank does not support one", () => {
+    const text = textOf();
+    expect(text).toContain("middling stretch, not a still one");
+    expect(text).toContain("no stillness finding");
+    expect(text).not.toMatch(/quieter than/i);
+    expect(text).not.toMatch(/\bstillest\b/i);
+    expect(text).not.toMatch(/the span was calm/i);
+  });
+
+  /**
+   * The window's width in months, which is the figure that went stale silently
+   * the last time the window changed. It is derived, so it may not be a literal.
+   */
+  it("reads the window's width in months off the payload", () => {
+    const { low, high } = stats.ratingWindowMonths;
+    expect(textOf()).toContain(`one window covers ${fmt1(low)} to ${fmt1(high)} months`);
+    // Far short of the span, which is the only property the section needs from
+    // it: a dip inside the era could show.
+    expect(high).toBeLessThan(stats.eraMonths / 4);
+  });
+
   it("puts the steep fall after the span rather than inside it", () => {
     // The half a skimmer is likeliest to get backwards. The real collapse in
     // viewing is AFTER graduation, so a sentence that let it drift inside the
@@ -357,15 +396,21 @@ describe("what the section is required to print", () => {
   /**
    * A budget for this section alone, because the page budget cannot see it.
    *
-   * The section is the longest thing on the page and the one the owner has now
-   * asked to shorten twice, so the cap sits close: 380 rendered words at the
-   * time of writing, against 458 before the trim. The total counts the neighbor
-   * table and both axes, none of which is prose, so the prose came down by more
-   * than the 17% this shows. Twenty words of headroom is a sentence, which is
-   * enough for a figure that genuinely needs one and not enough for a paragraph.
+   * 458 rendered words before the trim, 380 after it, 405 now. The cap went from
+   * 400 to 425 once, on purpose and with the reason recorded: the window went
+   * from forty watches to ten, the stillness finding went with it, and saying
+   * "middling, and here is why that is not a finding" costs more words than
+   * "quieter than 92% of comparable stretches" did. A weaker claim stated
+   * carefully is longer than a strong one stated flat, and the honest version is
+   * the one that ships.
+   *
+   * That is the only reason this number may ever go UP. Twenty words of headroom
+   * is a sentence, which is enough for a figure that genuinely needs one and not
+   * enough for a paragraph. The total counts the neighbor table and both axes,
+   * none of which is prose.
    */
   it("holds the grad school section to its own word budget", () => {
-    expect(textOf().trim().split(" ").length).toBeLessThan(400);
+    expect(textOf().trim().split(" ").length).toBeLessThan(425);
   });
 
   it("never spends the accent on era chrome", () => {
