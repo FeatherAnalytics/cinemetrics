@@ -49,6 +49,22 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+/* Prototype lab (/lab), the travel small multiple: the height of one film cell.
+   A custom property and not a Tailwind `lg:` class, because the cell is sized by
+   an inline style that also carries its rating fill, and a breakpoint cannot be
+   expressed inline. Ten columns of up to four cells have to fit on a phone
+   without scrolling, and at 30px a printed rating is legible while a title is
+   not, which is why the small multiple prints ratings and leaves the names to
+   the callout. */
+:root {
+  --lab-cell-h: 30px;
+}
+@media (min-width: 1024px) {
+  :root {
+    --lab-cell-h: 40px;
+  }
+}
+
 /* Dual-handle range slider: two native inputs overlaid on one track.
    24px tall so each thumb clears the WCAG minimum touch-target size. */
 .range-dual {
