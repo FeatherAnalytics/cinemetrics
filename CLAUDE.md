@@ -39,6 +39,14 @@ Personal film analytics pipeline: Letterboxd watch history → dbt/DuckDB → Ne
 - **The rewatch rate divides by `liked is not null or is_return`** — the rows the
   data can answer for. Dividing by every row understates it by ~5 points. Still
   unknowable: a sheet-era row that is its film's first appearance.
+- **Cut "X versus everything else" against X's immediate neighbors before
+  publishing it.** This library changed character around mid-2022: the early
+  years are high-volume and low-rated, so any "everything else" bucket is mostly
+  them, and a contrast against it measures the era rather than the thing. The
+  grad-school span looks +5.0 points against all other watches and +0.7 against
+  the years either side of it. A travel day looks 5.8x likelier to hold two films
+  until you notice travel days are inside the baseline too, and then it is 6.3x.
+  Both figures reached a page before anyone checked what the baseline contained.
 - **"Rewatches" and "returns" are different numbers.** 87 of the 206 flagged
   rewatches are films whose first viewing predates the dataset, so they appear
   once. Counting rows in the data gives 119 returns across 83 films. State which
