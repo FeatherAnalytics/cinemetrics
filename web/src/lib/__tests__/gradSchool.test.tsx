@@ -126,8 +126,10 @@ describe("the two rolling windows", () => {
     const spread = (s: typeof twelve) =>
       Math.max(...s.map((p) => p.filmsPerMonth)) - Math.min(...s.map((p) => p.filmsPerMonth));
 
-    expect(twelve).toHaveLength(80);
-    expect(twentyFour).toHaveLength(68);
+    // A window of w months cannot close until its wth month, so widening it by 12
+    // costs exactly 12 points off the front of the series. 80 and 68 when this was
+    // written; asserted as the difference, since the log grows at the other end.
+    expect(twelve.length - twentyFour.length).toBe(24 - 12);
     expect(spread(twelve)).toBeGreaterThan(spread(twentyFour));
   });
 

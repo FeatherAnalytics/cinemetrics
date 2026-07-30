@@ -97,10 +97,12 @@ describe("tipLeft", () => {
   });
 
   it("keeps the tooltip on screen over every watch the site actually ships", () => {
-    // The external check: 795 real stripes, not a fixture, at the widths the
-    // barcode is drawn at on a desktop and on a phone. A clamp that is right for
-    // a handful of chosen x values but wrong at some stripe in between fails here.
-    expect(watches.length).toBe(795);
+    // The external check: every real stripe the site ships, not a fixture, at the
+    // widths the barcode is drawn at on a desktop and on a phone. A clamp that is
+    // right for a handful of chosen x values but wrong at some stripe in between
+    // fails here. A count rather than a literal, since a daily job appends to this
+    // log; 795 stripes when this was written, and the sweep only gets denser.
+    expect(watches.length).toBeGreaterThan(700);
     for (const figW of [DESKTOP, 1160, PHONE]) {
       const bw = figW / watches.length;
       for (let i = 0; i < watches.length; i += 1) {
