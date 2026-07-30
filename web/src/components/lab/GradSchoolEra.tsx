@@ -368,11 +368,10 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
       <p className="mt-3 max-w-2xl text-[11px]" style={{ color: tokens.ink.muted }}>
         Two windows, because the two measures need different ones. Films per month is a rate over
         time, so it takes a {PACE_MONTHS} month window; the span is {stats.eraMonths} months, and a
-        twenty-four month window would be wider than the thing it has to resolve and would come out
-        smooth whatever the viewing did. The rating takes a {RATING_WATCHES} watch window instead: a
-        fixed stretch of days holds four watches in one month and twelve in another, so a
-        time-windowed rating would swing on how much I watched rather than on how I rated it.
-        Inside the span that is three to seven months, so this line could dip too.
+        twenty-four month window would be wider than the thing it has to resolve. The rating takes
+        a {RATING_WATCHES} watch window instead: a fixed stretch of days holds four watches in one
+        month and twelve in another, so a time-windowed rating would swing on how much I watched
+        rather than on how I rated it.
       </p>
 
       <p className="mt-5 max-w-2xl text-sm font-bold" style={{ color: tokens.ink.primary }}>
@@ -383,9 +382,8 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
         {/* One decimal on both, not `fmt1`, which drops it on a whole number and
             would print "77.3 and 78" as though the two were measured differently. */}
         The rating line enters the span at {opens.meanRating.toFixed(1)} and leaves it at{" "}
-        {closes.meanRating.toFixed(1)}. It wanders in between, as it does everywhere else in the
-        log, because {RATING_WATCHES} watches is a narrow window. What is unusual is where it ends
-        up: across the span it travels {fmt1(ratingStretch.netDelta)} points net, quieter than{" "}
+        {closes.meanRating.toFixed(1)}, wandering in between as it does everywhere else in the log.
+        Across the span it travels {fmt1(ratingStretch.netDelta)} points net, quieter than{" "}
         {calmerThan}% of the {ratingStretch.comparable} stretches of the same length. The climb that
         got it to {Math.round(opens.meanRating)} finishes before the shading starts, running up from{" "}
         {fmt1(trough.mean)} in {trough.year}.
@@ -394,12 +392,12 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
       <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
         The pace line is not flat inside the span. It falls to{" "}
         {fmt1(spanPaceRange.low.filmsPerMonth)} films a month by{" "}
-        {monthLabel(spanPaceRange.low.key)} and recovers to{" "}
-        {fmt1(spanPaceRange.high.filmsPerMonth)} by {monthLabel(spanPaceRange.high.key)}, finishing
-        higher than it began. What it does not do is break at either edge: the fall from the early
-        years is over before the span opens, and the steepest decline in the log comes after it
-        closes rather than during it, {fmt1(after.per30)} watches per 30 days in the twelve months
-        after against {fmt1(span.per30)} inside.
+        {monthLabel(spanPaceRange.low.key)}, recovers to{" "}
+        {fmt1(spanPaceRange.high.filmsPerMonth)} by {monthLabel(spanPaceRange.high.key)}, and
+        finishes higher than it began. Neither edge breaks. The fall from the early years ends
+        before the span opens, and the steepest decline in the log comes after it closes:{" "}
+        {fmt1(after.per30)} watches per 30 days in the twelve months after against{" "}
+        {fmt1(span.per30)} inside.
       </p>
 
       {/* The honest comparison, and the reason this section does not quote the
@@ -440,27 +438,30 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
           What this cannot do is show that nothing happened.
         </p>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-          A chart cannot establish an absence. Set the span against the year on each side and{" "}
+          A chart cannot establish an absence. Against the year on each side,{" "}
           {vsBefore.ratingIsNoise
             ? `the rating moves ${fmt1(vsBefore.ratingDiff)} points, inside what ${span.watches} watches can resolve`
             : `the rating moves ${fmt1(vsBefore.ratingDiff)} points, which is now large enough to read, so this sentence needs rewriting`}
           , and{" "}
           {vsBefore.volumeIsNoise
-            ? "the viewing rate is indistinguishable from the year before it"
-            : "the viewing rate now differs from the year before it, so this sentence needs rewriting"}
-          . The percentile above is a rank among overlapping stretches rather than a test, so it
-          says the span was calm, not that its calm was surprising.
+            ? "the viewing rate is indistinguishable"
+            : "the viewing rate now differs, so this sentence needs rewriting"}
+          . The percentile above is a rank among overlapping stretches rather than a test: it says
+          the span was calm, not that its calm was surprising.
         </p>
+        {/* The correction, kept on the page rather than in the git log. The
+            discarded figure is the worked example of the baseline trap this
+            library is prone to, so a reader who meets 5.0 somewhere else has to
+            be able to find out here why it went. */}
         <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
           An earlier draft of this section reported the span rating 5.0 points above everything
-          outside it. Real arithmetic, bad comparison: {early.watches} of the{" "}
-          {stats.outsideWatches} watches outside the span sit in the early years at a mean of{" "}
-          {fmt1(early.meanRating)}, so the figure was mostly measuring the distance from 2019. Set
-          against the years on either side, it goes away.
+          outside it. Real arithmetic, bad baseline: {early.watches} of the {stats.outsideWatches}{" "}
+          watches outside the span are early years, at {fmt1(early.meanRating)}. Against its
+          neighbors in the table above, it goes away.
         </p>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-          So: this is when I was in school, and this is where the lines went. It is not evidence
-          that school did it.
+          This is when I was in school and this is where the lines went. It is not evidence that
+          school did it.
         </p>
       </div>
     </div>

@@ -176,11 +176,13 @@ describe("what the trim was allowed to remove and what it was not", () => {
    * A budget, because the failure this page had was length, and nothing stops
    * length coming back a sentence at a time.
    *
-   * 1,229 rendered words before the trim and 1,053 after. The total counts the
-   * callout's film list, the neighbor table and every axis label, none of which
-   * the trim touched, so the prose came down by more than the 14% this shows.
-   * The cap leaves room for a paragraph a future section genuinely needs and
-   * none for a slide back to where the page started.
+   * 1,229 rendered words before the first trim, 1,053 after it, and 957 after
+   * the second. The total counts the callout's film list, the neighbor table and
+   * every axis label, none of which either trim touched, so the prose came down
+   * by more than these figures show. The cap stays at 1,100 rather than tracking
+   * the latest number down: it is a ceiling on the page as a whole, and the
+   * grad school section, which is what keeps growing, now has a closer cap of
+   * its own in gradSchool.test.tsx.
    */
   it("holds the page to its word budget", () => {
     const words = collapse(mount().container.textContent).trim().split(" ").length;

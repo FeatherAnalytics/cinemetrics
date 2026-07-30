@@ -2,6 +2,7 @@ import { fireEvent, render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import dataset from "../../../public/data/cinemetrics.json";
 import { GradSchoolEra } from "@/components/lab/GradSchoolEra";
+import { fmt1 } from "@/lib/format";
 import { ThemeProvider } from "@/lib/theme";
 import {
   computeEraStats,
@@ -331,6 +332,40 @@ describe("what the section is required to print", () => {
     // Guards against the section growing a tidy symmetrical "both lines are flat"
     // sentence, which would be wrong about one of them.
     expect(textOf()).toContain("not flat inside the span");
+  });
+
+  it("puts the steep fall after the span rather than inside it", () => {
+    // The half a skimmer is likeliest to get backwards. The real collapse in
+    // viewing is AFTER graduation, so a sentence that let it drift inside the
+    // shading would hand the reader the causal story the section refuses.
+    const [, , span, after] = stats.neighbors;
+    const text = textOf();
+    expect(text).toContain("the steepest decline in the log comes after it closes");
+    expect(text).toContain(`${fmt1(after.per30)} watches per 30 days`);
+    expect(text).toContain(`against ${fmt1(span.per30)} inside`);
+  });
+
+  it("puts the rating climb before the span rather than inside it", () => {
+    // The other direction of the same error. The level was already up when the
+    // shading starts, so the climb may not read as something school produced.
+    const text = textOf();
+    expect(text).toContain("finishes before the shading starts");
+    const trough = stats.yearlyMeans.reduce((a, b) => (b.mean < a.mean ? b : a));
+    expect(text).toContain(`running up from ${fmt1(trough.mean)} in ${trough.year}`);
+  });
+
+  /**
+   * A budget for this section alone, because the page budget cannot see it.
+   *
+   * The section is the longest thing on the page and the one the owner has now
+   * asked to shorten twice, so the cap sits close: 380 rendered words at the
+   * time of writing, against 458 before the trim. The total counts the neighbor
+   * table and both axes, none of which is prose, so the prose came down by more
+   * than the 17% this shows. Twenty words of headroom is a sentence, which is
+   * enough for a figure that genuinely needs one and not enough for a paragraph.
+   */
+  it("holds the grad school section to its own word budget", () => {
+    expect(textOf().trim().split(" ").length).toBeLessThan(400);
   });
 
   it("never spends the accent on era chrome", () => {
