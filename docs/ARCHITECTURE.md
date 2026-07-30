@@ -27,7 +27,7 @@ flowchart LR
   R2 -.fetched at runtime.-> PAGES
 ```
 
-Two artifacts leave the pipeline. A ~735 KB JSON file ships inside the site bundle. R2 serves the embeddings in a ~1 MB gzipped file.
+Two artifacts leave the pipeline. A ~748 KB JSON file ships inside the site bundle. R2 serves the embeddings in a ~1 MB gzipped file.
 
 ## Layers
 
