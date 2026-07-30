@@ -13,13 +13,15 @@ import { FavDirectors, FavDirectorsBlurb } from "./FavDirectors";
 import { FavPosters } from "./FavPosters";
 
 /**
- * Prototype surface for the charts that do not have a home yet. Not linked from
- * anywhere.
+ * The unlisted surface behind `/lab`. Not linked from anywhere, and it stays
+ * that way.
  *
- * `/lab` exists to be deleted: it was torn down once the stats charts were
- * promoted onto the main page, and it comes back for the same reason it existed
- * the first time, which is that prototyping on the main page means shipping
- * half-formed charts to the only page anybody reads.
+ * It holds two kinds of chart. Charts on their way somewhere, because
+ * prototyping on the main page means shipping half-formed work to the only page
+ * anybody reads. And charts on their way nowhere: correct, but redundant next to
+ * what the main narrative already says. This route used to be torn down whenever
+ * the first group emptied out; it is kept now so the second group has somewhere
+ * to go that is not deletion.
  *
  * TWO GROUPS, ONE PROVIDER. The heart charts and the favorites charts are headed
  * for different stories, but they mount inside a single `ExplorerProvider` so a
@@ -136,9 +138,22 @@ function Body() {
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-10">
       <header className="mb-8">
-        <h1 className="text-2xl font-bold" style={{ color: tokens.ink.primary }}>
-          Prototypes
+        <p
+          className="font-mono text-xs uppercase tracking-[0.2em]"
+          style={{ color: tokens.ink.muted }}
+        >
+          Unlisted
+        </p>
+        <h1
+          className="font-display text-3xl font-bold tracking-tight"
+          style={{ color: tokens.ink.primary }}
+        >
+          The cutting room
         </h1>
+        <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
+          Charts that work but lost their place in the main narrative. Kept because being
+          redundant is not the same as being wrong.
+        </p>
       </header>
 
       {/* The rail runs across the top rather than down the side: these charts
