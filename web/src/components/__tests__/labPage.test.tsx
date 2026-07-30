@@ -200,6 +200,81 @@ describe("what the trim was allowed to remove and what it was not", () => {
   });
 
   /**
+   * EVERY FIGURE IS READ, NOT TYPED, and only the source can prove it.
+   *
+   * The hole this closes: a literal that happens to match today's computed value
+   * passes every assertion made against rendered output. `vsOutside.ratingDiff`
+   * renders "5.0"; so does the string "5.0". Nothing a test can see in the DOM
+   * distinguishes a derivation from a number someone pasted in while it was
+   * briefly correct, and the paste then keeps asserting that value forever after
+   * the data moves.
+   *
+   * So the check is on the source: the derived expression has to appear. It
+   * cannot catch a figure derived the WRONG way, which is what the payload
+   * assertions elsewhere are for; it catches the figure that stopped being
+   * derived at all.
+   *
+   * The neighbor table leads the list deliberately. Its whole job is to be the
+   * comparison that shows the against-everything gap is an artifact, so a frozen
+   * literal there would go on vouching for a caveat that had quietly stopped
+   * being true.
+   */
+  it("reads every published figure off the payload rather than hardcoding it", () => {
+    const required: Record<string, string[]> = {
+      "components/lab/GradSchoolEra.tsx": [
+        // The neighbor table, whole. Rows come from the array, and each cell
+        // reads its own field, so neither the set of stretches nor any one
+        // number in them can be pinned.
+        "stats.neighbors.map(",
+        "{win.watches}",
+        "{win.perWeek.toFixed(1)}",
+        "{fmt1(win.meanRating)}",
+        "{win.label}",
+        // The against-everything gap, which is the figure the table exists to
+        // put in context.
+        "fmt1(vsOutside.ratingDiff)",
+        // The rank, both halves. A frozen percentile would keep calling a
+        // stretch middling after it stopped being one.
+        "Math.round(ratingStretch.netPercentile)",
+        "{ratingStretch.comparable}",
+        "fmt1(ratingStretch.netDelta)",
+        // The window's width in months, the figure that already went stale once
+        // as a literal when the window changed underneath it.
+        "fmt1(ratingWindowMonths.low)",
+        "fmt1(ratingWindowMonths.high)",
+        // What the rating line reads at each edge of the span.
+        "opens.meanRating.toFixed(1)",
+        "closes.meanRating.toFixed(1)",
+        // The pace figures either side of the span.
+        "fmt1(after.perWeek)",
+        "fmt1(span.perWeek)",
+      ],
+      "components/lab/LabRail.tsx": [
+        "ratioLabel(stats.filmsPerDayRatio)",
+        "stats.travel.filmsPerDay.toFixed(2)",
+        "stats.ordinary.filmsPerDay.toFixed(2)",
+        "Math.round(stats.travel.multiFilmShare * 100)",
+        "stats.travel.multiFilmDays",
+        "signedLabel(stats.ratingDiff)",
+        "stats.travel.ratingN",
+        "eraStats.eraMonths",
+        "eraStats.span.watches",
+        "eraStats.span.perWeek.toFixed(1)",
+        // The null result as a WORD, looked up. A typed "Unchanged" would keep
+        // saying it after the data stopped agreeing.
+        "stats.ratingGapIsNoise ?",
+      ],
+    };
+
+    for (const [file, expressions] of Object.entries(required)) {
+      const text = src(file);
+      for (const expr of expressions) {
+        expect(text, `${file} must read ${expr}, not type its value`).toContain(expr);
+      }
+    }
+  });
+
+  /**
    * A budget, because the failure this page had was length, and nothing stops
    * length coming back a sentence at a time.
    *

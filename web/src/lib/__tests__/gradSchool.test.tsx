@@ -406,6 +406,21 @@ describe("what the section is required to print", () => {
     expect(high).toBeLessThan(stats.eraMonths / 4);
   });
 
+  /**
+   * The page carries TWO UNITS for the viewing rate on purpose, and says so.
+   *
+   * The chart is a monthly rate over a twelve-month window, which is internally
+   * consistent; the table's fixed stretches read more plainly per week. That is
+   * a defensible pair and an indefensible accident, so the caption names both.
+   * Without this sentence a reader who spots the mismatch has to guess which
+   * number is wrong, and nothing else on the page would stop a trim deleting it.
+   */
+  it("says out loud that the chart is monthly and the table is weekly", () => {
+    const text = textOf();
+    expect(text).toContain("a monthly rate");
+    expect(text).toContain("The table below is per week");
+  });
+
   it("puts the steep fall after the span rather than inside it", () => {
     // The half a skimmer is likeliest to get backwards. The real collapse in
     // viewing is AFTER graduation, so a sentence that let it drift inside the
