@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import type { Filters } from "./store";
 import type { Film, EnrichedWatch, WatchlistFilm } from "./types";
-import { genreBars, watchlistSummary } from "./watchlistChart";
+import { genreBars, PRE_MILLENNIUM, watchlistSummary } from "./watchlistChart";
 import { primaryGenre, type GenreKey } from "./palette";
 import { watchKey } from "./brush";
+import { travelLeg, type TravelLeg } from "./travel";
 import { ALPHA, anova, chicagoParts, hasKnownRewatchState, mean } from "./statsChart";
 import {
   CROSSOVER_STARS,
@@ -13,7 +14,9 @@ import {
 } from "./likedChart";
 
 export type ChartId =
-  // Shown at the top of every set: the shape of the scale everything else uses.
+  // Shown at the top of every set: the whole run in order, then the shape of the
+  // scale everything else uses.
+  | "posterbarcode"
   | "ratings"
   | "spiral"
   | "contrarian"
@@ -79,6 +82,21 @@ export type StoryFocus = {
 
 export type StoryResult = {
   headline: string; // the finding, shown as the annotation on the primary chart
+  /**
+   * The headline cut down to chip size, for the second line of the invitation.
+   *
+   * MEASURED here beside the headline, from the same locals, rather than written
+   * out as a second string somewhere else. Every figure in these headlines moves
+   * with the data — the double-feature count grows, the leading franchise
+   * changes, the watchlist is re-exported nightly — so a hand-copied teaser is a
+   * copy of a number that moves, and the next update would only have to change
+   * one of the two for the chip to contradict the chart it points at.
+   *
+   * Left off where the headline carries no figure to cut down to. `storyTeaser`
+   * then falls back to the headline itself, which is already the finding at chip
+   * size, rather than making every degraded path carry a duplicate of it.
+   */
+  teaser?: string;
   chip?: string; // short label for the invitation chip (falls back to the story label)
   subtext?: string;
   filters?: Partial<Filters>;
@@ -261,6 +279,9 @@ function computeHiddenGems(films: Film[], watches: EnrichedWatch[]): StoryResult
 
   return {
     headline: `Hidden gem: ${gems[0].film.title}`,
+    // The headline names one film, whose title can be any length; the count and
+    // the rating bar are the parts of this finding that fit a chip either way.
+    teaser: `${gems.length} films I rated ${GEM_MIN_RATING}+ that few people saw`,
     chip: "Hidden gems",
     // Matches the rule at the top of this function exactly: 80 or above, under ten
     // thousand IMDB votes. A definition that rounds off the threshold is a
@@ -319,7 +340,7 @@ function topKeywordHeartGap(
 
 /** Exported for the same reason as the gem thresholds. */
 export const LONG_MIN = 150; // minutes
-const SHORT_MAX = 90;
+const SHORT_MAX = 90; // minutes; the headline names it, so it may not be typed twice
 
 function computeRuntime(films: Film[], watches: EnrichedWatch[]): StoryResult {
   const longWatches: EnrichedWatch[] = [];
@@ -351,7 +372,8 @@ function computeRuntime(films: Film[], watches: EnrichedWatch[]): StoryResult {
   );
 
   return {
-    headline: `I rate ${LONG_MIN}-min+ films ${delta} points above sub-90s`,
+    headline: `I rate ${LONG_MIN}-min+ films ${delta} points above sub-${SHORT_MAX}s`,
+    teaser: `${LONG_MIN}-min+ films rate ${delta} points higher`,
     chip: "The longer, the better",
     selection: new Set(longWatches.map(watchKey)),
     notes: {
@@ -390,18 +412,64 @@ function computePickier(films: Film[], watches: EnrichedWatch[]): StoryResult {
   const last = byYear.get(years[years.length - 1])!;
   const firstAvg = first.rated ? first.sum / first.rated : 0;
   const lastAvg = last.rated ? last.sum / last.rated : 0;
+
+  /**
+   * The volume change, measured against the last COMPLETE year.
+   *
+   * The newest year in the log is only as far into itself as the last watch
+   * got, so its count is not comparable to a full one: seven months of 2026
+   * against twelve of 2019 reads as a 76% collapse where the honest figure is
+   * 51%. An average tolerates a partial year, which is why the rating half
+   * above still uses the newest one; a count does not.
+   *
+   * "Complete" is read off the data rather than the clock. Any year the log has
+   * already moved past is done with, so the rule needs no year written into it
+   * and is still right next January. Null when the first year is the only
+   * complete one, since there is then nothing to compare it against.
+   */
+  const newest = years[years.length - 1];
+  const complete = years.filter((y) => y < newest);
+  const lastFull = complete[complete.length - 1];
+  const volume =
+    lastFull > years[0]
+      ? {
+          year: lastFull,
+          n: byYear.get(lastFull)!.n,
+          pct: Math.round((100 * (first.n - byYear.get(lastFull)!.n)) / first.n),
+        }
+      : null;
+  // The same complete-year count the teaser quotes, so the headline cannot call
+  // it a decline off the partial year the teaser refuses to.
+  const watchesLess = volume ? volume.pct > 0 : last.n < first.n;
+
   const headline =
-    last.n < first.n && lastAvg > firstAvg
+    watchesLess && lastAvg > firstAvg
       ? "I watch less now, but rate higher"
       : `From ${years[0]} to ${years[years.length - 1]}, my pace and taste shifted`;
   return {
     headline,
+    // The headline names a direction, not a number, and the direction the reader
+    // asked the chip to carry is the VOLUME one. Measured here from the same
+    // locals the rolling note prints, so the chip and the note are two views of
+    // one figure. Stated as two endpoints, and with its direction word measured,
+    // so it stays true if the trend reverses. Dropped where there is no complete
+    // year to compare against, which leaves `storyTeaser` on the headline.
+    ...(volume
+      ? {
+          teaser: `${Math.abs(volume.pct)}% ${volume.pct >= 0 ? "fewer" : "more"} watches in ${volume.year} than in ${years[0]}`,
+        }
+      : {}),
     chip: "Getting pickier",
     yearMeans: true,
     notes: {
       stripes: "Recent stripes lean crimson: higher scores across fewer films each year.",
       spiral: `The dashed line across each row is that year's average rating: ${Math.round(firstAvg)} in ${years[0]}, ${Math.round(lastAvg)} in ${years[years.length - 1]}.`,
-      rolling: "My overall average drifts up as the yearly pace slows.",
+      // Carries the raw counts the chip has no room for, and the percentage the
+      // chip does quote: every figure on a teaser has to appear in the story's
+      // own annotations or the two can be edited into disagreeing.
+      rolling: volume
+        ? `My overall average drifts up as the yearly pace ${volume.pct >= 0 ? "slows" : "picks up"}: ${first.n} watches in ${years[0]} against ${volume.n} in ${volume.year}, ${volume.pct >= 0 ? "down" : "up"} ${Math.abs(volume.pct)}%.`
+        : "My overall average drifts up as the yearly pace slows.",
     },
   };
 }
@@ -433,12 +501,30 @@ function computeBinges(films: Film[], watches: EnrichedWatch[]): StoryResult {
   const selection = new Set<string>();
   for (const [, ws] of bingeDays) for (const w of ws) selection.add(watchKey(w));
 
+  // Whether the peak day was a flight is LOOKED UP, not written down. The peak
+  // moves with the data, and a sentence that hardcoded the answer would go on
+  // claiming it about whichever day took over. Asked of one of the day's own
+  // watches, since `travelLeg` reads only the date.
+  const peakLeg = travelLeg(peak[1][0]);
+  const LEG_PROSE: Record<TravelLeg, string> = {
+    depart: "an outbound flight",
+    return: "the flight home",
+    level: "a flight between two stops of one trip",
+  };
+
   return {
     headline: `${bingeDays.length} double-feature days, peaking at ${peak[1].length} films on ${prettyDate(peak[0])}`,
+    // Same two counts as the headline, minus the date: the date is the part a
+    // reader can only use once they are looking at the barcode.
+    teaser: `${bingeDays.length} double-feature days, ${peak[1].length} films at peak`,
     chip: "Double features",
     selection,
     notes: {
-      spiral: "Every highlighted dot shares its date with at least one other film. Stacked pairs and towers are single sittings.",
+      spiral:
+        "Every highlighted dot shares its date with at least one other film. Stacked pairs and towers are single sittings." +
+        (peakLeg
+          ? ` The planes are days spent in the air, which is where a good few of these clusters come from: the peak day was ${LEG_PROSE[peakLeg]}.`
+          : ""),
       stripes: "Binge days land as back-to-back stripes with no gap: the barcode's densest clusters.",
     },
   };
@@ -505,6 +591,9 @@ function computeCollections(films: Film[], watches: EnrichedWatch[]): StoryResul
 
   return {
     headline: `${shortName}: ${topEntry.watches.length} watches across ${topEntry.filmIds.size} films`,
+    // Drops the film count rather than the watch count, because the collection
+    // name is unbounded and the headline in full leaves too little room for it.
+    teaser: `${shortName} leads with ${topEntry.watches.length} watches`,
     chip: "Franchise runs",
     selection,
     notes: {
@@ -566,6 +655,13 @@ function computeHeart(films: Film[], watches: EnrichedWatch[]): StoryResult {
 
   return {
     headline,
+    // The band rate and its two edges, which is the whole finding; the headline
+    // spends most of its length saying what happens OUTSIDE the band.
+    ...(band.n > 0
+      ? {
+          teaser: `${pct(band)}% hearted between ${CROSSOVER_STARS[0]}★ and ${CROSSOVER_STARS[1]}★`,
+        }
+      : {}),
     chip: "Favs and likes",
     notes: {
       // One note per chart at most, and only where the chart cannot say it. The
@@ -637,10 +733,13 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
   /**
    * Do I rate a film higher on the way back than the first time through?
    *
-   * D5: `rewatch` is three-state. The 129 sheet-era rows record `false` because
-   * the Google Sheet had no such field, not because they were first viewings,
-   * so they are excluded from BOTH sides rather than silently counted as first
-   * watches, which would drag the first-watch mean toward the sheet era.
+   * D5: `rewatch` is three-state. A sheet-era row records `false` because the
+   * Google Sheet had no such field, not because it was a first viewing, so
+   * `hasKnownRewatchState` keeps it out of BOTH sides rather than letting it be
+   * counted as a first watch, which would drag the first-watch mean toward the
+   * sheet era. The 6 sheet-era rows the data can see are returns do count: the
+   * same predicate the StatBar rate uses, so this comparison and that rate never
+   * disagree about which rows are answerable.
    */
   const firstRatings: number[] = [];
   const rewatchRatings: number[] = [];
@@ -671,6 +770,12 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
 
   return {
     headline,
+    // Tracks the same branch as the headline, off the same locals, so the chip
+    // never quotes a ratio the headline decided it could not state.
+    teaser:
+      gap == null
+        ? `${MONTHS[busiest.m]} outdraws ${MONTHS[quietest.m]}`
+        : `${ratio.toFixed(1)}x more in ${MONTHS[busiest.m]}`,
     chip: "Dive deep",
     ...(nothingPredicts
       ? { subtext: "What changes is how much I watch, not what I think of it." }
@@ -718,10 +823,11 @@ function computeWatchlist(
 
   // Both numbers are measured here rather than written down, so the line cannot
   // drift from the charts underneath it.
-  const headline = `${total} films on the list, ${pct}% of them from before 2000`;
+  const headline = `${total} films on the list, ${pct}% of them from before ${PRE_MILLENNIUM}`;
 
   return {
     headline,
+    teaser: `${pct}% of the ${total} films predate ${PRE_MILLENNIUM}`,
     chip: "Watchlist",
     ...(watched > 0
       ? {
@@ -883,14 +989,45 @@ export function swapsChartSet(activeStory: string | null): boolean {
   return chartSetFor(activeStory) !== "narrative";
 }
 
+/**
+ * The longest a teaser can be and still sit on one line under a chip label at
+ * the narrowest layout the page supports.
+ */
+export const TEASER_MAX = 48;
+
+/**
+ * A story's finding, at chip size.
+ *
+ * Reads the teaser off a result the caller already computed, so the chip and the
+ * annotation are two views of one measurement rather than two measurements.
+ *
+ * Falls back to the headline where a story has no separate teaser, which is the
+ * right answer twice over: the degraded headlines ("No franchise runs yet") are
+ * already the finding at chip size, and so is any headline short enough to print
+ * whole. Passing no result at all measures the story against no data, so a caller
+ * holding nothing but an id still gets a printable line.
+ */
+export function storyTeaser(id: string, result?: StoryResult): string | undefined {
+  const story = STORIES.find((s) => s.id === id);
+  if (!story) return undefined;
+  const r = result ?? story.compute([], [], []);
+  return r.teaser ?? r.headline;
+}
+
 // All story headlines computed once from the full dataset, for the chip strip.
 export function computeStoryHeadlines(
   films: Film[],
   watches: EnrichedWatch[],
   watchlist: WatchlistFilm[] = [],
-): { id: string; label: string; headline: string; chip: string }[] {
+): { id: string; label: string; headline: string; chip: string; teaser?: string }[] {
   return STORIES.filter((s) => !s.landing).map((s) => {
     const r = s.compute(films, watches, watchlist);
-    return { id: s.id, label: s.label, headline: r.headline, chip: r.chip ?? s.label };
+    return {
+      id: s.id,
+      label: s.label,
+      headline: r.headline,
+      chip: r.chip ?? s.label,
+      teaser: storyTeaser(s.id, r),
+    };
   });
 }

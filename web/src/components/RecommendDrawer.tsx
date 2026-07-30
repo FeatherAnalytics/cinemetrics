@@ -19,7 +19,7 @@ import {
   type Reason,
 } from "@/lib/explainClient";
 import { FilmCard } from "./FilmCard";
-import { ACCENT, INK } from "@/lib/palette";
+import { hairline, useTheme } from "@/lib/theme";
 
 const R2_URL = process.env.NEXT_PUBLIC_R2_URL || "";
 
@@ -144,6 +144,7 @@ type Status = "loading" | "ready" | "error";
 export function RecommendDrawer() {
   const { state, dispatch } = useRecommend();
   const { byId, all, filters: dashFilters, watchlist } = useExplorer();
+  const { tokens } = useTheme();
 
   // Films the reader has already shortlisted. A recommendation that lands on one
   // is the recommender agreeing with a decision already made, which is worth
@@ -267,9 +268,11 @@ export function RecommendDrawer() {
 
   const langActive = state.filters.language != null;
   const pill = (active: boolean) => ({
-    background: active ? ACCENT : "transparent",
-    color: active ? INK.surface : INK.secondary,
-    borderColor: active ? ACCENT : "rgba(11,11,11,0.2)",
+    background: active ? tokens.ui.active : "transparent",
+    color: active ? tokens.ui.activeText : tokens.ink.secondary,
+    borderColor: active
+      ? tokens.ui.active
+      : hairline(tokens.ink.primary, 20),
   });
 
   return (
@@ -288,17 +291,20 @@ export function RecommendDrawer() {
           border-t transition-transform duration-300
           md:bottom-auto md:left-auto md:right-0 md:top-0 md:h-full md:max-h-none md:w-[360px]
           md:rounded-none md:border-l md:border-t-0"
-        style={{ background: INK.surface, borderColor: ACCENT }}
+        style={{ background: tokens.ink.surface, borderColor: tokens.accent }}
       >
         <div className="flex justify-center pt-2 md:hidden">
-          <div className="h-1 w-8 rounded-full" style={{ background: "rgba(11,11,11,0.2)" }} />
+          <div
+            className="h-1 w-8 rounded-full"
+            style={{ background: hairline(tokens.ink.primary, 20) }}
+          />
         </div>
 
         <div className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <span
               className="font-mono text-[11px] font-semibold uppercase tracking-[0.15em]"
-              style={{ color: ACCENT }}
+              style={{ color: tokens.accent }}
             >
               {headerText}
             </span>
@@ -306,14 +312,14 @@ export function RecommendDrawer() {
               ref={closeRef}
               onClick={() => dispatch({ type: "CLOSE" })}
               className="text-lg leading-none"
-              style={{ color: INK.muted }}
+              style={{ color: tokens.ink.muted }}
               aria-label="Close recommendations"
             >
               ✕
             </button>
           </div>
 
-          <p className="mb-3 text-[11px]" style={{ color: INK.muted }}>
+          <p className="mb-3 text-[11px]" style={{ color: tokens.ink.muted }}>
             Based on my ratings and taste.
           </p>
 
@@ -357,30 +363,30 @@ export function RecommendDrawer() {
                 <div
                   key={i}
                   className="h-20 animate-pulse rounded-lg"
-                  style={{ background: "rgba(11,11,11,0.05)" }}
+                  style={{ background: hairline(tokens.ink.primary, 5) }}
                 />
               ))}
-              <p className="mt-1 text-xs" style={{ color: INK.muted }}>
+              <p className="mt-1 text-xs" style={{ color: tokens.ink.muted }}>
                 Finding films like these…
               </p>
             </div>
           )}
 
           {effectiveStatus === "error" && (
-            <p className="text-sm" style={{ color: INK.secondary }}>
+            <p className="text-sm" style={{ color: tokens.ink.secondary }}>
               Recommendations are unavailable right now. The model that powers them
               couldn&rsquo;t load. Try again in a moment.
             </p>
           )}
 
           {effectiveStatus === "ready" && recs.length === 0 && (
-            <div className="text-sm" style={{ color: INK.secondary }}>
+            <div className="text-sm" style={{ color: tokens.ink.secondary }}>
               <p>No films match these filters.</p>
               {langActive && (
                 <button
                   onClick={() => dispatch({ type: "SET_LANGUAGE", language: undefined })}
                   className="mt-1 underline underline-offset-2"
-                  style={{ color: ACCENT }}
+                  style={{ color: tokens.accent }}
                 >
                   clear the language filter
                 </button>
@@ -394,14 +400,20 @@ export function RecommendDrawer() {
                 <div key={r.tmdb_id} className="contents">
                   {i === boostCount && boostCount > 0 && boostCount < recs.length && (
                     <div className="flex min-w-[200px] items-center gap-2 md:min-w-0 md:py-1">
-                      <div className="flex-1 border-t" style={{ borderColor: "rgba(11,11,11,0.12)" }} />
+                      <div
+                        className="flex-1 border-t"
+                        style={{ borderColor: hairline(tokens.ink.primary, 12) }}
+                      />
                       <span
                         className="whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.15em]"
-                        style={{ color: INK.muted }}
+                        style={{ color: tokens.ink.muted }}
                       >
                         you might also like
                       </span>
-                      <div className="flex-1 border-t" style={{ borderColor: "rgba(11,11,11,0.12)" }} />
+                      <div
+                        className="flex-1 border-t"
+                        style={{ borderColor: hairline(tokens.ink.primary, 12) }}
+                      />
                     </div>
                   )}
                   <div className="min-w-[200px] md:min-w-0">

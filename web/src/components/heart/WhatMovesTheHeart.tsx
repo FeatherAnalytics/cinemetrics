@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { GENRE_ALPHA } from "@/lib/statsChart";
 import {
   categoryOf,
@@ -84,6 +84,7 @@ function bucketOf(w: EnrichedWatch, dim: Dimension): string | null {
  */
 export function WhatMovesTheHeart() {
   const { filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
   const [dim, setDim] = useState<Dimension>("genre");
 
   // EVERY watch with a recorded heart, not just the crossover band. Restricting to
@@ -151,7 +152,7 @@ export function WhatMovesTheHeart() {
 
   if (bandRate.n === 0) {
     return (
-      <p className="text-sm" style={{ color: INK.muted }}>
+      <p className="text-sm" style={{ color: tokens.ink.muted }}>
         Nothing in view recorded a heart.
       </p>
     );
@@ -179,14 +180,14 @@ export function WhatMovesTheHeart() {
       )}
 
       {bars.length === 0 ? (
-        <p className="text-sm" style={{ color: INK.muted }}>
+        <p className="text-sm" style={{ color: tokens.ink.muted }}>
           No category here has {MIN_N} watches with a recorded heart.
         </p>
       ) : (
         <>
           <RateBars
             bars={bars}
-            accent={accentFor(filters.genres)}
+            accent={accentFor(filters.genres, tokens)}
             active={activeIndex >= 0 ? activeIndex : null}
             onPick={(i) => pickWatches(model.groups[i], filters.selection, setSelection)}
             refAt={bandRate.rate}
@@ -195,7 +196,7 @@ export function WhatMovesTheHeart() {
           {/* Says what is missing rather than letting the axis imply the
               dimension has only these categories. */}
           {model.dropped > 0 && (
-            <p className="mt-1 text-xs" style={{ color: INK.muted }}>
+            <p className="mt-1 text-xs" style={{ color: tokens.ink.muted }}>
               {model.dropped} smaller {model.dropped === 1 ? "category" : "categories"} not
               shown.
             </p>

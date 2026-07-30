@@ -58,7 +58,14 @@ def _load_films(con: duckdb.DuckDBPyConnection) -> tuple[list[dict], dict[int, f
             f.tmdb_id, f.imdb_id, f.title, f.release_year,
             f.genres, f.keywords, f.runtime_min as runtime,
             f.director, f.actors, f.metascore, f.rt_rating, f.imdb_rating,
-            f.production_countries, f.rated, f.original_language as language
+            f.production_countries, f.rated, f.original_language as language,
+            -- Candidates carry poster_path because _load_candidates keeps every
+            -- column of its seed, so leaving it out here made `poster: null` in
+            -- the export mean two different things: "TMDB serves no art" for a
+            -- candidate, and "this query did not ask" for all 676 rated films.
+            -- dim_film already coalesces the curated overrides, so the right
+            -- value is one column away and needs no fetch.
+            f.poster_path
         from marts.dim_film f
     """).fetchdf().to_dict("records")
 

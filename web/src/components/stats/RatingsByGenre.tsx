@@ -3,12 +3,11 @@
 import { useMemo } from "react";
 import { useExplorer } from "@/lib/store";
 import {
-  GENRE_COLORS,
-  INK,
   primaryGenre,
   secondaryGenre,
   type GenreKey,
 } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { GENRE_ALPHA, mean, tukey, type BoxBounds } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
@@ -25,7 +24,6 @@ const MT = 32;
 // needed is gone along with the height it cost.
 const MB = 34;
 const ML = 34;
-const FADE = "#b3b1a6";
 
 type Row = BoxBounds & { genre: GenreKey; n: number; watches: EnrichedWatch[] };
 
@@ -55,8 +53,10 @@ type Row = BoxBounds & { genre: GenreKey; n: number; watches: EnrichedWatch[] };
  */
 export function RatingsByGenre() {
   const { filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
+  const FADE = tokens.ink.mark;
   const [ref, W] = useWidth(W0, W_MIN);
-  const accent = accentFor(filters.genres);
+  const accent = accentFor(filters.genres, tokens);
   const bySecondary = filters.genres.size > 0;
 
   const rows = useMemo(() => {
@@ -114,16 +114,16 @@ export function RatingsByGenre() {
     <div ref={ref}>
       <div
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
-        style={{ color: INK.muted }}
+        style={{ color: tokens.ink.muted }}
       >
         {bySecondary ? "second genre · " : ""}median spread{" "}
-        <span style={{ color: INK.primary }}>{(spread / 20).toFixed(2)}★</span>
+        <span style={{ color: tokens.ink.primary }}>{(spread / 20).toFixed(2)}★</span>
       </div>
       <svg width={W} height={H} role="img" style={{ maxWidth: "100%" }}>
         {[0, 20, 40, 60, 80, 100].map((t) => (
           <g key={t}>
-            <line x1={ML} y1={y(t)} x2={W - 12} y2={y(t)} stroke="#eee" />
-            <text x={ML - 6} y={y(t) + 3} textAnchor="end" fontSize={9} fill={INK.muted}>
+            <line x1={ML} y1={y(t)} x2={W - 12} y2={y(t)} stroke={tokens.ink.grid} strokeOpacity={0.4} />
+            <text x={ML - 6} y={y(t) + 3} textAnchor="end" fontSize={9} fill={tokens.ink.muted}>
               {t / 20}★
             </text>
           </g>
@@ -147,7 +147,7 @@ export function RatingsByGenre() {
                 y={y(r.q3)}
                 width={boxW}
                 height={Math.max(y(r.q1) - y(r.q3), 1)}
-                fill={GENRE_COLORS[r.genre]}
+                fill={tokens.genre[r.genre]}
                 fillOpacity={on ? 0.85 : 0.5}
                 stroke={on ? accent : "none"}
                 strokeWidth={2}
@@ -157,7 +157,7 @@ export function RatingsByGenre() {
                 y1={y(r.med)}
                 x2={cx + boxW / 2}
                 y2={y(r.med)}
-                stroke={INK.primary}
+                stroke={tokens.ink.primary}
                 strokeWidth={2}
               />
               {/* Hollow, so a cluster reads as several points rather than a blob. */}
@@ -168,7 +168,7 @@ export function RatingsByGenre() {
                   cy={y(v)}
                   r={2}
                   fill="none"
-                  stroke={INK.primary}
+                  stroke={tokens.ink.primary}
                   strokeWidth={0.8}
                 />
               ))}
@@ -187,7 +187,7 @@ export function RatingsByGenre() {
                 textAnchor="middle"
                 fontSize={9}
                 fontWeight={700}
-                fill={on ? accent : INK.secondary}
+                fill={on ? accent : tokens.ink.secondary}
                 pointerEvents="none"
               >
                 {r.n}
@@ -197,7 +197,7 @@ export function RatingsByGenre() {
                 y={H - MB + 16}
                 textAnchor="middle"
                 fontSize={11}
-                fill={on ? accent : INK.primary}
+                fill={on ? accent : tokens.ink.primary}
                 fontWeight={on ? 700 : 400}
                 pointerEvents="none"
               >

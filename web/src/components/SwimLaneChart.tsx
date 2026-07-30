@@ -2,9 +2,11 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK, primaryGenre } from "@/lib/palette";
+import { primaryGenre } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { isSolstice, SunMarker } from "@/lib/solstice";
+import { travelLeg, PlaneMarker } from "@/lib/travel";
 import { isFav } from "@/lib/fourFavs";
 import { heartDim } from "@/lib/heartLens";
 import { favColor, StarMarker } from "@/lib/favMarker";
@@ -42,6 +44,7 @@ export function SwimLaneChart() {
     heartLens,
     activeStory,
   } = useExplorer();
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<{ x: number; y: number; w: EnrichedWatch } | null>(null);
   const monthFocus = storyResult?.monthFocus ?? null;
   const showYearMeans = storyResult?.yearMeans ?? false;
@@ -88,15 +91,15 @@ export function SwimLaneChart() {
     // Ghosts first
     for (const w of ghosts) {
       const { x, y } = place(w);
-      pts.push({ w, x, y, color: INK.muted, op: 0.08, r: 3.5, sel: false, unrated: w.rating == null });
+      pts.push({ w, x, y, color: tokens.ink.muted, op: 0.08, r: 3.5, sel: false, unrated: w.rating == null });
     }
 
     // Under the heart lens the dot KEEPS its genre color and fades when the film
     // was not hearted, so the hearted films come forward without costing the reader
-    // the encoding they already learned. Unrecorded hearts fade with the rest: all
-    // 129 of them sit in 2019, and giving them a gray turned the whole first row
-    // into chrome.
-    const dotColor = (w: EnrichedWatch) => GENRE_COLORS[primaryGenre(w.film)];
+    // the encoding they already learned. Unrecorded hearts fade with the rest: they
+    // all sit in the log's first year, and giving them a gray turned the whole
+    // first row into chrome. `SwimLaneHeartBlurb` counts them for the caption.
+    const dotColor = (w: EnrichedWatch) => tokens.genre[primaryGenre(w.film)];
     const dotFade = (w: EnrichedWatch) => (heartLens ? heartDim(w) : 1);
 
     // Active dots
@@ -135,7 +138,7 @@ export function SwimLaneChart() {
     // Selected on top
     pts.sort((a, b) => Number(a.sel) - Number(b.sel) || a.op - b.op);
     return pts;
-  }, [all, filtered, hasSel, selectedId, monthFocus, place, heartLens]);
+  }, [all, filtered, hasSel, selectedId, monthFocus, place, heartLens, tokens]);
 
   // The circle elements are memoized as JSX so a tooltip show/hide (hover
   // state) doesn't rebuild ~1,500 SVG nodes.
@@ -153,17 +156,48 @@ export function SwimLaneChart() {
           const op = p.op < 0.3 ? 0.35 : Math.max(p.op, 0.9);
           return (
             <g key={i} opacity={op} style={{ cursor: "pointer" }} {...handlers}>
-              <SunMarker x={p.x} y={p.y} />
+              <SunMarker x={p.x} y={p.y} accent={tokens.accent} />
             </g>
           );
         }
         // A profile favorite takes a star instead of a dot, in its genre color.
-        // Checked AFTER the solstice sun: that marks one specific watch and this
-        // marks a film, so the more specific mark keeps the position.
+        // Checked after the solstice sun, which marks one named watch and is the
+        // most specific of the three, and BEFORE the plane.
+        //
+        // The star beating the plane is the owner's call, reversing an earlier
+        // one that ran the other way. It decides exactly one watch: The Nice Guys
+        // on 2023-10-10, the only favorite in the log ever watched on a travel
+        // day. The star wins because it is the rarer fact. Four films out of the
+        // whole library carry one, while that date already draws two other darts,
+        // so the day still reads as flown without a third. Giving the dart the
+        // position instead would leave this the one place on the page where a
+        // favorite goes unmarked, which is a worse loss than a cluster of two.
         if (isFav(p.w.tmdb_id)) {
           return (
             <g key={i} opacity={p.op} style={{ cursor: "pointer" }} {...handlers}>
-              <StarMarker x={p.x} y={p.y} r={p.r + 2.4} fill={favColor(p.w.film)} />
+              <StarMarker x={p.x} y={p.y} r={p.r + 2.4} fill={favColor(p.w.film, tokens)} />
+            </g>
+          );
+        }
+        // A watch flown rather than sat through takes a plane. Faded and lifted
+        // exactly like the sun, so a filtered-out flight recedes with the ghosts.
+        //
+        // In the film's GENRE color, like the favorite star above and unlike an
+        // earlier ink version of this mark. The lane encodes two things at once,
+        // genre in the hue and rating in the height, and an ink glyph silently
+        // drops the first for every watch it replaces. Crimson here means Horror
+        // exactly as it does on a dot: the mark says "flown" through its SHAPE,
+        // so the color is free to keep doing its own job.
+        //
+        // `p.color` rather than a fresh genre lookup: the ghost layer builds its
+        // points with muted ink, so this follows a filtered-out flight into the
+        // background instead of leaving one saturated dart behind.
+        const leg = travelLeg(p.w);
+        if (leg) {
+          const op = p.op < 0.3 ? 0.35 : Math.max(p.op, 0.9);
+          return (
+            <g key={i} opacity={op} style={{ cursor: "pointer" }} {...handlers}>
+              <PlaneMarker x={p.x} y={p.y} leg={leg} color={p.color} />
             </g>
           );
         }
@@ -176,7 +210,7 @@ export function SwimLaneChart() {
             r={p.r}
             fill={ring ? "none" : p.color}
             fillOpacity={ring ? 0 : p.op}
-            stroke={p.sel ? ACCENT : ring ? p.color : "none"}
+            stroke={p.sel ? tokens.ui.selected : ring ? p.color : "none"}
             strokeWidth={p.sel ? 2 : ring ? 1 : 0}
             strokeOpacity={ring ? p.op : 1}
             style={{ cursor: "pointer" }}
@@ -184,7 +218,7 @@ export function SwimLaneChart() {
           />
         );
       }),
-    [points, setSelected],
+    [points, setSelected, tokens],
   );
 
   // Per-year average markers, shown only when a story asks for them (the
@@ -211,7 +245,7 @@ export function SwimLaneChart() {
             y1={y}
             x2={MARGIN_LEFT + CHART_WIDTH}
             y2={y}
-            stroke={ACCENT}
+            stroke={tokens.accent}
             strokeWidth={1.5}
             strokeOpacity={0.45}
             strokeDasharray="7 5"
@@ -219,7 +253,7 @@ export function SwimLaneChart() {
           <text
             x={MARGIN_LEFT + CHART_WIDTH - 4}
             y={y + 12}
-            fill={ACCENT}
+            fill={tokens.accent}
             fontSize={10}
             fontWeight="bold"
             textAnchor="end"
@@ -229,7 +263,7 @@ export function SwimLaneChart() {
         </g>
       );
     });
-  }, [showYearMeans, filtered, startYear, CHART_WIDTH]);
+  }, [showYearMeans, filtered, startYear, CHART_WIDTH, tokens]);
 
   const { rect, handlers } = useDragRect(
     () => ({ w: BASE_WIDTH, h: viewBoxHeight }),
@@ -261,7 +295,7 @@ export function SwimLaneChart() {
             y={MARGIN_TOP + i * LANE_H}
             width={CHART_WIDTH}
             height={LANE_H}
-            fill={i % 2 === 0 ? "#f7f6f3" : "white"}
+            fill={i % 2 === 0 ? tokens.surface.paper : tokens.surface.card}
           />
         ))}
 
@@ -272,7 +306,7 @@ export function SwimLaneChart() {
             y={MARGIN_TOP}
             width={CHART_WIDTH / 12}
             height={nYears * LANE_H}
-            fill={ACCENT}
+            fill={tokens.accent}
             fillOpacity={0.08}
           />
         )}
@@ -289,7 +323,7 @@ export function SwimLaneChart() {
               y1={laneTop + (1 - rating / 100) * LANE_H}
               x2={MARGIN_LEFT + CHART_WIDTH}
               y2={laneTop + (1 - rating / 100) * LANE_H}
-              stroke={INK.grid}
+              stroke={tokens.ink.grid}
               strokeWidth={0.5}
               strokeOpacity={0.55}
               strokeDasharray="2 3"
@@ -307,7 +341,7 @@ export function SwimLaneChart() {
               y1={MARGIN_TOP}
               x2={x}
               y2={MARGIN_TOP + nYears * LANE_H}
-              stroke={INK.grid}
+              stroke={tokens.ink.grid}
               strokeWidth={1}
             />
           );
@@ -321,7 +355,7 @@ export function SwimLaneChart() {
               key={`month-label-${i}`}
               x={x}
               y={MARGIN_TOP + nYears * LANE_H + 18}
-              fill={INK.muted}
+              fill={tokens.ink.muted}
               fontSize={11}
               textAnchor="middle"
               dominantBaseline="middle"
@@ -340,7 +374,7 @@ export function SwimLaneChart() {
               key={`year-label-${i}`}
               x={MARGIN_LEFT - 8}
               y={y}
-              fill={INK.primary}
+              fill={tokens.ink.primary}
               fontSize={13}
               fontWeight="bold"
               textAnchor="end"
@@ -359,7 +393,7 @@ export function SwimLaneChart() {
         {yearMeanLayer}
 
         {/* Brush rect */}
-        <BrushRectOverlay rect={rect} />
+        <BrushRectOverlay rect={rect} accent={tokens.accent} />
       </svg>
 
       {/* Hover tooltip */}
@@ -370,19 +404,25 @@ export function SwimLaneChart() {
             left: `${(hover.x / BASE_WIDTH) * 100}%`,
             top: `${(hover.y / viewBoxHeight) * 100}%`,
             transform: "translate(-50%, -130%)",
-            background: INK.primary,
-            color: INK.surface,
+            background: tokens.ink.primary,
+            color: tokens.ink.surface,
           }}
         >
           <div className="font-medium">
             {hover.w.film?.title ?? hover.w.tmdb_id}
             {hover.w.film?.year != null ? ` (${hover.w.film.year})` : ""}
           </div>
-          <div style={{ color: "#c3c2b7" }}>
+          {/* A dimmed version of the tooltip's own text color, not a fixed gray:
+              the tooltip's background is ink.primary (inverted relative to the
+              page), so the muted tone has to invert with it too. */}
+          <div style={{ color: tokens.ink.surface, opacity: 0.75 }}>
             {hover.w.d.toISOString().slice(0, 10)} · {primaryGenre(hover.w.film)}
             {hover.w.rating != null ? ` · ${Math.round(hover.w.rating)}` : ""}
             {hover.w.rewatch ? " · rewatch" : ""}
             {isSolstice(hover.w) ? " · summer solstice ☀" : ""}
+            {/* The leg is already in the angle of the glyph; the tooltip only has
+                to say what the glyph MEANS, which nothing else on the page does. */}
+            {travelLeg(hover.w) ? " · watched in the air ✈" : ""}
           </div>
         </div>
       )}
@@ -396,5 +436,42 @@ export function SwimLaneChart() {
         <ChartTakeaway>October is {octoberHorror}% horror</ChartTakeaway>
       )}
     </figure>
+  );
+}
+
+/**
+ * The caption under the heart lens.
+ *
+ * It names the watches that fade for having no heart on record rather than for
+ * missing out on one, which is the row a reader is most likely to misread. Both
+ * the count and the years are MEASURED, and against `heart` rather than raw
+ * `liked`: the heart is one toggle per film, so a sheet-era watch of a film
+ * hearted on a later viewing already carries it and does not fade. Counting the
+ * raw nulls instead would name more watches than the chart dims.
+ */
+export function SwimLaneHeartBlurb() {
+  const { all } = useExplorer();
+  const unrecorded = useMemo(() => {
+    let n = 0;
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const w of all) {
+      if (w.heart != null) continue;
+      n += 1;
+      const y = w.d.getUTCFullYear();
+      if (y < lo) lo = y;
+      if (y > hi) hi = y;
+    }
+    return n === 0 ? null : { n, span: lo === hi ? `${lo}` : `${lo} to ${hi}` };
+  }, [all]);
+
+  if (unrecorded == null) {
+    return <>Films I hearted hold their color. Everything else fades.</>;
+  }
+  return (
+    <>
+      Films I hearted hold their color. Everything else fades, and {unrecorded.span} with it:{" "}
+      {unrecorded.n} watches there predate the heart entirely.
+    </>
   );
 }

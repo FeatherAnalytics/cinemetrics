@@ -4,7 +4,6 @@
 // set of watch keys and applied as a cross-filter in the store (see filterWatches).
 
 import { useRef, useState } from "react";
-import { ACCENT } from "./palette";
 import type { EnrichedWatch } from "./types";
 
 export type BrushRect = { x0: number; y0: number; x1: number; y1: number };
@@ -12,8 +11,17 @@ export type BrushRect = { x0: number; y0: number; x1: number; y1: number };
 /**
  * The shared drag-selection overlay: a faint accent rectangle drawn over the
  * brushed region. Null-safe so call sites can render it unconditionally.
+ *
+ * `accent` comes from the caller's active theme, and is required: an overlay
+ * left on the light constant would be the wrong crimson on a dark page.
  */
-export function BrushRectOverlay({ rect }: { rect: BrushRect | null }) {
+export function BrushRectOverlay({
+  rect,
+  accent,
+}: {
+  rect: BrushRect | null;
+  accent: string;
+}) {
   if (!rect) return null;
   return (
     <rect
@@ -21,9 +29,9 @@ export function BrushRectOverlay({ rect }: { rect: BrushRect | null }) {
       y={rect.y0}
       width={rect.x1 - rect.x0}
       height={rect.y1 - rect.y0}
-      fill={ACCENT}
+      fill={accent}
       fillOpacity={0.08}
-      stroke={ACCENT}
+      stroke={accent}
       strokeOpacity={0.5}
       strokeWidth={1}
       pointerEvents="none"

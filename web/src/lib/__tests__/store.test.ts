@@ -25,6 +25,8 @@ function makeFilm(overrides: Partial<Film> = {}): Film {
     rated: "R",
     language: "en",
     collection: null,
+    poster: null,
+    slice: null,
     ...overrides,
   };
 }
@@ -43,7 +45,7 @@ function makeWatch(
     rating: 70,
     stars: 3.5,
     liked: null,
-    rewatch: false,
+    rewatch: false, returned: false,
     film,
     d,
     yearFrac: (d.getTime() - start) / (end - start),

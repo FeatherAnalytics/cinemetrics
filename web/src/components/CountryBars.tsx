@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { countryName } from "@/lib/countries";
 import { languageName } from "@/lib/languages";
 import { aggregateOrigin, type CountryRow, type OriginDimension } from "@/lib/countryStats";
@@ -10,6 +10,7 @@ import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { ChartTakeaway } from "./ChartTakeaway";
 import { Toggle } from "./stats/Toggle";
 import { heartDeltaPP, heartShare, ppLabel } from "@/lib/heartLens";
+import { useAnimatedValues } from "@/lib/useAnimatedValues";
 
 const DIMENSIONS = ["country", "language"] as const;
 
@@ -37,6 +38,7 @@ const INSIDE_MIN = 44;
 
 export function CountryBars() {
   const { all, byId, filters, setCountry, setLanguage } = useExplorer();
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<string | null>(null);
   const [dimension, setDimension] = useState<OriginDimension>("country");
   const isLang = dimension === "language";
@@ -91,6 +93,29 @@ export function CountryBars() {
     return out;
   }, [agg.rows, watches, isLang]);
 
+  /**
+   * The two tracks tween separately, each toward its own series.
+   *
+   * Memoised on `agg.rows` and `heartRates`, both memoised: the hook compares
+   * its target by identity, and a hover re-renders this component without
+   * changing a count. A row count change (the toggle, or a filter that drops a
+   * country out of the top 15) is a length change, which the hook snaps.
+   *
+   * The ROW is the thing that tweens, not the country: rows are ranked, so a
+   * filter can put a different country in row 3 while the bar eases from the
+   * old occupant's count. The label swaps instantly and the bar catches up.
+   */
+  const counts = useMemo(() => agg.rows.map((r) => r.count), [agg.rows]);
+  const devs = useMemo(
+    () => agg.rows.map((r) => heartRates?.get(r.iso) ?? 0),
+    [agg.rows, heartRates],
+  );
+  const drawnCounts = useAnimatedValues(counts);
+  const drawnDevs = useAnimatedValues(devs);
+
+  // Both denominators are pinned to the TARGET. A track that rescales while
+  // its own bars move cancels them, and here it would also make the two tracks
+  // disagree about how far through the tween they are.
   const maxCount = agg.rows.reduce((m, r) => Math.max(m, r.count), 1);
   const tailRow = agg.tailCountries > 0;
 
@@ -109,7 +134,10 @@ export function CountryBars() {
 
   if (agg.rows.length === 0) {
     return (
-      <div className="flex h-48 items-center justify-center text-sm text-[#67655f]">
+      <div
+        className="flex h-48 items-center justify-center text-sm"
+        style={{ color: tokens.ink.muted }}
+      >
         No films match the current filters.
       </div>
     );
@@ -139,7 +167,7 @@ export function CountryBars() {
         <text
           x={LABEL_W}
           y={8}
-          fill={INK.muted}
+          fill={tokens.ink.muted}
           fontSize={9}
           letterSpacing="0.1em"
           fontFamily="var(--font-mono)"
@@ -151,7 +179,7 @@ export function CountryBars() {
         <text
           x={DEV_ZERO}
           y={8}
-          fill={INK.muted}
+          fill={tokens.ink.muted}
           fontSize={9}
           letterSpacing="0.1em"
           textAnchor="middle"
@@ -165,22 +193,28 @@ export function CountryBars() {
           y1={20}
           x2={DEV_ZERO}
           y2={HEIGHT - 20}
-          stroke={INK.axis}
+          stroke={tokens.ink.axis}
           strokeWidth={1.5}
         />
 
         {agg.rows.map((row, i) => {
           const y = 20 + i * (BAR_H + GAP);
-          const barLen = (row.count / maxCount) * BAR_W;
+          // Geometry follows the tween, the printed numbers stay on the
+          // settled values: a film count easing through 43.7 is not a fact
+          // about anything.
+          const barLen = (drawnCounts[i] / maxCount) * BAR_W;
           const sel = active === row.iso;
           const dim = active != null && !sel;
           const isHover = hover === row.iso;
           const countInside = barLen > INSIDE_MIN;
+          // Whether the second bar exists at all is a question about the DATA,
+          // so it reads the target. Only its length and side tween.
           const dev = heartRates?.get(row.iso) ?? null;
-          const devLen = dev == null ? 0 : (Math.abs(dev) / devMax) * DEV_HALF;
+          const shownDev = drawnDevs[i];
+          const devLen = dev == null ? 0 : (Math.abs(shownDev) / devMax) * DEV_HALF;
           // Grows right when I heart that country more often than average, left when
-          // less, from a shared zero.
-          const devX = dev != null && dev > 0 ? DEV_ZERO : DEV_ZERO - devLen;
+          // less, from a shared zero. A row whose sign flipped sweeps across it.
+          const devX = shownDev > 0 ? DEV_ZERO : DEV_ZERO - devLen;
           const devInside = devLen > INSIDE_MIN;
           const name = label(row.iso);
 
@@ -199,7 +233,7 @@ export function CountryBars() {
               <text
                 x={LABEL_W - 8}
                 y={y + BAR_H / 2}
-                fill={sel ? INK.primary : INK.secondary}
+                fill={sel ? tokens.ink.primary : tokens.ink.secondary}
                 fontSize={12}
                 fontWeight={sel ? 700 : 400}
                 textAnchor="end"
@@ -213,9 +247,9 @@ export function CountryBars() {
                 y={y}
                 width={barLen}
                 height={BAR_H}
-                fill={GENRE_COLORS[row.genre]}
+                fill={tokens.genre[row.genre]}
                 fillOpacity={isHover || sel ? 0.9 : 0.72}
-                stroke={sel ? ACCENT : "none"}
+                stroke={sel ? tokens.ui.selected : "none"}
                 strokeWidth={sel ? 1.75 : 0}
               />
 
@@ -223,7 +257,7 @@ export function CountryBars() {
               <text
                 x={countInside ? LABEL_W + barLen - 6 : LABEL_W + barLen + 6}
                 y={y + BAR_H / 2}
-                fill={valueLabelFill(countInside)}
+                fill={valueLabelFill(countInside, tokens.ink)}
                 fontSize={11}
                 fontWeight={700}
                 textAnchor={countInside ? "end" : "start"}
@@ -243,9 +277,9 @@ export function CountryBars() {
                     y={y}
                     width={devLen}
                     height={BAR_H}
-                    fill={GENRE_COLORS[row.genre]}
+                    fill={tokens.genre[row.genre]}
                     fillOpacity={isHover || sel ? 0.9 : 0.72}
-                    stroke={sel ? ACCENT : "none"}
+                    stroke={sel ? tokens.ui.selected : "none"}
                     strokeWidth={sel ? 1.75 : 0}
                   />
                   {/* At the growing end of its own bar, whichever way that is, so the
@@ -254,15 +288,17 @@ export function CountryBars() {
                       film count. */}
                   <text
                     x={
-                      dev > 0
+                      shownDev > 0
                         ? DEV_ZERO + devLen + (devInside ? -6 : 6)
                         : DEV_ZERO - devLen + (devInside ? 6 : -6)
                     }
                     y={y + BAR_H / 2}
-                    fill={valueLabelFill(devInside)}
+                    fill={valueLabelFill(devInside, tokens.ink)}
                     fontSize={11}
                     fontWeight={700}
-                    textAnchor={dev > 0 ? (devInside ? "end" : "start") : devInside ? "start" : "end"}
+                    textAnchor={
+                      shownDev > 0 ? (devInside ? "end" : "start") : devInside ? "start" : "end"
+                    }
                     dominantBaseline="middle"
                   >
                     {ppLabel(dev)}
@@ -278,7 +314,7 @@ export function CountryBars() {
           <text
             x={LABEL_W - 8}
             y={20 + agg.rows.length * (BAR_H + GAP) + BAR_H / 2}
-            fill={INK.muted}
+            fill={tokens.ink.muted}
             fontSize={11}
             textAnchor="end"
             dominantBaseline="middle"

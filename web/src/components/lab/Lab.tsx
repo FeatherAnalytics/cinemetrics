@@ -1,209 +1,220 @@
 "use client";
 
-import { ExplorerProvider, useExplorer } from "@/lib/store";
-import { RecommendProvider } from "@/lib/recommendStore";
-import { INK } from "@/lib/palette";
-import { SelectionPanel } from "@/components/SelectionPanel";
-import { FilterBar } from "@/components/FilterBar";
+import { useMemo } from "react";
+import Link from "next/link";
+import { hairline, useTheme } from "@/lib/theme";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import type { Dataset } from "@/lib/types";
-import { LikedByRating, LikedByRatingBlurb } from "./LikedByRating";
-import { WhatMovesTheHeart } from "./WhatMovesTheHeart";
-import { FavsAmongTheBest, FavsAmongTheBestBlurb } from "./FavsAmongTheBest";
-import { FavDirectors, FavDirectorsBlurb } from "./FavDirectors";
-import { FavPosters } from "./FavPosters";
+import { computeTravelStats, ratioLabel } from "@/lib/travelStats";
+import { computeEraStats, GRAD_SCHOOL, monthLabel } from "@/lib/gradSchool";
+import { GradSchoolEra } from "./GradSchoolEra";
+import { LabRail } from "./LabRail";
+import { TravelComparison } from "./TravelComparison";
+import { TravelCallout } from "./TravelCallout";
 
 /**
- * Prototype surface for the charts that do not have a home yet. Not linked from
- * anywhere.
+ * The unlisted surface behind `/lab`: a permanent home for work that has not
+ * earned a place on the main page.
  *
- * `/lab` exists to be deleted: it was torn down once the stats charts were
- * promoted onto the main page, and it comes back for the same reason it existed
- * the first time, which is that prototyping on the main page means shipping
- * half-formed charts to the only page anybody reads.
+ * PERMANENT, not a staging area that empties. The route spent one phase framed as
+ * a home for retired charts, which is what emptied it, because a chart good enough
+ * to keep and redundant enough to move is rare and a chart that is WRONG gets
+ * deleted instead. The need that actually recurs is the opposite one: something
+ * worth looking at that is not yet worth publishing, either because a finding is
+ * still choosing a presentation, or because a decision about a mark is open, or
+ * because a number wants more data behind it before it means anything.
  *
- * TWO GROUPS, ONE PROVIDER. The heart charts and the favorites charts are headed
- * for different stories, but they mount inside a single `ExplorerProvider` so a
- * click in one group cross-filters the other. Two providers would give each group
- * its own filter state, and a prototype that cannot be tested under the same
- * filter as its neighbor is exactly the gap that shipped four defects out of the
- * stats work.
+ * Sections leave. They are promoted, or they are deleted once whatever question
+ * they were asking is answered, and both are normal. The small multiple that used
+ * to sit at the top of this page is the worked example: ten columns of one to four
+ * films is too little data for a chart with axes, and the callout below said the
+ * same thing better in prose, so it went. What survived that cut is the comparison,
+ * because it is the only one that answers whether the travel rate is a lot, which
+ * the callout can assert and cannot show.
+ *
+ * NO FILTER RAIL, and no `ExplorerProvider`. Deliberate, and the opposite of what
+ * the route carried before. The travel panels present ONE finding measured on 21
+ * watches, and a filter that cut those 21 down to 4 would give each panel a
+ * different number and turn a comparison of presentations into a comparison of
+ * arithmetic. Everything here reads library-wide figures from one
+ * `computeTravelStats` or `computeEraStats` call, so no two sections can disagree.
+ *
+ * There IS a left column, and that is not a reversal of the paragraph above. The
+ * landing page seats its content beside a 18rem rail, so a page without one starts
+ * against the margin and reads as somewhere else; `LabRail` takes that geometry
+ * and fills it with the page's figures and its section list, which are readouts
+ * and not controls. The pages line up and the 21 watches stay 21.
+ *
+ * SECTIONS ARE NOT NUMBERED, and their order is arrival, not strength. The main
+ * page numbers nothing, and a rank in the heading would invite renumbering the
+ * page every time a figure moved.
  */
 
-type Section = {
+type Prototype = {
   id: string;
   title: string;
-  blurb?: string;
-  Blurb?: () => React.JSX.Element | null;
-  Chart: () => React.JSX.Element | null;
+  /** One line on what the presentation is TRYING to be. */
+  aim: string;
+  /** What is honestly wrong or thin about it. Not optional. */
+  caveat: string;
+  Chart: () => React.JSX.Element;
 };
-
-type Group = {
-  id: string;
-  title: string;
-  /** Drawn under the group note, above its sections. */
-  Lead?: () => React.JSX.Element | null;
-  note: (ctx: {
-    known: number;
-    inView: number;
-    unknown: number;
-    recovered: number;
-  }) => React.ReactNode;
-  sections: Section[];
-};
-
-const GROUPS: Group[] = [
-  {
-    id: "heart",
-    title: "The heart",
-    note: ({ known, inView, unknown, recovered }) => (
-      <>
-        {known} of {inView} watches in view have a known heart
-        {recovered > 0 && (
-          <>
-            , {recovered} of them recovered from a later watch of the same film, since
-            hearting is one toggle per film rather than per viewing
-          </>
-        )}
-        {unknown > 0 && (
-          <>
-            . The remaining {unknown} pre-Letterboxd{" "}
-            {unknown === 1 ? "row belongs" : "rows belong"} to films never watched again, so
-            they stay unknown and are excluded from every rate here
-          </>
-        )}
-        .
-      </>
-    ),
-    sections: [
-      {
-        id: "by-rating",
-        title: "The heart follows the rating",
-        Blurb: LikedByRatingBlurb,
-        Chart: LikedByRating,
-      },
-      {
-        id: "predictors",
-        title: "Nothing decides the ones in between",
-        // Describes the METHOD, not the result. "Every dimension sits on the band
-        // average" is true of the full library and false under a narrow filter,
-        // where one Comedy watch draws a 100% column; a static sentence cannot
-        // make a claim the rail is free to falsify.
-        blurb:
-          "Only watches at 3.5★ and 4★, so a dimension that merely predicts my rating cannot show up here as predicting the heart.",
-        Chart: WhatMovesTheHeart,
-      },
-    ],
-  },
-  {
-    id: "favorites",
-    title: "Four favorites",
-    Lead: FavPosters,
-    note: () => (
-      <>
-        The four films on the Letterboxd profile, curated by hand. Nothing in the data
-        picks them out, and these charts are mostly about that.
-      </>
-    ),
-    sections: [
-      {
-        id: "among-the-best",
-        title: "Four of nineteen",
-        Blurb: FavsAmongTheBestBlurb,
-        Chart: FavsAmongTheBest,
-      },
-      {
-        id: "directors",
-        title: "A favorite brings company",
-        Blurb: FavDirectorsBlurb,
-        Chart: FavDirectors,
-      },
-    ],
-  },
-];
-
-function Body() {
-  const { filtered } = useExplorer();
-  // All three counted IN VIEW, so the sentence describes the charts beside it
-  // instead of films the filter has already removed. `unknown` in particular is
-  // "the remaining" of `inView`, so taking it from the whole library made the note
-  // claim more watches than the charts hold: filtered to 2023 it read "100 of 100
-  // have a known heart, the remaining 98 stay unknown".
-  const known = filtered.filter((w) => w.heart != null).length;
-  const recovered = filtered.filter((w) => w.liked == null && w.heart != null).length;
-  const unknown = filtered.length - known;
-
-  return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-10">
-      <header className="mb-8">
-        <h1 className="text-2xl font-bold" style={{ color: INK.primary }}>
-          Prototypes
-        </h1>
-      </header>
-
-      {/* The rail runs across the top rather than down the side: these charts
-          measure their own column, and a sidebar would make that column a
-          different width here than on the page they are headed for. */}
-      <div className="mb-10">
-        <FilterBar />
-      </div>
-
-      {/* grid-cols-1 rather than a bare grid: an implicit track is max-content,
-          which would ask the charts how wide they want to be while they are
-          asking the track the same question. See the note on useWidth. */}
-      <div className="grid grid-cols-1 gap-16">
-        {GROUPS.map((g) => (
-          <div key={g.id} className="grid grid-cols-1 gap-12">
-            <header>
-              <h2 className="text-xl font-bold" style={{ color: INK.primary }}>
-                {g.title}
-              </h2>
-              <p className="mt-1 text-sm" style={{ color: INK.muted }}>
-                {g.note({ known, inView: filtered.length, unknown, recovered })}
-              </p>
-              {g.Lead && (
-                <div className="mt-4">
-                  <g.Lead />
-                </div>
-              )}
-            </header>
-
-            {g.sections.map(({ id, title, blurb, Blurb, Chart }) => (
-              <section key={id}>
-                <h3 className="text-lg font-bold" style={{ color: INK.primary }}>
-                  {title}
-                </h3>
-                {Blurb ? (
-                  <div className="mt-1 mb-3">
-                    <Blurb />
-                  </div>
-                ) : (
-                  blurb && (
-                    <p className="mt-1 mb-3 text-sm" style={{ color: INK.secondary }}>
-                      {blurb}
-                    </p>
-                  )
-                )}
-                <Chart />
-              </section>
-            ))}
-          </div>
-        ))}
-
-        <SelectionPanel />
-      </div>
-    </div>
-  );
-}
 
 export function Lab({ data }: { data: Dataset }) {
-  // FilterBar reaches for the recommend store to clear the drawer when a filter
-  // moves, so the rail cannot be mounted without it even though nothing on this
-  // page opens the drawer.
+  const { tokens } = useTheme();
+  const stats = useMemo(() => computeTravelStats(data), [data]);
+  const eraStats = useMemo(() => computeEraStats(data), [data]);
+
+  const prototypes: Prototype[] = [
+    {
+      id: "comparison",
+      title: "Comparison",
+      aim: `Travel days against ordinary days on the measures that answer: ${ratioLabel(
+        stats.filmsPerDayRatio,
+      )} more films, ratings unchanged.`,
+      // The caveat has to be about THIS panel and has to leave its finding
+      // standing. Three measures, and the ratio it names is the largest effect
+      // anywhere on the page, so a sentence talking any of them down would be
+      // arguing with the chart directly above it. What is genuinely against the
+      // presentation is where the ink goes.
+      caveat: `Three panels at equal weight, and the null result takes the most ink: the rating gap needs two whiskers and a paragraph explaining what a whisker is, while the ${ratioLabel(
+        stats.multiFilmRatio,
+      )} above it gets a bar pair and one line. Ink here follows how hard a measure is to draw, not how much it says.`,
+      Chart: () => <TravelComparison stats={stats} />,
+    },
+    {
+      id: "callout",
+      title: "Callout",
+      aim: "No axes. The trips named, the films listed with the figures inline.",
+      caveat:
+        `Prose is not a visual. The ordinary-day baseline can only be a number in a sentence, so a reader asking whether ${stats.travel.filmsPerDay.toFixed(
+          2,
+        )} is a lot has nothing but this panel's word for it.`,
+      Chart: () => <TravelCallout stats={stats} />,
+    },
+  ];
+
+  const sections = [
+    ...prototypes.map(({ id, title }) => ({ id, title })),
+    { id: "grad-school", title: "The grad school years" },
+  ];
+
   return (
-    <RecommendProvider>
-      <ExplorerProvider data={data}>
-        <Body />
-      </ExplorerProvider>
-    </RecommendProvider>
+    // The landing page's shell, to the pixel: same max width, same padding, same
+    // rail-then-content flex. Two pages that share a rail and not a container
+    // would line their rails up and none of the content beside them.
+    <main className="mx-auto w-full max-w-7xl px-6 py-10">
+      <header className="mb-6">
+        <p
+          className="font-mono text-xs tracking-[0.2em] uppercase"
+          style={{ color: tokens.ink.muted }}
+        >
+          The cutting room floor
+        </p>
+        {/* The toggle rides the h1's row here for the same reason it does on the
+            landing page: it is chrome, and the row below it is content. */}
+        <div className="flex items-center justify-between gap-4">
+          <h1
+            className="font-display text-4xl font-bold tracking-tight"
+            style={{ color: tokens.ink.primary }}
+          >
+            the lab
+            {/* The way back, and the mirror of the landing page's own period,
+                which is the way in. Same crimson, same absence of any other
+                marking: a reader who found this page by running the pointer
+                across a title will try the same thing here.
+
+                next/link, not an anchor. The site deploys under a basePath of
+                /cinemetrics, which Link prepends and a raw href does not. */}
+            <Link
+              href="/"
+              aria-label="Back to the dashboard"
+              style={{ color: tokens.accent }}
+            >
+              .
+            </Link>
+          </h1>
+          <ThemeToggle />
+        </div>
+        <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
+          Work that has not earned a place on the main page.
+        </p>
+      </header>
+
+      <div className="lg:flex lg:gap-8">
+        <LabRail sections={sections} stats={stats} eraStats={eraStats} />
+
+        <div className="min-w-0 flex-1">
+          {/* grid-cols-1 rather than a bare grid: an implicit track is max-content,
+              which would ask a chart how wide it wants to be while the chart is asking
+              the track the same question. See the note on useWidth. */}
+          <div className="grid grid-cols-1 gap-12">
+            {prototypes.map(({ id, title, aim, caveat, Chart }) => (
+              <section key={id} id={id} className="scroll-mt-6">
+                <h2
+                  className="font-display text-lg font-semibold"
+                  style={{ color: tokens.ink.primary }}
+                >
+                  {title}
+                </h2>
+                <p className="mb-2 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
+                  {aim}
+                </p>
+
+                <div
+                  className="rounded-md border p-4"
+                  style={{
+                    background: "var(--surface-card)",
+                    borderColor: hairline(tokens.ink.primary, 9),
+                  }}
+                >
+                  <Chart />
+                </div>
+
+                <p className="mt-3 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
+                  <span className="font-bold">Against it:</span> {caveat}
+                </p>
+              </section>
+            ))}
+
+            {/* Also not a travel section, and not a presentation question either. It
+                is here because the honest answer is a null one, which is the third
+                kind of thing this page exists to hold: too thin to headline the main
+                page, and too easy to misread to leave undrawn. */}
+            <section id="grad-school" className="scroll-mt-6">
+              <h2
+                className="font-display text-lg font-semibold"
+                style={{ color: tokens.ink.primary }}
+              >
+                The grad school years
+              </h2>
+              <p className="mb-2 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
+                I was in graduate school for my Economics MS degree from{" "}
+                {monthLabel(GRAD_SCHOOL.start, "long")} to {monthLabel(GRAD_SCHOOL.end, "long")}. Two rolling lines over the whole log,
+                rating and volume, on one time axis with the span shaded on both. Neither line does
+                anything meaningful at the shading, which is the finding.
+              </p>
+
+              <div
+                className="rounded-md border p-4"
+                style={{
+                  background: "var(--surface-card)",
+                  borderColor: hairline(tokens.ink.primary, 9),
+                }}
+              >
+                <GradSchoolEra stats={eraStats} />
+              </div>
+
+              <p className="mt-3 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
+                <span className="font-bold">Why it is here and not on the main page:</span> the
+                section spends more words refusing the causal reading than stating the finding.
+                That is the right ratio and a bad fit for a page a stranger skims, because a null
+                result needs its method shown before it means anything.
+              </p>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
   );
 }

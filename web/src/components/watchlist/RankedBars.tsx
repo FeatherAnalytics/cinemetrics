@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { ACCENT, INK } from "@/lib/palette";
+import { useMemo, useState } from "react";
+import { hairline, useTheme } from "@/lib/theme";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { deltaLabel, type RatingDelta } from "@/lib/ratingDelta";
+import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import type { RankedBar } from "@/lib/watchlistChart";
 
 const LABEL_W = 150;
@@ -32,6 +33,13 @@ const INSIDE_MIN = 34;
  * watchlist has been rated, so the only honest reading is "how I have rated the
  * films I ALREADY SAW that share this tag". The column header says so, because
  * two tracks on one row otherwise read as two measurements of one set.
+ *
+ * CALLER REQUIREMENT: `bars` and `deltas` must keep their identity while their
+ * contents are unchanged, so memoise both. The two tracks tween through
+ * `useAnimatedValues`, which compares its target by identity, and a fresh
+ * array every render restarts the tween every frame: the chart burns a render
+ * loop and never moves. A hover re-renders this component, so it is not an
+ * edge case.
  */
 export function RankedBars({
   bars,
@@ -45,7 +53,7 @@ export function RankedBars({
   bars: RankedBar[];
   /** Films in the current view, for the hover readout's denominator. */
   total: number;
-  /** Key currently driving the rail, drawn in the accent. */
+  /** Key currently driving the rail, marked with the selection outline. */
   active?: string | null;
   /**
    * Cross-filter handler. Omitted for charts whose category has no matching rail
@@ -61,13 +69,28 @@ export function RankedBars({
   deltas?: Map<string, RatingDelta>;
   deltaHeader?: string;
 }) {
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<string | null>(null);
+
+  // Above the empty-state return, because hooks cannot sit behind one. A row
+  // count change is a length change, which the hook snaps rather than pairing
+  // row 3 of one ranking with row 3 of another.
+  const counts = useMemo(() => bars.map((b) => b.count), [bars]);
+  const devs = useMemo(
+    () => bars.map((b) => deltas?.get(b.key)?.delta ?? 0),
+    [bars, deltas],
+  );
+  const drawnCounts = useAnimatedValues(counts);
+  const drawnDevs = useAnimatedValues(devs);
 
   if (bars.length === 0) {
     return (
       <div
-        className="rounded-md border border-dashed px-4 py-6 text-sm text-[#67655f]"
-        style={{ borderColor: "rgba(11,11,11,0.15)" }}
+        className="rounded-md border border-dashed px-4 py-6 text-sm"
+        style={{
+          color: tokens.ink.muted,
+          borderColor: hairline(tokens.ink.primary, 15),
+        }}
       >
         No films match the current filters.
       </div>
@@ -76,6 +99,9 @@ export function RankedBars({
 
   const hasDev = deltas != null && bars.some((b) => deltas.has(b.key));
   const width = hasDev ? WIDTH : LABEL_W + BAR_W + 40;
+  // Both denominators are pinned to the TARGET, so neither track rescales
+  // under its own bars while they move. A scale easing alongside the bars it
+  // measures cancels them, and the reader sees nothing respond.
   const peak = Math.max(...bars.map((b) => b.count));
   // Scaled against its own maximum, so the longest deviation fills the track.
   const devMax = Math.max(
@@ -93,7 +119,7 @@ export function RankedBars({
             <text
               x={LABEL_W}
               y={8}
-              fill={INK.muted}
+              fill={tokens.ink.muted}
               fontSize={9}
               letterSpacing="0.1em"
               fontFamily="var(--font-mono)"
@@ -103,7 +129,7 @@ export function RankedBars({
             <text
               x={DEV_ZERO}
               y={8}
-              fill={INK.muted}
+              fill={tokens.ink.muted}
               fontSize={9}
               letterSpacing="0.1em"
               textAnchor="middle"
@@ -116,7 +142,7 @@ export function RankedBars({
               y1={top}
               x2={DEV_ZERO}
               y2={HEIGHT - 8}
-              stroke={INK.axis}
+              stroke={tokens.ink.axis}
               strokeWidth={1.5}
             />
           </>
@@ -124,15 +150,20 @@ export function RankedBars({
 
         {bars.map((bar, i) => {
           const y = top + i * (BAR_H + GAP);
-          const barLen = (bar.count / peak) * BAR_W;
+          // Geometry follows the tween, the printed counts stay on the settled
+          // values.
+          const barLen = (drawnCounts[i] / peak) * BAR_W;
           const isActive = active === bar.key;
           const isHover = hover === bar.key;
           // The count rides inside its own bar when the bar is long enough to
           // hold it, and steps outside when it is not — the same flip every other
           // bar chart here uses, so a short bar never hides its number.
           const inside = barLen > INSIDE_MIN;
+          // Whether a second bar exists at all is a question about the data,
+          // so it reads the target. Only its length and side tween.
           const d = deltas?.get(bar.key) ?? null;
-          const devLen = d == null ? 0 : (Math.abs(d.delta) / devMax) * DEV_HALF;
+          const shownDev = drawnDevs[i];
+          const devLen = d == null ? 0 : (Math.abs(shownDev) / devMax) * DEV_HALF;
           const devInside = devLen > INSIDE_MIN;
 
           const dim = active != null && !isActive;
@@ -142,7 +173,7 @@ export function RankedBars({
               <text
                 x={LABEL_W - 8}
                 y={y + BAR_H / 2}
-                fill={isActive ? ACCENT : INK.secondary}
+                fill={isActive ? tokens.ui.selected : tokens.ink.secondary}
                 fontSize={12}
                 fontWeight={isActive ? 700 : 400}
                 textAnchor="end"
@@ -154,7 +185,7 @@ export function RankedBars({
               {/* Selection is an OUTLINE, not a recolour. The fill is the bar's
                   genre, and repainting it crimson to say "picked" threw that away
                   — the reader lost the one thing the colour was carrying at the
-                  exact moment they were focused on that row. The accent moves to
+                  exact moment they were focused on that row. Ink moves to
                   the stroke and the label instead, which is how CountryBars has
                   always marked its selection. */}
               <rect
@@ -164,14 +195,14 @@ export function RankedBars({
                 height={BAR_H}
                 fill={bar.color}
                 fillOpacity={isActive || isHover ? 0.95 : 0.72}
-                stroke={isActive ? ACCENT : "none"}
+                stroke={isActive ? tokens.ui.selected : "none"}
                 strokeWidth={isActive ? 1.75 : 0}
               />
 
               <text
                 x={inside ? LABEL_W + barLen - 8 : LABEL_W + barLen + 8}
                 y={y + BAR_H / 2}
-                fill={valueLabelFill(inside)}
+                fill={valueLabelFill(inside, tokens.ink)}
                 fontSize={11}
                 fontWeight={700}
                 textAnchor={inside ? "end" : "start"}
@@ -189,27 +220,27 @@ export function RankedBars({
               {hasDev && d != null && (
                 <>
                   <rect
-                    x={d.delta > 0 ? DEV_ZERO : DEV_ZERO - devLen}
+                    x={shownDev > 0 ? DEV_ZERO : DEV_ZERO - devLen}
                     y={y}
                     width={devLen}
                     height={BAR_H}
                     fill={bar.color}
                     fillOpacity={isActive || isHover ? 0.95 : 0.72}
-                    stroke={isActive ? ACCENT : "none"}
+                    stroke={isActive ? tokens.ui.selected : "none"}
                     strokeWidth={isActive ? 1.75 : 0}
                   />
                   <text
                     x={
-                      d.delta > 0
+                      shownDev > 0
                         ? DEV_ZERO + devLen + (devInside ? -6 : 6)
                         : DEV_ZERO - devLen + (devInside ? 6 : -6)
                     }
                     y={y + BAR_H / 2}
-                    fill={valueLabelFill(devInside)}
+                    fill={valueLabelFill(devInside, tokens.ink)}
                     fontSize={11}
                     fontWeight={700}
                     textAnchor={
-                      d.delta > 0 ? (devInside ? "end" : "start") : devInside ? "start" : "end"
+                      shownDev > 0 ? (devInside ? "end" : "start") : devInside ? "start" : "end"
                     }
                     dominantBaseline="middle"
                     pointerEvents="none"
@@ -239,7 +270,7 @@ export function RankedBars({
       {/* The readout lives under the chart, in its own strip, rather than in an
           SVG <title>: the native tooltip is an OS box with its own font and
           half-second delay, matching nothing else on the page. */}
-      <p className="mt-1 h-4 text-xs text-[#67655f]">
+      <p className="mt-1 h-4 text-xs" style={{ color: tokens.ink.muted }}>
         {hover
           ? (() => {
               const b = bars.find((x) => x.key === hover);

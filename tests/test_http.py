@@ -12,9 +12,10 @@ from ingest import http
 
 
 class FakeResp:
-    def __init__(self, status_code: int, payload: dict):
+    def __init__(self, status_code: int, payload: dict, content: bytes = b""):
         self.status_code = status_code
         self._payload = payload
+        self.content = content
 
     def json(self) -> dict:
         return self._payload
@@ -87,6 +88,72 @@ def test_omdb_get_success():
 
     out = http.omdb_get("tt1375666", api_key="OKEY", fetch=fetch)
     assert out["Title"] == "Inception"
+
+
+def test_get_bytes_returns_body_on_200():
+    def fetch(url, timeout=None):
+        return FakeResp(200, {}, content=b"\xff\xd8\xff\xe0poster-bytes")
+
+    out = http.get_bytes("https://image.tmdb.org/t/p/w92/x.jpg", fetch=fetch)
+    assert out == b"\xff\xd8\xff\xe0poster-bytes"
+
+
+def test_get_bytes_returns_empty_when_every_attempt_fails():
+    def fetch(url, timeout=None):
+        return FakeResp(404, {})
+
+    out = http.get_bytes("https://image.tmdb.org/t/p/w92/missing.jpg", fetch=fetch)
+    assert out == b""
+
+
+def test_get_bytes_does_not_sleep_after_the_final_failed_attempt(monkeypatch):
+    """Backoff buys a later attempt, so the last one has nothing to buy.
+
+    Unguarded this slept ~3s per hopeless URL, over a loop that walks the whole
+    catalogue.
+    """
+    slept = []
+    monkeypatch.setattr(http.time, "sleep", lambda *a, **k: slept.append(a))
+
+    def fetch(url, timeout=None):
+        return FakeResp(404, {})
+
+    assert http.get_bytes("https://image.tmdb.org/t/p/w92/gone.jpg", fetch=fetch) == b""
+    assert len(slept) == 2  # attempts=3, so two gaps between three tries
+
+
+def test_json_get_does_not_sleep_after_the_final_failed_attempt(monkeypatch):
+    slept = []
+    monkeypatch.setattr(http.time, "sleep", lambda *a, **k: slept.append(a))
+
+    def fetch(url, params=None, timeout=None):
+        return FakeResp(500, {})
+
+    assert http.tmdb_get("movie/9", api_key="KEY", fetch=fetch) == {}
+    assert len(slept) == 3  # attempts=4
+
+
+def test_json_get_does_not_sleep_after_a_final_429(monkeypatch):
+    slept = []
+    monkeypatch.setattr(http.time, "sleep", lambda *a, **k: slept.append(a))
+
+    def fetch(url, params=None, timeout=None):
+        return FakeResp(429, {})
+
+    assert http.tmdb_get("movie/10", api_key="KEY", fetch=fetch) == {}
+    assert len(slept) == 3  # attempts=4
+
+
+def test_get_bytes_does_not_sleep_on_a_successful_first_call(monkeypatch):
+    slept = []
+    monkeypatch.setattr(http.time, "sleep", lambda *a, **k: slept.append(a))
+
+    def fetch(url, timeout=None):
+        return FakeResp(200, {}, content=b"ok")
+
+    out = http.get_bytes("https://image.tmdb.org/t/p/w92/x.jpg", fetch=fetch)
+    assert out == b"ok"
+    assert slept == []
 
 
 class TestCachedJson:

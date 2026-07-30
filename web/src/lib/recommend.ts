@@ -13,6 +13,8 @@ export type CandidateMetadata = {
   rt_rating: number | null;
   imdb_rating: number | null;
   imdb_id: string;
+  /** TMDB image path, e.g. "/abc123.jpg". Null where TMDB serves no art. */
+  poster: string | null;
 };
 
 /**
@@ -217,7 +219,7 @@ export function decodeEmbeddings(file: EmbeddingFileV2): EmbeddingData {
  * browser's HTTP cache — exactly what happened when the candidate titles were
  * backfilled: the file on R2 was correct and the page still drew blanks.
  */
-const EMBEDDINGS_BUILD = "2-titles";
+const EMBEDDINGS_BUILD = "3-posters";
 
 let _cache: { data: EmbeddingData } | null = null;
 

@@ -5,6 +5,7 @@ import {
   favDirectorCohorts,
   FOUR_FAVS,
   isFav,
+  posterUrl,
 } from "../fourFavs";
 import type { EnrichedWatch, Film } from "../types";
 
@@ -29,6 +30,8 @@ function film(over: Partial<Film> = {}): Film {
     rated: null,
     language: null,
     collection: null,
+    poster: null,
+    slice: null,
     ...over,
   };
 }
@@ -40,7 +43,7 @@ function watch(over: Partial<EnrichedWatch> = {}): EnrichedWatch {
     tmdb_id: 1,
     rating: 80,
     stars: 4,
-    rewatch: false,
+    rewatch: false, returned: false,
     liked: true,
     film: film(),
     d: new Date(date),
@@ -84,6 +87,17 @@ describe("isFav", () => {
   it("covers all four, so a chart cannot silently mark three", () => {
     expect(FAV_IDS.size).toBe(4);
     for (const f of FOUR_FAVS) expect(isFav(f.tmdb_id)).toBe(true);
+  });
+});
+
+describe("posterUrl", () => {
+  it("returns null for a film with no poster", () => {
+    expect(posterUrl(null)).toBeNull();
+    expect(posterUrl(undefined)).toBeNull();
+  });
+
+  it("builds a TMDB CDN url from a path", () => {
+    expect(posterUrl("/abc123.jpg")).toContain("/abc123.jpg");
   });
 });
 

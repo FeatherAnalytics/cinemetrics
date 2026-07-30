@@ -1,7 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { chartSetFor, computeStoryHeadlines, STORIES, swapsChartSet } from "../stories";
+import { CHART_SECTIONS } from "@/components/ExplorerApp";
+import dataset from "../../../public/data/cinemetrics.json";
+import {
+  chartSetFor,
+  computeStoryHeadlines,
+  STORIES,
+  storyTeaser,
+  swapsChartSet,
+  TEASER_MAX,
+} from "../stories";
 import { FOUR_FAVS } from "../fourFavs";
-import type { EnrichedWatch, Film } from "../types";
+import { filmHearts } from "../likedChart";
+import { TRAVEL_DAYS } from "../travel";
+import type { Dataset, EnrichedWatch, Film } from "../types";
 
 function makeFilm(overrides: Partial<Film> = {}): Film {
   return {
@@ -10,6 +21,8 @@ function makeFilm(overrides: Partial<Film> = {}): Film {
     revenue: null, director: null, actors: null, metascore: 75,
     rt_rating: 80, imdb_rating: 70, imdb_votes: 50000,
     production_countries: [], rated: null, language: null, collection: null,
+    poster: null,
+    slice: null,
     ...overrides,
   };
 }
@@ -19,7 +32,7 @@ function makeWatch(film: Film, overrides: Partial<EnrichedWatch> = {}): Enriched
   const d = new Date(date + "T00:00:00Z");
   return {
     date, tmdb_id: film.tmdb_id, rating: 70, stars: 3.5,
-    rewatch: false, liked: null, film, d, yearFrac: 0.45, ...overrides,
+    rewatch: false, returned: false, liked: null, film, d, yearFrac: 0.45, ...overrides,
     heart: overrides.heart ?? overrides.liked ?? null,
   };
 }
@@ -62,23 +75,59 @@ describe("runtime", () => {
 });
 
 describe("getting-pickier", () => {
-  it("reports fewer watches at a higher average over time", () => {
+  // Eight watches in 2019, five in 2025, three so far in 2026. The volume figure
+  // is 2019 against 2025 (-38%), never against the partial 2026 (-63%).
+  const yearly = (year: number, n: number, rating: number, from = 0) => {
     const films: Film[] = [];
     const watches: EnrichedWatch[] = [];
-    for (let i = 0; i < 8; i++) {
-      const f = makeFilm({ tmdb_id: 100 + i });
+    for (let i = 0; i < n; i++) {
+      const f = makeFilm({ tmdb_id: from + i });
       films.push(f);
-      watches.push(makeWatch(f, { tmdb_id: f.tmdb_id, rating: 62, date: `2019-0${(i % 8) + 1}-10` }));
+      watches.push(
+        makeWatch(f, { tmdb_id: f.tmdb_id, rating, date: `${year}-0${(i % 9) + 1}-10` }),
+      );
     }
-    for (let i = 0; i < 3; i++) {
-      const f = makeFilm({ tmdb_id: 200 + i });
-      films.push(f);
-      watches.push(makeWatch(f, { tmdb_id: f.tmdb_id, rating: 85, date: `2026-0${i + 1}-10` }));
-    }
+    return { films, watches };
+  };
+  const a = yearly(2019, 8, 62, 100);
+  const b = yearly(2025, 5, 85, 200);
+  const c = yearly(2026, 3, 85, 300);
+  const films = [...a.films, ...b.films, ...c.films];
+  const watches = [...a.watches, ...b.watches, ...c.watches];
+
+  it("reports fewer watches at a higher average over time", () => {
     const result = pickier.compute(films, watches);
-    expect(result.headline).toBeTruthy();
+    expect(result.headline).toBe("I watch less now, but rate higher");
     expect(result.notes).toBeDefined();
     expect(Object.keys(result.notes!).length).toBeGreaterThan(0);
+  });
+
+  it("counts volume against the last complete year, not the partial newest one", () => {
+    const result = pickier.compute(films, watches);
+    // 8 to 5 is -38%. 8 to 3 is -63%, and that is the number a partial year
+    // manufactures out of the calendar rather than out of the watching.
+    expect(result.teaser).toBe("38% fewer watches in 2025 than in 2019");
+    expect(result.teaser).not.toContain("2026");
+    expect(result.notes?.rolling).toContain("8 watches in 2019 against 5 in 2025, down 38%");
+  });
+
+  it("drops the volume figure when no year but the first is complete", () => {
+    // One full year and one partial: there is no honest comparison to make, so
+    // the chip falls back to the headline rather than quoting the partial year.
+    const result = pickier.compute([...a.films, ...c.films], [...a.watches, ...c.watches]);
+    expect(result.teaser).toBeUndefined();
+    expect(storyTeaser("getting-pickier", result)).toBe(result.headline);
+  });
+
+  it("says more, not fewer, when the pace has risen", () => {
+    const rising = yearly(2025, 12, 85, 400);
+    const result = pickier.compute(
+      [...a.films, ...rising.films, ...c.films],
+      [...a.watches, ...rising.watches, ...c.watches],
+    );
+    expect(result.teaser).toBe("50% more watches in 2025 than in 2019");
+    expect(result.notes?.rolling).toContain("picks up");
+    expect(result.notes?.rolling).toContain("up 50%");
   });
 });
 
@@ -255,6 +304,20 @@ describe("chart sets", () => {
     }
   });
 
+  it("opens the landing, narrative and heart sets with the poster barcode", () => {
+    // Order within a set comes from CHART_SECTIONS' own order: the render site
+    // filters that array and never sorts it, so index 0 of a set is the first
+    // chart the reader meets.
+    for (const set of ["landing", "narrative", "heart"] as const) {
+      const ids = CHART_SECTIONS.filter((s) => s.sets.includes(set)).map((s) => s.id);
+      expect(ids[0], set).toBe("posterbarcode");
+    }
+    // Not the watchlist. Its films have never been watched, so there is no watch
+    // to give the barcode a stripe.
+    const watchlist = CHART_SECTIONS.filter((s) => s.sets.includes("watchlist"));
+    expect(watchlist.map((s) => s.id)).not.toContain("posterbarcode");
+  });
+
   it("gives every set-swapping story the three flags that make a swap work", () => {
     // A swap with the defaults would collapse the rail it depends on, scroll past
     // charts the reader has not seen, and freeze its headline while the rail moves.
@@ -306,5 +369,122 @@ describe("heart", () => {
     // The curve, the tie and the cohort charts print their own numbers, so a note
     // on any of them is the same finding twice.
     expect(Object.keys(r.notes ?? {}).sort()).toEqual(["favposters", "heartpredictors"]);
+  });
+});
+
+describe("storyTeaser", () => {
+  it("gives every story a teaser short enough to sit on a chip", () => {
+    for (const s of STORIES) {
+      const teaser = storyTeaser(s.id);
+      expect(teaser, `${s.id} has no teaser`).toBeTruthy();
+      expect(teaser!.length, `${s.id} teaser is too long`).toBeLessThanOrEqual(48);
+    }
+  });
+
+  it("has no teaser for an id that is not a story", () => {
+    expect(storyTeaser("no-such-story")).toBeUndefined();
+  });
+});
+
+/**
+ * The teasers a reader actually sees, measured off the committed dataset.
+ *
+ * The test above runs every story against NO data, so it only ever sees the
+ * degraded headlines. Those are short by construction and prove nothing about
+ * the real ones — "84 double-feature days, 4 films at peak" is the string that
+ * has to fit a chip, and it exists only once there are watches to count.
+ */
+describe("storyTeaser against the real dataset", () => {
+  const data = dataset as unknown as Dataset;
+  const byId = new Map(data.films.map((f) => [f.tmdb_id, f]));
+  const hearts = filmHearts(data.watches);
+  // Mirrors the enrichment in `ExplorerProvider`. `yearFrac` is only read by the
+  // swim lane's x position, never by a story, so it is not reproduced here.
+  const all: EnrichedWatch[] = data.watches.map((w) => ({
+    ...w,
+    film: byId.get(w.tmdb_id),
+    d: new Date(w.date + "T00:00:00Z"),
+    yearFrac: 0,
+    heart: w.liked ?? hearts.get(w.tmdb_id) ?? null,
+  }));
+
+  const results = STORIES.map((s) => ({
+    id: s.id,
+    result: s.compute(data.films, all, data.watchlist ?? []),
+  }));
+
+  const figures = (s: string) => (s.match(/\d+(?:\.\d+)?/g) ?? []);
+
+  it("fits every real teaser on a chip", () => {
+    for (const { id, result } of results) {
+      const teaser = storyTeaser(id, result);
+      expect(teaser, `${id} has no teaser`).toBeTruthy();
+      expect(teaser!.length, `${id}: ${teaser}`).toBeLessThanOrEqual(TEASER_MAX);
+    }
+  });
+
+  it("states a finding rather than selling the click", () => {
+    // A teaser that says "see", "find out" or "explore" is an invitation, and the
+    // chip is already the invitation. The second line has to carry the answer.
+    for (const { id, result } of results) {
+      expect(storyTeaser(id, result), id).not.toMatch(
+        /\b(see|explore|discover|find out|check out|take a look)\b/i,
+      );
+    }
+  });
+
+  it("measures the pickier volume drop against the shipped watch log", () => {
+    // The fixture above proves the rule; this proves the number a reader sees.
+    // The payload runs to July of its newest year, so first-to-newest on raw
+    // counts is a figure the calendar produced, not the watching.
+    const perYear = new Map<number, number>();
+    for (const w of all) {
+      const y = w.d.getUTCFullYear();
+      perYear.set(y, (perYear.get(y) ?? 0) + 1);
+    }
+    const years = [...perYear.keys()].sort((x, y) => x - y);
+    const firstYear = years[0];
+    const newest = years[years.length - 1];
+    const lastComplete = years[years.length - 2];
+    const honest = Math.round(
+      (100 * (perYear.get(firstYear)! - perYear.get(lastComplete)!)) / perYear.get(firstYear)!,
+    );
+    const artifact = Math.round(
+      (100 * (perYear.get(firstYear)! - perYear.get(newest)!)) / perYear.get(firstYear)!,
+    );
+    expect(honest, "the two figures must differ or this proves nothing").not.toBe(artifact);
+
+    const result = results.find((r) => r.id === "getting-pickier")!.result;
+    expect(result.teaser).toBe(
+      `${honest}% fewer watches in ${lastComplete} than in ${firstYear}`,
+    );
+    expect(result.teaser).not.toContain(String(newest));
+    expect(result.teaser).not.toContain(String(artifact));
+  });
+
+  it("tells the double-feature reader that the peak day was flown", () => {
+    // The note is conditional on the peak actually being a travel day, so this
+    // asserts the condition holds for the shipped log as well as the wording.
+    const result = results.find((r) => r.id === "binges")!.result;
+    const peakDate = result.headline.match(/on (.+)$/)![1];
+    const iso = new Date(peakDate + " UTC").toISOString().slice(0, 10);
+    expect(TRAVEL_DAYS[iso], `${iso} is the peak day and is not recorded as a flight`).toBe(
+      "depart",
+    );
+    expect(result.notes?.spiral).toContain("an outbound flight");
+  });
+
+  it("quotes no figure the story's own annotations do not carry", () => {
+    // The guard against the two drifting apart. Every number on the chip has to
+    // appear in the headline, subtext or chart notes computed in the same pass,
+    // so a teaser cannot be edited into disagreeing with the chart it points at.
+    for (const { id, result } of results) {
+      const annotated = figures(
+        [result.headline, result.subtext ?? "", ...Object.values(result.notes ?? {})].join(" "),
+      );
+      for (const n of figures(storyTeaser(id, result)!)) {
+        expect(annotated, `${id} teaser quotes ${n}, which no annotation states`).toContain(n);
+      }
+    }
   });
 });

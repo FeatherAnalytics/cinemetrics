@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
+import { primaryGenre, type GenreKey } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { mean } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
@@ -128,13 +129,14 @@ export function useMostRewatched(limit = TOP_N): RewatchSummary {
  */
 export function MostRewatched() {
   const { filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
   const { rows, tailFilms, tailMin, tailMax } = useMostRewatched();
   // Hover is the same contract as "What travels well": the row lifts its own
   // fill from 0.72 to 0.9, and once something is selected every other row drops
   // to 0.35. No tooltip, no growth, no color change. These two charts are the
   // same object seen twice, so they have to answer the cursor the same way.
   const [hover, setHover] = useState<number | null>(null);
-  const accent = accentFor(filters.genres);
+  const accent = accentFor(filters.genres, tokens);
   if (!rows.length) return null;
 
   const HEIGHT = 20 + (rows.length + (tailFilms > 0 ? 1 : 0)) * (BAR_H + GAP);
@@ -155,7 +157,7 @@ export function MostRewatched() {
         <text
           x={LABEL_W}
           y={8}
-          fill={INK.muted}
+          fill={tokens.ink.muted}
           fontSize={9}
           letterSpacing="0.1em"
           fontFamily="var(--font-mono)"
@@ -165,7 +167,7 @@ export function MostRewatched() {
         <text
           x={RATING_ORIGIN}
           y={8}
-          fill={INK.muted}
+          fill={tokens.ink.muted}
           fontSize={9}
           letterSpacing="0.1em"
           textAnchor="end"
@@ -199,7 +201,7 @@ export function MostRewatched() {
               <text
                 x={LABEL_W - 8}
                 y={y + BAR_H / 2}
-                fill={on ? INK.primary : INK.secondary}
+                fill={on ? tokens.ink.primary : tokens.ink.secondary}
                 fontSize={12}
                 fontWeight={on ? 700 : 400}
                 textAnchor="end"
@@ -218,7 +220,7 @@ export function MostRewatched() {
                 y={y}
                 width={barLen}
                 height={BAR_H}
-                fill={GENRE_COLORS[f.genre]}
+                fill={tokens.genre[f.genre]}
                 fillOpacity={isHover || on ? 0.9 : 0.72}
                 stroke={on ? accent : "none"}
                 strokeWidth={on ? 1.75 : 0}
@@ -228,7 +230,7 @@ export function MostRewatched() {
               <text
                 x={countInside ? LABEL_W + barLen - 6 : LABEL_W + barLen + 6}
                 y={y + BAR_H / 2}
-                fill={valueLabelFill(countInside)}
+                fill={valueLabelFill(countInside, tokens.ink)}
                 fontSize={11}
                 fontWeight={700}
                 textAnchor={countInside ? "end" : "start"}
@@ -246,7 +248,7 @@ export function MostRewatched() {
                     y={y}
                     width={rLen}
                     height={BAR_H}
-                    fill={GENRE_COLORS[f.genre]}
+                    fill={tokens.genre[f.genre]}
                     fillOpacity={isHover || on ? 0.9 : 0.72}
                     stroke={on ? accent : "none"}
                     strokeWidth={on ? 1.75 : 0}
@@ -256,7 +258,7 @@ export function MostRewatched() {
                   <text
                     x={RATING_ORIGIN - rLen + (ratingInside ? 6 : -6)}
                     y={y + BAR_H / 2}
-                    fill={valueLabelFill(ratingInside)}
+                    fill={valueLabelFill(ratingInside, tokens.ink)}
                     fontSize={11}
                     fontWeight={700}
                     textAnchor={ratingInside ? "start" : "end"}
@@ -283,7 +285,7 @@ export function MostRewatched() {
             // words. The track next to it is empty on this row.
             x={LABEL_W}
             y={20 + rows.length * (BAR_H + GAP) + BAR_H / 2}
-            fill={INK.muted}
+            fill={tokens.ink.muted}
             fontSize={11}
             textAnchor="start"
             dominantBaseline="middle"

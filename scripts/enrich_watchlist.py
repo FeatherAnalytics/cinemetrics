@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from ingest.csvio import dict_writer  # noqa: E402
-from ingest.enrich import BASE_COLUMNS, LANG_COLLECTION_COLUMNS, build_enrichment_row  # noqa: E402
+from ingest.enrich import CANDIDATE_CSV_COLUMNS, build_enrichment_row  # noqa: E402
 from ingest.http import cached_json, omdb_get, tmdb_get  # noqa: E402
 
 SEEDS = ROOT / "transform" / "seeds"
@@ -45,8 +45,6 @@ CACHE = ROOT / "data" / "raw" / "tmdb_candidates"
 TMDB_KEY = os.environ.get("TMDB_API_KEY")
 OMDB_KEY = os.environ.get("OMDB_API_KEY")
 MAX_WORKERS = int(os.environ.get("TMDB_MAX_WORKERS", "8"))
-
-FIELDNAMES = BASE_COLUMNS + LANG_COLLECTION_COLUMNS
 
 
 def _ids(path: Path) -> set[int]:
@@ -109,6 +107,10 @@ def _enrich(tmdb_id: int) -> dict[str, str] | None:
         prefer_omdb=True,
         omdb_countries=True,
         include_lang_collection=True,
+        # Same four candidate-only columns fetch_candidates.py fills. The two
+        # writers share one seed, so a row appended here must have the same
+        # shape as one the candidate fetcher would have written.
+        include_candidate_meta=True,
     )
 
 
@@ -173,7 +175,7 @@ def main() -> int:
 
     write_header = not CANDIDATE_ENRICHMENT.exists()
     with CANDIDATE_ENRICHMENT.open("a", newline="", encoding="utf-8") as fh:
-        writer = dict_writer(fh, FIELDNAMES)
+        writer = dict_writer(fh, CANDIDATE_CSV_COLUMNS, strict=True)
         if write_header:
             writer.writeheader()
         written = 0

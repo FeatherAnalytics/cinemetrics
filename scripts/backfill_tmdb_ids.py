@@ -2,6 +2,10 @@
 
 film_enrichment.csv already has tmdb_id from TMDB enrichment. For film_log.csv,
 look up each imdb_id in the enrichment data. For any missing, call TMDB API.
+
+Already run. Kept for the record -- re-running it rewrites film_enrichment.csv
+wholesale, so it must use the shared column list or it drops whatever columns
+have been added since.
 """
 
 import csv
@@ -18,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from ingest.csvio import dict_writer  # noqa: E402
+from ingest.enrich import FILM_CSV_COLUMNS  # noqa: E402
 from ingest.http import tmdb_get  # noqa: E402
 
 SEEDS = ROOT / "transform" / "seeds"
@@ -41,25 +46,6 @@ LOG_COLUMNS = [
     # silently dropped from the seed if it were ever re-run.
     "liked",
 ]
-
-ENRICH_COLUMNS = [
-    "tmdb_id",
-    "imdb_id",
-    "genres",
-    "keywords",
-    "runtime",
-    "budget",
-    "revenue",
-    "metascore",
-    "rt_rating",
-    "imdb_rating",
-    "imdb_votes",
-    "box_office",
-    "director",
-    "actors",
-    "rated",
-]
-
 
 def _tmdb_find(imdb_id: str) -> int | None:
     """Look up tmdb_id for an imdb_id via TMDB /find endpoint."""
@@ -163,7 +149,7 @@ def backfill_enrichment() -> int:
             rows.append(row)
 
     with open(ENRICH_PATH, "w", encoding="utf-8", newline="") as f:
-        writer = dict_writer(f, ENRICH_COLUMNS)
+        writer = dict_writer(f, FILM_CSV_COLUMNS)
         writer.writeheader()
         writer.writerows(rows)
 

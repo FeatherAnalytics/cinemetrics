@@ -75,6 +75,19 @@ export function secondaryGenre(film: Film | undefined): GenreKey {
   return hits[1] ?? "Other";
 }
 
+/**
+ * Three paper tones.
+ *
+ * The landing page felt flat because every section sat on one surface with no
+ * edge between them — not because the charts were grey. Depth was the missing
+ * thing, and it costs no saturation.
+ */
+export const SURFACE = {
+  well: "#eeece4",
+  paper: "#f7f6f3",
+  card: "#fdfdfb",
+};
+
 // Chart chrome (light mode). Chrome is deliberately darker than the validated
 // hairline defaults so lines and labels read clearly on the light surface.
 export const INK = {
@@ -82,18 +95,84 @@ export const INK = {
   secondary: "#3d3c38",
   muted: "#67655f",
   grid: "#b3b1a6",
+  /**
+   * The neutral fill for a mark carrying no categorical colour — a bar in a
+   * univariate chart, a faded non-highlighted category.
+   *
+   * Separate from `grid` even though they match here, because the two want
+   * opposite things on a dark ground: a gridline should recede almost to the
+   * background, while a bar has to stay clearly visible and carry a legible
+   * knocked-out value label on top of it.
+   */
+  mark: "#b3b1a6",
   axis: "#7c7a71",
-  surface: "#f7f6f3",
-  plane: "#f7f6f3",
+  // Chart marks sit on the CARD, not the page ground — these are the fills that
+  // punch a hole in a mark, so they have to match what is behind it.
+  surface: SURFACE.card,
+  plane: SURFACE.card,
 };
 
 // The single accent — crimson. Used only for emphasis: selection, active
 // controls, and the agreement axis. Spent in one place, on purpose.
 export const ACCENT = "#c01023";
 
-// Diverging poles for the streak barcode: crimson = above my average, blue =
-// below, pale = at par. WARM reuses the accent crimson and COOL the Drama blue;
-// MID is a neutral tint of the paper surface so "we agree" recedes.
-export const DIVERGE_WARM = ACCENT;
-export const DIVERGE_COOL = GENRE_COLORS.Drama;
-export const DIVERGE_MID = "#eceae3";
+/**
+ * UI state, deliberately without hue.
+ *
+ * ACCENT is GENRE_COLORS.Horror. When an active toggle also painted itself
+ * crimson, the same colour meant "this control is on" and "this film is
+ * Horror" a few centimetres apart in the sidebar, and a crimson selection ring
+ * vanished against a crimson Horror mark. Ink separates the two with no new hue
+ * to defend against the five genre slots.
+ *
+ * Crimson stays on DATA only: genre identity, the diverging ramp, the heart.
+ */
+export const UI = {
+  active: "#232220",
+  activeText: "#f7f6f3",
+  /** Selection outline. Ink, so it reads on a mark of any genre colour. */
+  selected: "#0b0b0b",
+};
+
+/**
+ * The dark counterpart.
+ *
+ * Not an inversion: #c01023 against a near-black ground falls under 3:1, and the
+ * same is true of Drama's blue and Comedy's green. Every hue lifts in lightness
+ * while keeping its identity, so a Horror mark still reads as the same colour it
+ * is in light mode.
+ */
+export const DARK = {
+  accent: "#ff4757",
+  genre: {
+    Horror: "#ff4757",
+    Thriller: "#ffc043",
+    Drama: "#5aa2f5",
+    Comedy: "#3ab54a",
+    Adventure: "#a97ae8",
+    Other: "#8a877d",
+  } as Record<GenreKey, string>,
+  ink: {
+    primary: "#f2f0ea",
+    secondary: "#b6b3a9",
+    muted: "#86837a",
+    grid: "#3a3833",
+    // Lifted well clear of `grid`. A bar at the gridline tone is nearly
+    // invisible on the dark card, and the knocked-out value label sitting on it
+    // falls to about 1.6:1 — unreadable.
+    mark: "#78746a",
+    axis: "#5c5a53",
+    surface: "#1c1b17",
+    plane: "#1c1b17",
+  },
+  surface: {
+    well: "#131210",
+    paper: "#171613",
+    card: "#1c1b17",
+  },
+  ui: {
+    active: "#f2f0ea",
+    activeText: "#131210",
+    selected: "#f2f0ea",
+  },
+};

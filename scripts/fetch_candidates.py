@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from ingest.csvio import dict_writer  # noqa: E402
-from ingest.enrich import build_enrichment_row  # noqa: E402
+from ingest.enrich import CANDIDATE_CSV_COLUMNS, build_enrichment_row  # noqa: E402
 from ingest.http import cached_json, omdb_get, tmdb_get  # noqa: E402
 
 SEEDS = ROOT / "transform" / "seeds"
@@ -167,15 +167,12 @@ def _enrich_tmdb(tmdb_id: int) -> dict | None:
         prefer_omdb=True,
         omdb_countries=True,
         include_lang_collection=True,
+        # title, release_date, tmdb_rating and tmdb_votes exist in the seed only
+        # because one-off backfills added them. Without this flag every candidate
+        # written here lands with no title, which is what put nameless films on
+        # the production site.
+        include_candidate_meta=True,
     )
-
-
-FIELDNAMES = [
-    "tmdb_id", "imdb_id", "genres", "keywords", "runtime", "budget", "revenue",
-    "metascore", "rt_rating", "imdb_rating", "imdb_votes", "box_office",
-    "director", "actors", "rated", "production_countries", "original_language",
-    "collection",
-]
 
 
 def _ids_from(path: Path, column: str = "tmdb_id") -> set[int]:
@@ -244,7 +241,7 @@ def main() -> None:
     write_header = not CANDIDATE_ENRICHMENT.exists()
     enriched = 0
     with open(CANDIDATE_ENRICHMENT, "a", newline="", encoding="utf-8") as fh:
-        writer = dict_writer(fh, FIELDNAMES)
+        writer = dict_writer(fh, CANDIDATE_CSV_COLUMNS, strict=True)
         if write_header:
             writer.writeheader()
         for tid in sorted(new_ids):

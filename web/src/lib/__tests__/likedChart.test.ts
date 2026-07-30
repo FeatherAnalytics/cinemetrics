@@ -35,6 +35,8 @@ function film(over: Partial<Film> = {}): Film {
     rated: null,
     language: null,
     collection: null,
+    poster: null,
+    slice: null,
     ...over,
   };
 }
@@ -46,7 +48,7 @@ function watch(over: Partial<EnrichedWatch> = {}): EnrichedWatch {
     tmdb_id: over.tmdb_id ?? 1,
     rating: 80,
     stars: 4,
-    rewatch: false,
+    rewatch: false, returned: false,
     liked: true,
     film: film(),
     d: new Date(`${date}T00:00:00Z`),
@@ -173,23 +175,23 @@ describe("crossoverWatches", () => {
 describe("filmHearts", () => {
   it("carries a recorded heart to the film's other watches", () => {
     const hearts = filmHearts([
-      { date: "2019-03-01", tmdb_id: 7, rating: 100, stars: 5, rewatch: false, liked: null },
-      { date: "2021-03-01", tmdb_id: 7, rating: 100, stars: 5, rewatch: true, liked: true },
+      { date: "2019-03-01", tmdb_id: 7, rating: 100, stars: 5, rewatch: false, returned: false, liked: null },
+      { date: "2021-03-01", tmdb_id: 7, rating: 100, stars: 5, rewatch: true, returned: false, liked: true },
     ]);
     expect(hearts.get(7)).toBe(true);
   });
 
   it("carries a false heart too, which is evidence and not an absence", () => {
     const hearts = filmHearts([
-      { date: "2019-03-01", tmdb_id: 8, rating: 90, stars: 4.5, rewatch: false, liked: null },
-      { date: "2021-03-01", tmdb_id: 8, rating: 90, stars: 4.5, rewatch: true, liked: false },
+      { date: "2019-03-01", tmdb_id: 8, rating: 90, stars: 4.5, rewatch: false, returned: false, liked: null },
+      { date: "2021-03-01", tmdb_id: 8, rating: 90, stars: 4.5, rewatch: true, returned: false, liked: false },
     ]);
     expect(hearts.get(8)).toBe(false);
   });
 
   it("leaves a film with no recorded heart out of the map entirely", () => {
     const hearts = filmHearts([
-      { date: "2019-03-01", tmdb_id: 9, rating: 70, stars: 3.5, rewatch: false, liked: null },
+      { date: "2019-03-01", tmdb_id: 9, rating: 70, stars: 3.5, rewatch: false, returned: false, liked: null },
     ]);
     expect(hearts.has(9)).toBe(false);
   });
@@ -197,8 +199,8 @@ describe("filmHearts", () => {
   it("keys on tmdb_id, so two films sharing a title do not share a heart", () => {
     // The library holds a hearted Suspiria (2018) and an unhearted one (1977).
     const hearts = filmHearts([
-      { date: "2020-08-15", tmdb_id: 361292, rating: 100, stars: 5, rewatch: false, liked: true },
-      { date: "2020-10-31", tmdb_id: 555, rating: 90, stars: 4.5, rewatch: false, liked: false },
+      { date: "2020-08-15", tmdb_id: 361292, rating: 100, stars: 5, rewatch: false, returned: false, liked: true },
+      { date: "2020-10-31", tmdb_id: 555, rating: 90, stars: 4.5, rewatch: false, returned: false, liked: false },
     ]);
     expect(hearts.get(361292)).toBe(true);
     expect(hearts.get(555)).toBe(false);

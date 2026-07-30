@@ -1,14 +1,15 @@
 "use client";
 
-import { INK } from "@/lib/palette";
+import { useMemo } from "react";
+import { ACCENT } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { valueLabelFill } from "@/lib/barChart";
 import { quantile } from "@/lib/statsChart";
+import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import { useWidth } from "@/lib/useWidth";
 
 const W0 = 720; // pre-measurement width, matching the usual desktop column
 const W_MIN = 300;
-const FADE = "#b3b1a6";
-const MID = "#eceae3";
 
 export type CategoryBar = {
   label: string;
@@ -25,6 +26,13 @@ export type CategoryBar = {
  *
  * Clicking a bar cross-filters to the watches behind it, the same contract the
  * main-page charts use. Clicking the active bar again clears.
+ *
+ * CALLER REQUIREMENT: `bars` must keep its identity while its contents are
+ * unchanged, so memoise it. The heights tween through `useAnimatedValues`,
+ * which compares its target by identity, and a fresh array every render
+ * restarts the tween every frame: the chart burns a render loop and never
+ * moves. Hover state in a caller is enough to trigger this, since a hover
+ * re-renders the caller without changing a single count.
  */
 export function CategoryBars({
   bars,
@@ -32,7 +40,7 @@ export function CategoryBars({
   active,
   onPick,
   fmt = (v: number) => String(Math.round(v)),
-  accent = "#c01023",
+  accent = ACCENT,
   barLabel = "value",
   onHover,
   showMedian = true,
@@ -84,6 +92,10 @@ export function CategoryBars({
    */
   showMedian?: boolean;
 }) {
+  const { tokens } = useTheme();
+  const FADE = tokens.ink.mark;
+  const MID = tokens.surface.well;
+
   // Width tracks the column, height is fixed: there is no viewBox, so one user
   // unit is one pixel and the type stays the same size at every width.
   const [ref, W] = useWidth(W0, W_MIN);
@@ -91,6 +103,28 @@ export function CategoryBars({
   const MR = 12;
   const MB = 30;
 
+  /**
+   * The heights on screen, which lag the values on a filter change.
+   *
+   * Only the geometry reads these. Every NUMBER stays on the target: the axis
+   * ticks, the median, and the label riding each bar. Counting a label up
+   * through its intermediate values would be noise at best, and on the pace
+   * chart it would be wrong — that chart's `fmt` is a reciprocal, so a rate
+   * easing up through nearly zero prints as thousands of days between films
+   * for the first few frames.
+   */
+  const values = useMemo(() => bars.map((b) => b.value), [bars]);
+  const drawn = useAnimatedValues(values);
+
+  /**
+   * The scale is pinned to the TARGET, so it does not move while the bars do.
+   *
+   * A domain tweening alongside its own bars is a domain that cancels them: a
+   * genre filter cuts almost every category by about the same factor, so peak
+   * and bars would shrink together and the columns would sit almost still
+   * while the axis label alone changed. Pinning costs a few frames of overflow
+   * when the new peak is far below the old one, which the SVG clips.
+   */
   const peak = Math.max(...bars.map((b) => b.value), 0.0001);
   /**
    * Median over categories that actually had a watch.
@@ -137,8 +171,8 @@ export function CategoryBars({
 
         {[0, peak].map((v, i) => (
           <g key={`t-${i}`}>
-            <line x1={ML} y1={y(v)} x2={W - MR} y2={y(v)} stroke="#eee" />
-            <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill={INK.muted}>
+            <line x1={ML} y1={y(v)} x2={W - MR} y2={y(v)} stroke={tokens.ink.grid} strokeOpacity={0.4} />
+            <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill={tokens.ink.muted}>
               {fmt(v)}
             </text>
           </g>
@@ -148,9 +182,9 @@ export function CategoryBars({
           <g key={`bar-${i}`}>
             <rect
               x={cx(i) - barW / 2}
-              y={y(b.value)}
+              y={y(drawn[i])}
               width={barW}
-              height={H - MB - y(b.value)}
+              height={H - MB - y(drawn[i])}
               fill={active === i ? accent : FADE}
             />
             {/* Full-height hit area: a short bar is a small target, and the reader
@@ -176,17 +210,19 @@ export function CategoryBars({
                 had no watches, which is noise dressed as a finding. */}
             {b.value > 0 &&
               (() => {
-                const barH = H - MB - y(b.value);
+                // Rides the bar it belongs to, so position follows the tween
+                // while the text stays on the settled value.
+                const barH = H - MB - y(drawn[i]);
                 const inside = barH > 24;
                 const pct = median > 0 ? Math.round((100 * (b.value - median)) / median) : 0;
                 return (
                   <text
                     x={cx(i)}
-                    y={inside ? y(b.value) + 15 : y(b.value) - 6}
+                    y={inside ? y(drawn[i]) + 15 : y(drawn[i]) - 6}
                     textAnchor="middle"
                     fontSize={11}
                     fontWeight={700}
-                    fill={valueLabelFill(inside)}
+                    fill={valueLabelFill(inside, tokens.ink)}
                     pointerEvents="none"
                   >
                     {barLabel === "share"
@@ -205,7 +241,7 @@ export function CategoryBars({
               y1={y(median)}
               x2={W - MR}
               y2={y(median)}
-              stroke={INK.muted}
+              stroke={tokens.ink.muted}
               strokeWidth={1}
               strokeDasharray="4 3"
               pointerEvents="none"
@@ -215,7 +251,7 @@ export function CategoryBars({
               y={y(median) + 3}
               textAnchor="end"
               fontSize={8}
-              fill={INK.muted}
+              fill={tokens.ink.muted}
               pointerEvents="none"
             >
               median {fmt(median)}
@@ -230,7 +266,7 @@ export function CategoryBars({
             y={H - MB + 14}
             textAnchor="middle"
             fontSize={9}
-            fill={active === i ? accent : INK.primary}
+            fill={active === i ? accent : tokens.ink.primary}
             fontWeight={active === i ? 700 : 400}
             pointerEvents="none"
           >

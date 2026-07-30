@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { favColor, StarMarker } from "@/lib/favMarker";
-import { favPosterPath, FOUR_FAVS, posterUrl } from "@/lib/fourFavs";
+import { FOUR_FAVS, posterUrl } from "@/lib/fourFavs";
 import { isPicked, pickWatches } from "@/components/stats/pick";
 import type { EnrichedWatch } from "@/lib/types";
 
@@ -39,6 +39,7 @@ type Card = {
 
 export function FavPosters() {
   const { all, filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
   // Which posters failed to load, so a broken path degrades to a readable card
   // instead of a browser's broken-image glyph.
   const [failed, setFailed] = useState<Record<number, true>>({});
@@ -58,15 +59,10 @@ export function FavPosters() {
         // The short link the id was resolved FROM, so it cannot drift from the film
         // this card is about the way a rebuilt slug could.
         href: `https://boxd.it/${f.letterboxd}`,
-        // `poster_path` is not in the exported dataset yet, so the fallback
-        // resolves to null for anything without a curated entry. Passing it
-        // anyway means the day it lands, this reads it without a change here.
-        src: posterUrl(
-          favPosterPath(
-            f.tmdb_id,
-            (watches[0]?.film as { poster_path?: string | null } | undefined)?.poster_path,
-          ),
-        ),
+        // The film's own poster, which for a film with a curated override is
+        // already that override: dim_film resolves it, so every renderer of
+        // `film.poster` agrees without knowing overrides exist.
+        src: posterUrl(watches[0]?.film?.poster),
         watches,
       };
     });
@@ -95,8 +91,8 @@ export function FavPosters() {
                   className="relative w-full overflow-hidden rounded"
                   style={{
                     aspectRatio: `${1} / ${RATIO}`,
-                    background: "#eceae3",
-                    outline: on ? `2px solid ${INK.primary}` : "none",
+                    background: tokens.surface.well,
+                    outline: on ? `2px solid ${tokens.ink.primary}` : "none",
                     outlineOffset: 1,
                   }}
                 >
@@ -106,7 +102,7 @@ export function FavPosters() {
                        finishes. */
                     <span
                       className="absolute inset-0 flex items-center justify-center px-2 text-center text-xs"
-                      style={{ color: INK.muted }}
+                      style={{ color: tokens.ink.muted }}
                     >
                       no poster
                     </span>
@@ -132,17 +128,17 @@ export function FavPosters() {
               >
                 <div className="flex items-start gap-1.5">
                   <svg width={13} height={13} className="mt-0.5 shrink-0" aria-hidden>
-                    <StarMarker x={6.5} y={6.5} r={6} fill={favColor(film)} />
+                    <StarMarker x={6.5} y={6.5} r={6} fill={favColor(film, tokens)} />
                   </svg>
                   <span
                     className="text-sm font-bold leading-tight"
-                    style={{ color: INK.primary }}
+                    style={{ color: tokens.ink.primary }}
                   >
                     {c.title}
                   </span>
                 </div>
                 {film?.director && (
-                  <div className="text-xs" style={{ color: INK.muted }}>
+                  <div className="text-xs" style={{ color: tokens.ink.muted }}>
                     {film.director}
                     {film.year != null ? `, ${film.year}` : ""}
                   </div>
@@ -152,7 +148,7 @@ export function FavPosters() {
           );
         })}
       </ul>
-      <figcaption className="mt-2 text-[10px]" style={{ color: INK.muted }}>
+      <figcaption className="mt-2 text-[10px]" style={{ color: tokens.ink.muted }}>
         Poster art from TMDB. This product uses the TMDB API but is not endorsed or
         certified by TMDB.
       </figcaption>

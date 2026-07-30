@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { EnrichedWatch, Film } from "../types";
-import { GENRE_COLORS } from "../palette";
+import { GENRE_COLORS, INK } from "../palette";
 import {
   buildSeries,
   categoryOf,
@@ -33,6 +33,8 @@ function makeFilm(overrides: Partial<Film> = {}): Film {
     rated: "R",
     language: "en",
     collection: null,
+    poster: null,
+    slice: null,
     ...overrides,
   };
 }
@@ -41,7 +43,7 @@ let tid = 100;
 function watch(rating: number | null, film: Partial<Film>, date = "2021-01-01"): EnrichedWatch {
   const f = makeFilm({ tmdb_id: tid++, ...film });
   const d = new Date(date + "T00:00:00Z");
-  return { date, tmdb_id: f.tmdb_id, rating, stars: null, rewatch: false, liked: null, film: f, d, yearFrac: 0, heart: null };
+  return { date, tmdb_id: f.tmdb_id, rating, stars: null, rewatch: false, returned: false, liked: null, film: f, d, yearFrac: 0, heart: null };
 }
 
 // Successive daily watches, so date ordering matches array order.
@@ -133,13 +135,17 @@ describe("categoryOf", () => {
 
 describe("buildSeries", () => {
   const opts = { window: 3, minPoints: 3, minWatches: 1 } as const;
+  // The light theme's tokens, passed explicitly because `buildSeries` requires
+  // them. The color assertions below read the same constants, so they are about
+  // which slot a series lands in and not about the hex the theme happens to hold.
+  const TOKENS = { genre: GENRE_COLORS, ink: INK };
 
   it("builds one line per category plus an overall line", () => {
     const all = [
       ...series([60, 62, 64, 66, 68], { genres: ["Horror"] }),
       ...series([80, 82, 84, 86, 88], { genres: ["Comedy"] }),
     ];
-    const out = buildSeries(all, all, "genre", opts);
+    const out = buildSeries(all, all, "genre", opts, TOKENS);
     const keys = out.map((s) => s.key);
     expect(keys).toContain("Horror");
     expect(keys).toContain("Comedy");
@@ -163,7 +169,7 @@ describe("buildSeries", () => {
       ...series([80, 82], { genres: ["Comedy"] }), // only 2 → below minPoints
       ...series([null, null], { genres: ["Thriller"] }), // unrated → excluded
     ];
-    const out = buildSeries(all, all, "genre", opts);
+    const out = buildSeries(all, all, "genre", opts, TOKENS);
     const keys = out.map((s) => s.key);
     expect(keys).toContain("Horror");
     expect(keys).not.toContain("Comedy");
@@ -179,7 +185,7 @@ describe("buildSeries", () => {
       ...series([70, 72, 74, 76, 78], { language: "ja" }),
       ...series([50, 52, 54, 56, 58], { language: "fr" }),
     ];
-    const out = buildSeries(all, all, "language", { ...opts, maxSeries: 1 });
+    const out = buildSeries(all, all, "language", { ...opts, maxSeries: 1 }, TOKENS);
     const keys = out.map((s) => s.key);
     // English has the most watches (tie broken, but all equal here → alphabetical
     // within count) so only one hue slot survives; the rest fold into Other.
@@ -194,7 +200,7 @@ describe("buildSeries", () => {
       ...series([50, 52, 54, 56, 58, 55, 57, 59], { year: 2015 }), // 2010s ·8 (most)
       ...series([80, 82], { year: 1925 }), // 1920s ·2 — below minWatches, dropped
     ];
-    const out = buildSeries(all, all, "decade", { window: 3, minPoints: 3, minWatches: 4 });
+    const out = buildSeries(all, all, "decade", { window: 3, minPoints: 3, minWatches: 4 }, TOKENS);
     const cats = out.filter((s) => !s.isOverall).map((s) => s.key);
     expect(cats).toEqual(["1990s", "2000s", "2010s"]); // chronological despite 2010s having more
     expect(out.some((s) => s.key === OTHER)).toBe(false);
@@ -209,12 +215,12 @@ describe("buildSeries", () => {
       ...series([60, 62, 64, 66, 68], { language: "en" }),
       ...series([70, 72, 74, 76, 78], { language: "ja" }),
     ];
-    const full = buildSeries(all, all, "language", opts);
+    const full = buildSeries(all, all, "language", opts, TOKENS);
     const enColorFull = full.find((s) => s.key === "English")!.color;
     // Filter down to only Japanese watches; English no longer appears, but the
     // color plan is seeded from `all`, so surviving series keep their hues.
     const jaOnly = all.filter((w) => w.film?.language === "ja");
-    const filtered = buildSeries(all, jaOnly, "language", opts);
+    const filtered = buildSeries(all, jaOnly, "language", opts, TOKENS);
     expect(filtered.find((s) => s.key === "English")).toBeUndefined();
     const ja = filtered.find((s) => s.key === "Japanese")!;
     expect(ja.color).toBe(full.find((s) => s.key === "Japanese")!.color);

@@ -1,16 +1,13 @@
 "use client";
 
-import { INK } from "@/lib/palette";
+import { ACCENT } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { valueLabelFill } from "@/lib/barChart";
 import { insetRect, NO_DATA_STROKE } from "@/lib/statsChart";
 import { useWidth } from "@/lib/useWidth";
 
 const W0 = 720; // pre-measurement width, matching the usual desktop column
 const W_MIN = 300;
-// Chrome gray for the complement. Never a genre color, so "not hearted" cannot
-// read as a category, and never named "other": that word is a genre here.
-const REST = "#b3b1a6";
-const NO_DATA = "#eceae3";
 
 export type RateBar = {
   label: string;
@@ -76,7 +73,7 @@ export function RateBars({
   bars,
   active,
   onPick,
-  accent = "#c01023",
+  accent = ACCENT,
   refAt = 0.5,
   refLabel = "coin flip",
   caption,
@@ -97,6 +94,11 @@ export function RateBars({
   /** Left side of the header row. The legend takes the right. */
   caption?: string;
 }) {
+  const { tokens } = useTheme();
+  // Chrome gray for the complement. Never a genre color, so "not hearted" cannot
+  // read as a category, and never named "other": that word is a genre here.
+  const REST = tokens.ink.mark;
+  const NO_DATA = tokens.surface.well;
   const [ref, W] = useWidth(W0, W_MIN);
   // MB carries two rows: the category label, then the count row under it.
   const H = 196;
@@ -122,7 +124,7 @@ export function RateBars({
       {(caption || bars.length > 0) && (
         <div
           className="mb-1 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10px] uppercase tracking-wider"
-          style={{ color: INK.muted }}
+          style={{ color: tokens.ink.muted }}
         >
           {caption && <span>{caption}</span>}
           {/* Two segments need naming. In the header rather than beside the
@@ -146,8 +148,8 @@ export function RateBars({
       <svg width={W} height={H} role="img" style={{ maxWidth: "100%" }}>
         {[0, 0.5, 1].map((v) => (
           <g key={`t-${v}`}>
-            <line x1={ML} y1={y(v)} x2={W - MR} y2={y(v)} stroke="#eee" />
-            <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill={INK.muted}>
+            <line x1={ML} y1={y(v)} x2={W - MR} y2={y(v)} stroke={tokens.ink.grid} strokeOpacity={0.4} />
+            <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill={tokens.ink.muted}>
               {pct(v)}
             </text>
           </g>
@@ -172,7 +174,7 @@ export function RateBars({
                 <rect
                   {...insetRect(cx(i) - barW / 2, y(1), barW, H - MB - y(1))}
                   fill={NO_DATA}
-                  stroke={INK.primary}
+                  stroke={tokens.ink.primary}
                   strokeWidth={NO_DATA_STROKE}
                 />
               ) : (
@@ -203,7 +205,7 @@ export function RateBars({
                   width={barW + 3}
                   height={H - MB - y(1) + 3}
                   fill="none"
-                  stroke={INK.primary}
+                  stroke={tokens.ink.primary}
                   strokeWidth={1.5}
                   pointerEvents="none"
                 />
@@ -224,7 +226,7 @@ export function RateBars({
                   textAnchor="middle"
                   fontSize={11}
                   fontWeight={700}
-                  fill={valueLabelFill(inside)}
+                  fill={valueLabelFill(inside, tokens.ink)}
                   fillOpacity={1}
                   pointerEvents="none"
                 >
@@ -240,7 +242,7 @@ export function RateBars({
           y1={y(refAt)}
           x2={W - MR}
           y2={y(refAt)}
-          stroke={INK.muted}
+          stroke={tokens.ink.muted}
           strokeWidth={1}
           strokeDasharray="4 3"
           pointerEvents="none"
@@ -250,7 +252,7 @@ export function RateBars({
           y={y(refAt) + 3}
           textAnchor="start"
           fontSize={8}
-          fill={INK.muted}
+          fill={tokens.ink.muted}
           pointerEvents="none"
         >
           {refLabel}
@@ -263,7 +265,7 @@ export function RateBars({
             y={H - MB + 14}
             textAnchor="middle"
             fontSize={9}
-            fill={active === i ? accent : INK.primary}
+            fill={active === i ? accent : tokens.ink.primary}
             fontWeight={active === i ? 700 : 400}
             pointerEvents="none"
           >
@@ -279,7 +281,7 @@ export function RateBars({
           y={H - MB + 30}
           textAnchor="end"
           fontSize={8}
-          fill={INK.muted}
+          fill={tokens.ink.muted}
           pointerEvents="none"
         >
           watches
@@ -291,7 +293,7 @@ export function RateBars({
             y={H - MB + 30}
             textAnchor="middle"
             fontSize={9}
-            fill={INK.muted}
+            fill={tokens.ink.muted}
             pointerEvents="none"
           >
             {b.n > 0 ? b.n : "-"}

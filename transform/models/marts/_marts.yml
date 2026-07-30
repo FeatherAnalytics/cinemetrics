@@ -20,6 +20,19 @@ models:
                 severity: warn
       - name: title
         tests: [not_null]
+      - name: poster_path
+        description: >
+          TMDB poster image path, e.g. "/abc123.jpg". NULL when TMDB serves no
+          poster. Rendered by prefixing the CDN host and a size segment; the
+          size is the renderer's choice, so it is deliberately not stored here.
+          The curated choice from stg_poster_overrides where there is one, the
+          enrichment seed's value otherwise — so this is the single source of
+          truth for a film's art and no renderer needs a helper of its own.
+      - name: poster_slice
+        description: >
+          20 RGB stops sampled down the film's poster, packed as 120 hex
+          characters. Drawn by the landing-page barcode. NULL when the film has
+          no poster.
 
   - name: fct_watches
     description: >
@@ -40,6 +53,31 @@ models:
         description: IMDb id — kept for external linking.
       - name: watched_date
         tests: [not_null]
+      - name: is_rewatch
+        description: >
+          The rewatch flag exactly as the source recorded it. False for all 129
+          pre-Letterboxd rows because the Google Sheet had no such field — which
+          is NOT the same as those viewings having been first watches. Left
+          untouched so the published "flagged rewatches" figure keeps meaning
+          what it says; use is_rewatch_effective to answer whether a viewing was
+          a rewatch.
+      - name: is_return
+        description: >
+          True when an earlier watch of the same film exists in the dataset.
+          Purely ordinal, so it is answerable for the sheet era too. Narrower
+          than a rewatch: a film whose only row is flagged returned to a viewing
+          that predates the data, and this cannot see that.
+        tests:
+          - not_null
+      - name: is_rewatch_effective
+        description: >
+          The union of is_rewatch and is_return, and the column the dashboard
+          filters on. Neither half is sufficient alone — the flag misses every
+          sheet-era return, the order misses a first-row film whose original
+          viewing predates the dataset. Still false for a sheet-era row that is
+          its film's first appearance, which is genuinely unknowable.
+        tests:
+          - not_null
 
   - name: dim_candidate
     description: >
@@ -49,6 +87,11 @@ models:
       - name: tmdb_id
         description: TMDB film identifier — the primary candidate key.
         tests: [unique, not_null]
+      - name: poster_path
+        description: >
+          TMDB poster image path, e.g. "/abc123.jpg". NULL when TMDB serves no
+          poster. Same convention as dim_film.poster_path: the CDN host and size
+          segment are the renderer's choice and are not stored here.
 
   - name: dim_watchlist
     description: >

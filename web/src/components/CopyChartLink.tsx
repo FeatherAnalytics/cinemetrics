@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ACCENT, INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 
 /**
  * Hover/focus-revealed button beside a chart title that copies a deep link to
@@ -9,6 +9,7 @@ import { ACCENT, INK } from "@/lib/palette";
  * anchor, so the recipient lands on the same view scrolled to the same chart.
  */
 export function CopyChartLink({ anchor, title }: { anchor: string; title: string }) {
+  const { tokens } = useTheme();
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -32,7 +33,7 @@ export function CopyChartLink({ anchor, title }: { anchor: string; title: string
       aria-label={`Copy link to ${title}`}
       title={`Copy link to ${title}`}
       className="opacity-40 transition-opacity duration-150 hover:opacity-100 focus:opacity-100 group-hover:opacity-70"
-      style={{ color: copied ? ACCENT : INK.muted }}
+      style={{ color: copied ? tokens.accent : tokens.ink.muted }}
     >
       {copied ? (
         <span className="font-mono text-[10px] uppercase tracking-[0.1em]">copied</span>

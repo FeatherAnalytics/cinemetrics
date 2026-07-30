@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
+import { primaryGenre, type GenreKey } from "@/lib/palette";
+import { hairline, useTheme } from "@/lib/theme";
 import { watchKey } from "@/lib/brush";
 import { computeResiduals } from "@/lib/stats";
 import { BAR_H, GAP } from "@/lib/barChart";
 import { heartByFilm, heartDeltaPP, ppLabel } from "@/lib/heartLens";
+import { useAnimatedValues } from "@/lib/useAnimatedValues";
 
 const LABEL_W = 200;
 const BAR_W = 400;
@@ -27,6 +29,7 @@ type KeywordBar = {
 
 export function KeywordBars() {
   const { all, filtered, byId, setSelection } = useExplorer();
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<string | null>(null);
 
   const hearts = useMemo(() => heartByFilm(all), [all]);
@@ -123,6 +126,14 @@ export function KeywordBars() {
 
   // Bars are filtered to a measurable delta above, so the fallback never fires.
   const valueOf = (b: KeywordBar) => b.heartDelta ?? 0;
+  // Memoised on `bars`, which is memoised: `useAnimatedValues` compares its
+  // target by identity, and a hover re-renders this component without moving
+  // a single deviation.
+  const values = useMemo(() => bars.map(valueOf), [bars]);
+  const drawn = useAnimatedValues(values);
+  // Pinned to the TARGET, so the track does not rescale under the bars while
+  // they move. A filter that shrinks every deviation would otherwise shrink
+  // the denominator with them and the bars would hold still.
   const maxAbs = useMemo(() => {
     if (bars.length === 0) return 10;
     return Math.max(...bars.map((b) => Math.abs(valueOf(b))));
@@ -133,8 +144,11 @@ export function KeywordBars() {
   if (bars.length === 0) {
     return (
       <div
-        className="rounded-md border border-dashed px-4 py-6 text-sm text-[#67655f]"
-        style={{ borderColor: "rgba(11,11,11,0.15)" }}
+        className="rounded-md border border-dashed px-4 py-6 text-sm"
+        style={{
+          color: tokens.ink.muted,
+          borderColor: hairline(tokens.ink.primary, 15),
+        }}
       >
         Not enough data for keyword analysis: it needs a keyword shared by{" "}
         {MIN_FILMS}+ rated films. Widen the filters to bring more films in.
@@ -161,13 +175,17 @@ export function KeywordBars() {
         aria-label="Keywords whose heart rate sits furthest above and below my overall heart rate"
       >
         {/* Zero line */}
-        <line x1={zeroX} y1={20} x2={zeroX} y2={HEIGHT - 20} stroke={INK.axis} strokeWidth={1.5} />
+        <line x1={zeroX} y1={20} x2={zeroX} y2={HEIGHT - 20} stroke={tokens.ink.axis} strokeWidth={1.5} />
 
         {bars.map((bar, i) => {
           const y = 20 + i * (BAR_H + GAP);
           const value = valueOf(bar);
-          const barLen = (Math.abs(value) / maxAbs) * (BAR_W / 2 - 10);
-          const barX = value > 0 ? zeroX : zeroX - barLen;
+          // Length AND side come from the tweened value, so a bar whose sign
+          // flipped sweeps across the zero line instead of jumping it. The
+          // printed number stays on the settled value throughout.
+          const shown = drawn[i];
+          const barLen = (Math.abs(shown) / maxAbs) * (BAR_W / 2 - 10);
+          const barX = shown > 0 ? zeroX : zeroX - barLen;
           const isHover = hover === bar.keyword;
 
           return (
@@ -176,7 +194,7 @@ export function KeywordBars() {
               <text
                 x={LABEL_W - 8}
                 y={y + BAR_H / 2}
-                fill={INK.secondary}
+                fill={tokens.ink.secondary}
                 fontSize={12}
                 textAnchor="end"
                 dominantBaseline="middle"
@@ -190,7 +208,7 @@ export function KeywordBars() {
                 y={y}
                 width={barLen}
                 height={BAR_H}
-                fill={GENRE_COLORS[bar.genre]}
+                fill={tokens.genre[bar.genre]}
                 fillOpacity={isHover ? 0.9 : 0.72}
                 style={{ cursor: "pointer" }}
                 onMouseEnter={() => setHover(bar.keyword)}
@@ -206,7 +224,7 @@ export function KeywordBars() {
               <text
                 x={value > 0 ? zeroX - 6 : zeroX + 6}
                 y={y + BAR_H / 2}
-                fill={INK.primary}
+                fill={tokens.ink.primary}
                 fontSize={11}
                 fontWeight={700}
                 textAnchor={value > 0 ? "end" : "start"}
@@ -223,13 +241,13 @@ export function KeywordBars() {
                     y={y - 10}
                     width={240}
                     height={BAR_H + 20}
-                    fill={INK.primary}
+                    fill={tokens.ink.primary}
                     rx={4}
                   />
                   <text
                     x={LABEL_W + BAR_W + VALUE_W + 20}
                     y={y + BAR_H / 2}
-                    fill={INK.surface}
+                    fill={tokens.ink.surface}
                     fontSize={11}
                     dominantBaseline="middle"
                   >

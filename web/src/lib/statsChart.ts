@@ -195,22 +195,40 @@ export function monthSpan(dates: string[]): string[] {
 /* ------------------------------------------------------------------ sheet era */
 
 /**
- * Whether a watch recorded its rewatch state.
+ * Whether the data can answer what this watch's rewatch state was.
+ *
+ * THE definition, for every consumer: the StatBar rate through
+ * `computeRewatchShare`, the velocity chart's "not recorded" band, and the
+ * rewatch-vs-first-watch rating comparison in the stories. A second copy of this
+ * function once lived in `stats.ts` and learned about `returned` while this one
+ * did not, so the same page rendered 32.3% and 31.7% side by side. One function,
+ * or the page contradicts itself again.
  *
  * The 129 pre-Letterboxd rows carry `rewatch: false` because the Google Sheet
- * had no such column, not because they were first viewings: zero of the 129 are
- * flagged, against 31.0% across the Letterboxd rows. So `false` there means
- * UNKNOWN, exactly like three-state `liked`, which is the marker used here per
- * the project invariant in CLAUDE.md.
+ * had no such column, not because they were first viewings. 6 of the 129 do read
+ * true, and all 6 only because `fct_watches` derives the flag as the recorded
+ * value OR `is_return`; the sheet itself flagged none. Against 31.7% across the
+ * 666 Letterboxd rows, `false` in the sheet era means UNKNOWN, exactly like
+ * three-state `liked`, which is the era marker used here per the project
+ * invariant in CLAUDE.md.
+ *
+ * `returned` then rescues the part of that era the data can still see. It says
+ * an earlier watch of the same film sits in the dataset, which is an ordinal
+ * fact and so era-independent: a sheet-era row that is visibly a return is
+ * measurable even though it recorded nothing itself. Only a sheet-era row that
+ * is its film's FIRST appearance stays genuinely unmeasurable, because whether
+ * it returned to a viewing from before the data begins cannot be recovered.
+ * 672 of the 795 rows come out measurable.
  *
  * ⚠️ RAW `liked`, never the recovered `heart`. The heart is recoverable for a
- * sheet-era row whose film was watched again later, and 31 rows come back that
- * way, but those rows are still sheet-era and still recorded no rewatch flag.
- * Reading `heart` here would add all 31 to the denominator as if they had, which
- * is the same understatement D5 already cost this project once.
+ * sheet-era row whose film was watched again later, and 28 rows come back that
+ * way on top of the ones `returned` already admits, but those rows are still
+ * sheet-era and still recorded no rewatch flag. Reading `heart` here would add
+ * all 28 to the denominator as if they had, which is the same understatement D5
+ * already cost this project once.
  */
 export function hasKnownRewatchState(w: EnrichedWatch): boolean {
-  return w.liked != null;
+  return w.liked != null || w.returned;
 }
 
 /* ------------------------------------------------- significance testing */

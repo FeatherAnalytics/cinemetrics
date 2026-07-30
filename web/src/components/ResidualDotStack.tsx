@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
+import { primaryGenre, type GenreKey } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { computeResiduals, type FilmResidual } from "@/lib/stats";
 import { ChartTakeaway } from "./ChartTakeaway";
@@ -31,6 +32,7 @@ type Dot = FilmResidual & {
 export function ResidualDotStack() {
   const { filtered, byId, selectedId, setSelected, setSelection, heartLens } =
     useExplorer();
+  const { tokens } = useTheme();
   // Under the lens this chart DROPS everything unhearted rather than fading it: the
   // dots are one per film in a dense stack, so a faded dot still occupies a column
   // and still shifts the shape.
@@ -136,7 +138,10 @@ export function ResidualDotStack() {
 
   if (dots.length === 0) {
     return (
-      <div className="flex h-48 items-center justify-center text-sm text-[#67655f]">
+      <div
+        className="flex h-48 items-center justify-center text-sm"
+        style={{ color: tokens.ink.muted }}
+      >
         Not enough rated films with critic scores.
       </div>
     );
@@ -158,11 +163,11 @@ export function ResidualDotStack() {
         aria-label="Every film stacked by how far my rating deviates from the critic-based prediction. Drag to brush a selection."
         {...handlers}
       >
-        <line x1={ML} y1={baseline} x2={W - MR} y2={baseline} stroke={INK.axis} strokeWidth={1.5} />
+        <line x1={ML} y1={baseline} x2={W - MR} y2={baseline} stroke={tokens.ink.axis} strokeWidth={1.5} />
         {ticks.map((v) => (
           <g key={v}>
-            <line x1={xOfValue(v)} y1={baseline} x2={xOfValue(v)} y2={baseline + 4} stroke={INK.axis} strokeWidth={1} />
-            <text x={xOfValue(v)} y={baseline + 16} fill={INK.muted} fontSize={11} textAnchor="middle">
+            <line x1={xOfValue(v)} y1={baseline} x2={xOfValue(v)} y2={baseline + 4} stroke={tokens.ink.axis} strokeWidth={1} />
+            <text x={xOfValue(v)} y={baseline + 16} fill={tokens.ink.muted} fontSize={11} textAnchor="middle">
               {v > 0 ? `+${v}` : v}
             </text>
           </g>
@@ -172,14 +177,14 @@ export function ResidualDotStack() {
           y1={MT}
           x2={xOfValue(0)}
           y2={baseline}
-          stroke={INK.axis}
+          stroke={tokens.ink.axis}
           strokeWidth={1}
           strokeDasharray="4 4"
         />
-        <text x={ML} y={baseline + 30} fill={INK.muted} fontSize={11} textAnchor="start">
+        <text x={ML} y={baseline + 30} fill={tokens.ink.muted} fontSize={11} textAnchor="start">
           ← I liked it less than critics
         </text>
-        <text x={W - MR} y={baseline + 30} fill={INK.muted} fontSize={11} textAnchor="end">
+        <text x={W - MR} y={baseline + 30} fill={tokens.ink.muted} fontSize={11} textAnchor="end">
           I liked it more →
         </text>
 
@@ -189,7 +194,7 @@ export function ResidualDotStack() {
           // every dot on screen is one I hearted and dimming would be dimming the
           // subject.
           const fade = 1;
-          const fill = GENRE_COLORS[d.genre];
+          const fill = tokens.genre[d.genre];
           const handlers = {
             onMouseEnter: () => setHover(d),
             onMouseLeave: () => setHover(null),
@@ -223,7 +228,7 @@ export function ResidualDotStack() {
               r={sel ? dotR + 1.2 : dotR}
               fill={fill}
               fillOpacity={(sel ? 1 : hasSel ? 0.25 : 0.85) * fade}
-              stroke={sel ? ACCENT : INK.surface}
+              stroke={sel ? tokens.ui.selected : tokens.ink.surface}
               strokeWidth={sel ? 1.5 : 0.4}
               style={{ cursor: "pointer" }}
               {...handlers}
@@ -231,7 +236,7 @@ export function ResidualDotStack() {
           );
         })}
 
-        <BrushRectOverlay rect={rect} />
+        <BrushRectOverlay rect={rect} accent={tokens.accent} />
       </svg>
 
       <ChartTakeaway>Critics explain {pct}% of my ratings</ChartTakeaway>
@@ -243,20 +248,20 @@ export function ResidualDotStack() {
             left: `${(hover.cx / W) * 100}%`,
             top: `${(hover.cy / H) * 100}%`,
             transform: "translate(-50%, -130%)",
-            background: INK.primary,
-            color: INK.surface,
+            background: tokens.ink.primary,
+            color: tokens.ink.surface,
           }}
         >
           <div className="font-medium">
             {hover.title}
             {hover.year != null ? ` (${hover.year})` : ""}
           </div>
-          <div style={{ color: "#c3c2b7" }}>
+          <div style={{ color: tokens.ink.surface, opacity: 0.75 }}>
             Me {Math.round(hover.me)} · Critic est. {Math.round(hover.predicted)} (
             {hover.residual > 0 ? "+" : ""}
             {Math.round(hover.residual)})
           </div>
-          <div style={{ color: "#c3c2b7", fontSize: "10px" }}>
+          <div style={{ color: tokens.ink.surface, opacity: 0.75, fontSize: "10px" }}>
             MC {hover.metascore} · RT {hover.rt_rating} · IMDB {hover.imdb_rating}
           </div>
         </div>

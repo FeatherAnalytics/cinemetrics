@@ -3,9 +3,11 @@
 import { useEffect, useRef } from "react";
 import { getStoryById, useExplorer } from "@/lib/store";
 import { LANDING_STORY, type ChartId } from "@/lib/stories";
+import { useTheme } from "@/lib/theme";
 
 export function StoryAnnotation({ target }: { target: ChartId }) {
   const { activeStory, storyResult, storyFocus } = useExplorer();
+  const { tokens } = useTheme();
   const ref = useRef<HTMLDivElement>(null);
 
   const isTarget = storyFocus?.primary === target;
@@ -42,13 +44,16 @@ export function StoryAnnotation({ target }: { target: ChartId }) {
     <div
       ref={ref}
       className="mb-2 rounded-r-lg py-2 pl-3 pr-4"
-      style={{ borderLeft: "3px solid #c01023", background: "#faf5f0" }}
+      style={{
+        borderLeft: `3px solid ${tokens.accent}`,
+        background: `color-mix(in srgb, ${tokens.accent} 8%, ${tokens.surface.paper})`,
+      }}
     >
-      <p className="text-sm font-semibold text-[#0b0b0b]">{storyResult.headline}</p>
+      <p className="text-sm font-semibold" style={{ color: tokens.ink.primary }}>{storyResult.headline}</p>
       {storyResult.subtext && (
-        <p className="mt-0.5 text-xs text-[#67655f]">{storyResult.subtext}</p>
+        <p className="mt-0.5 text-xs" style={{ color: tokens.ink.muted }}>{storyResult.subtext}</p>
       )}
-      {note && <p className="mt-0.5 text-xs text-[#3d3c38]">{note}</p>}
+      {note && <p className="mt-0.5 text-xs" style={{ color: tokens.ink.secondary }}>{note}</p>}
       {storyResult.extras}
     </div>
   );

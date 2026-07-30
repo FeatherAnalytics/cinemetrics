@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { hasKnownRewatchState, insetRect, NO_DATA_STROKE, quantile } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
+import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import { useWidth } from "@/lib/useWidth";
 import { accentFor, isPicked, pickWatches } from "./pick";
 import { Toggle } from "./Toggle";
@@ -23,9 +24,7 @@ const H = 170;
 // the text is right-anchored at ML - 4, so a label wider than that runs off the
 // left edge of the SVG rather than pushing the plot over.
 const ML = 44;
-const FADE = "#b3b1a6";
 const MB = 16;
-const MID = "#eceae3";
 
 /** Bucket key for a date at the chosen grain. Weeks are ISO-ish: Monday start. */
 function bucketKey(date: string, grain: Grain): string {
@@ -77,16 +76,22 @@ function bucketSpan(dates: string[], grain: Grain): string[] {
  * bar. The cumulative chart carries the genre mix, where the bands are thick
  * enough to read.
  *
- * Under first or rewatch the sheet-era months cannot be classified at all (D5),
- * so they drop out of the count and are drawn as the outlined "not recorded"
- * band instead of silently reading as zero.
+ * Under first or rewatch a sheet-era watch that the data cannot place cannot be
+ * classified at all (D5), so it drops out of the count and is drawn in the
+ * outlined "not recorded" band instead of silently reading as a first viewing.
+ * `hasKnownRewatchState` decides that, and it is the SAME predicate the StatBar
+ * rate divides by, so the band and the headline rate always agree on which rows
+ * the data can speak for.
  */
 export function ViewingVelocity() {
   const { all, filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
+  const FADE = tokens.ink.mark;
+  const MID = tokens.surface.well;
   const [grain, setGrain] = useState<Grain>("month");
   const [kind, setKind] = useState<Kind>("all");
   const [ref, W] = useWidth(W0, W_MIN);
-  const accent = accentFor(filters.genres);
+  const accent = accentFor(filters.genres, tokens);
 
   const model = useMemo(() => {
     // The axis spans the FULL history so the chart keeps its shape under a
@@ -114,9 +119,29 @@ export function ViewingVelocity() {
   }, [all, filtered, grain, kind]);
 
   const { keys, counted, unknown } = model;
+
+  /**
+   * The two stacked series tween separately rather than as one interleaved
+   * array, so the recorded run and the unrecorded band each ease toward their
+   * own value. Both hooks share a duration and an easing, so the stack stays
+   * welded together for the whole tween.
+   *
+   * Memoised on `model`, which is itself memoised: `useAnimatedValues`
+   * compares its target by identity, and the grain and kind toggles re-render
+   * this component. A grain change also changes the bucket COUNT, which the
+   * hook treats as a different chart and snaps.
+   */
+  const countedN = useMemo(() => model.counted.map((c) => c.length), [model]);
+  const unknownN = useMemo(() => model.unknown.map((u) => u.length), [model]);
+  const drawnCounted = useAnimatedValues(countedN);
+  const drawnUnknown = useAnimatedValues(unknownN);
+
   if (!keys.length) return null;
 
-  const totals = keys.map((_, i) => counted[i].length + unknown[i].length);
+  const totals = keys.map((_, i) => countedN[i] + unknownN[i]);
+  // Peak and median are pinned to the TARGET, not to the tweening heights. A
+  // scale easing along with its own bars cancels them: a filter that halves
+  // every bucket halves the peak too, and the bars would barely move.
   const peak = Math.max(...totals, 1);
   // Median over buckets that actually had something: including the empty ones
   // would report the median as zero for any sparse filter, which describes the
@@ -146,10 +171,11 @@ export function ViewingVelocity() {
               y1={y(t.v)}
               x2={W}
               y2={y(t.v)}
-              stroke={i === 0 ? "#eee" : INK.muted}
+              stroke={i === 0 ? tokens.ink.grid : tokens.ink.muted}
+              strokeOpacity={i === 0 ? 0.4 : undefined}
               strokeDasharray={i === 0 ? undefined : "4 3"}
             />
-            <text x={ML - 4} y={y(t.v) + 3} textAnchor="end" fontSize={8} fill={INK.muted}>
+            <text x={ML - 4} y={y(t.v) + 3} textAnchor="end" fontSize={8} fill={tokens.ink.muted}>
               {t.label}
             </text>
           </g>
@@ -160,14 +186,15 @@ export function ViewingVelocity() {
           const u = unknown[i];
           const x = ML + i * step;
           const wpx = Math.max(step - 0.6, 0.7);
-          const hU = h(u.length);
+          const hU = h(drawnUnknown[i]);
           const picked = isPicked(c, filters.selection);
           const ins = NO_DATA_STROKE / 2;
           // The unrecorded run is traced as a staircase off the bars' own edges:
           // outlining each bar as a box put strokes down both sides of every gap
-          // and filled them into a solid block.
-          const hPrev = h(unknown[i - 1]?.length ?? 0);
-          const hNext = h(unknown[i + 1]?.length ?? 0);
+          // and filled them into a solid block. The risers read the TWEENED
+          // neighbours, so the staircase stays welded to the band it traces.
+          const hPrev = h(drawnUnknown[i - 1] ?? 0);
+          const hNext = h(drawnUnknown[i + 1] ?? 0);
           return (
             <g key={k}>
               {u.length > 0 && (
@@ -178,7 +205,7 @@ export function ViewingVelocity() {
                     y1={base - hU + ins}
                     x2={x + wpx}
                     y2={base - hU + ins}
-                    stroke={INK.primary}
+                    stroke={tokens.ink.primary}
                     strokeWidth={NO_DATA_STROKE}
                   />
                   {hU > hPrev && (
@@ -187,7 +214,7 @@ export function ViewingVelocity() {
                       y1={base - hU}
                       x2={x + ins}
                       y2={base - hPrev}
-                      stroke={INK.primary}
+                      stroke={tokens.ink.primary}
                       strokeWidth={NO_DATA_STROKE}
                     />
                   )}
@@ -197,7 +224,7 @@ export function ViewingVelocity() {
                       y1={base - hU}
                       x2={x + wpx - ins}
                       y2={base - hNext}
-                      stroke={INK.primary}
+                      stroke={tokens.ink.primary}
                       strokeWidth={NO_DATA_STROKE}
                     />
                   )}
@@ -205,9 +232,9 @@ export function ViewingVelocity() {
               )}
               <rect
                 x={x}
-                y={base - hU - h(c.length)}
+                y={base - hU - h(drawnCounted[i])}
                 width={wpx}
-                height={h(c.length)}
+                height={h(drawnCounted[i])}
                 fill={picked ? accent : FADE}
               />
               <rect
@@ -232,7 +259,7 @@ export function ViewingVelocity() {
               x={ML + i * step}
               y={H - 3}
               fontSize={8}
-              fill={INK.muted}
+              fill={tokens.ink.muted}
               pointerEvents="none"
             >
               {k.slice(0, 4)}

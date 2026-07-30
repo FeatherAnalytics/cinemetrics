@@ -17,20 +17,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ingest.csvio import dict_writer  # noqa: E402
-from ingest.enrich import build_enrichment_row  # noqa: E402
+from ingest.csvio import write_rows  # noqa: E402
+from ingest.enrich import FILM_CSV_COLUMNS, build_enrichment_row  # noqa: E402
 
 OMDB = ROOT / "data" / "raw" / "omdb"
 TMDB = ROOT / "data" / "raw" / "tmdb"
 LOG = ROOT / "transform" / "seeds" / "film_log.csv"
 OUT = ROOT / "transform" / "seeds" / "film_enrichment.csv"
-
-COLUMNS = [
-    "tmdb_id", "imdb_id", "genres", "keywords", "runtime", "budget", "revenue",
-    "metascore", "rt_rating", "imdb_rating", "imdb_votes", "box_office",
-    "director", "actors", "rated", "production_countries",
-    "original_language", "collection",
-]
 
 
 def tmdb_by_id() -> dict[int, dict]:
@@ -77,10 +70,7 @@ def main() -> None:
             )
 
     rows = sorted(seen.values(), key=lambda r: int(r["tmdb_id"]))
-    with open(OUT, "w", encoding="utf-8", newline="") as f:
-        writer = dict_writer(f, COLUMNS)
-        writer.writeheader()
-        writer.writerows(rows)
+    write_rows(OUT, rows, FILM_CSV_COLUMNS, strict=True)
 
     n_country = sum(1 for r in rows if r["production_countries"])
     print(f"wrote {OUT.relative_to(ROOT)}: {len(rows)} films, {n_country} with countries")

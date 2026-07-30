@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { GENRE_COLORS, GENRE_ORDER, INK, primaryGenre, type GenreKey } from "@/lib/palette";
+import { GENRE_ORDER, primaryGenre, type GenreKey } from "@/lib/palette";
+import { hairline, useTheme } from "@/lib/theme";
 import { useWidth } from "@/lib/useWidth";
 import { ChartTakeaway } from "../ChartTakeaway";
 import type { WatchlistFilm } from "@/lib/types";
@@ -29,6 +30,7 @@ const STACK_ORDER = [...GENRE_ORDER, "Other"] as GenreKey[];
  */
 export function WatchlistBarcode() {
   const { filteredWatchlist, selectedId, setSelected } = useExplorer();
+  const { tokens } = useTheme();
   const [ref, W] = useWidth(W0, W_MIN);
   const [hover, setHover] = useState<WatchlistFilm | null>(null);
 
@@ -72,8 +74,11 @@ export function WatchlistBarcode() {
   if (years.length === 0) {
     return (
       <div
-        className="rounded-md border border-dashed px-4 py-6 text-sm text-[#67655f]"
-        style={{ borderColor: "rgba(11,11,11,0.15)" }}
+        className="rounded-md border border-dashed px-4 py-6 text-sm"
+        style={{
+          color: tokens.ink.muted,
+          borderColor: hairline(tokens.ink.primary, 15),
+        }}
       >
         No films match the current filters.
       </div>
@@ -115,7 +120,7 @@ export function WatchlistBarcode() {
                 y={plotH + 14}
                 textAnchor="middle"
                 fontSize={9}
-                fill={INK.muted}
+                fill={tokens.ink.muted}
               >
                 {y}
               </text>
@@ -136,11 +141,11 @@ export function WatchlistBarcode() {
                   y={plotH - (k + 1) * brickH}
                   width={brickW}
                   height={Math.max(brickH - 0.5, 1)}
-                  fill={GENRE_COLORS[primaryGenre(f)]}
+                  fill={tokens.genre[primaryGenre(f)]}
                   // Full opacity throughout: semi-transparent marks composite
                   // where they meet and invent shades the genre scale lacks.
                   opacity={hover == null || isHover || isPicked ? 1 : 0.25}
-                  stroke={isPicked ? INK.primary : "none"}
+                  stroke={isPicked ? tokens.ink.primary : "none"}
                   strokeWidth={isPicked ? 1 : 0}
                   style={{ cursor: "pointer" }}
                   onMouseOver={() => setHover(f)}
@@ -153,7 +158,7 @@ export function WatchlistBarcode() {
             });
           })}
 
-          <line x1={ML} y1={plotH} x2={ML + plotW} y2={plotH} stroke={INK.grid} strokeWidth={0.75} />
+          <line x1={ML} y1={plotH} x2={ML + plotW} y2={plotH} stroke={tokens.ink.grid} strokeWidth={0.75} />
         </svg>
       </div>
 
@@ -163,10 +168,14 @@ export function WatchlistBarcode() {
         {STACK_ORDER.filter((g) =>
           [...byYear.values()].some((list) => list.some((f) => primaryGenre(f) === g)),
         ).map((g) => (
-          <span key={g} className="flex items-center gap-1 text-[10px] text-[#67655f]">
+          <span
+            key={g}
+            className="flex items-center gap-1 text-[10px]"
+            style={{ color: tokens.ink.muted }}
+          >
             <span
               className="inline-block h-2 w-2 rounded-full"
-              style={{ background: GENRE_COLORS[g] }}
+              style={{ background: tokens.genre[g] }}
             />
             {g}
           </span>
@@ -174,7 +183,7 @@ export function WatchlistBarcode() {
       </div>
 
       {/* Readout in its own strip, fixed height so the page does not jump. */}
-      <p className="mt-1 h-4 text-xs text-[#67655f]">
+      <p className="mt-1 h-4 text-xs" style={{ color: tokens.ink.muted }}>
         {hover
           ? `${hover.title} (${hover.year}) · ${primaryGenre(hover)}${
               hover.released ? ` · released ${hover.released}` : ""

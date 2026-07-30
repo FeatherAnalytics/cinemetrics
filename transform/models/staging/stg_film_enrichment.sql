@@ -21,6 +21,9 @@ select
     rated,
     production_countries,
     original_language,
-    collection
+    collection,
+    -- TMDB image path. Empty string normalised to NULL so "no poster" is one
+    -- value rather than two.
+    nullif(poster_path, '')          as poster_path
 from {{ ref('film_enrichment') }}
 where tmdb_id is not null

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import {
   chicagoParts,
   calendarDaysPerMonth,
@@ -31,6 +31,7 @@ import { accentFor, isPicked, pickWatches } from "./pick";
  */
 export function MonthlyPace() {
   const { all, filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<number | null>(null);
 
   const model = useMemo(() => {
@@ -54,10 +55,17 @@ export function MonthlyPace() {
     return { counts, byMonth, exposure, avg };
   }, [all, filtered]);
 
-  const bars: CategoryBar[] = MONTH_ABBR.map((label, i) => ({
-    label,
-    value: model.exposure[i] ? model.counts[i] / model.exposure[i] : 0,
-  }));
+  // Memoised because `CategoryBars` tweens these and compares the array by
+  // identity, and this component re-renders on every hover. The value stays
+  // the RATE: only the label inverts it. See the note above.
+  const bars: CategoryBar[] = useMemo(
+    () =>
+      MONTH_ABBR.map((label, i) => ({
+        label,
+        value: model.exposure[i] ? model.counts[i] / model.exposure[i] : 0,
+      })),
+    [model],
+  );
 
   const activeIndex = model.byMonth.findIndex((ws) => isPicked(ws, filters.selection));
 
@@ -73,12 +81,12 @@ export function MonthlyPace() {
           cumulative chart. There is no `<title>` anywhere in this chart. */}
       <div
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
-        style={{ color: INK.muted }}
+        style={{ color: tokens.ink.muted }}
       >
         {hover != null && model.avg[hover] != null ? (
           <>
             {MONTH_ABBR[hover]} avg{" "}
-            <span style={{ color: INK.primary }}>
+            <span style={{ color: tokens.ink.primary }}>
               {(model.avg[hover]! / 20).toFixed(1)}★
             </span>
           </>
@@ -89,7 +97,7 @@ export function MonthlyPace() {
       <CategoryBars
         bars={bars}
         fmt={paceLabel}
-        accent={accentFor(filters.genres)}
+        accent={accentFor(filters.genres, tokens)}
         active={activeIndex >= 0 ? activeIndex : null}
         onHover={setHover}
         onPick={(i) => pickWatches(model.byMonth[i], filters.selection, setSelection)}

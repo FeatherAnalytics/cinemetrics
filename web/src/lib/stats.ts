@@ -1,3 +1,4 @@
+import { hasKnownRewatchState } from "./statsChart";
 import type { EnrichedWatch, Film } from "./types";
 
 export function computeScreenTime(watches: EnrichedWatch[]): number {
@@ -27,29 +28,16 @@ export function computeAvgRating(watches: EnrichedWatch[]): AvgRatingResult {
 }
 
 /**
- * Whether a watch actually recorded its rewatch state.
- *
- * The 129 pre-Letterboxd rows carry `rewatch: false` because the Google Sheet had
- * no such column, not because they were first viewings: zero of the 129 are
- * flagged, against 31.0% across the 665 Letterboxd rows. So `false` there means
- * UNKNOWN, exactly like three-state `liked`.
- *
- * `liked == null` is the sheet-era marker, per the project invariant in
- * CLAUDE.md: NULL liked means unknown, and only those 129 rows have it. Using it
- * keeps this a per-row test, so it stays correct on any filtered subset. When the
- * upstream column is made nullable (D5e) this becomes a plain null check.
- */
-function hasKnownRewatchState(w: EnrichedWatch): boolean {
-  return w.liked != null;
-}
-
-/**
  * Share of watches that were rewatches, 0..1. Null when nothing recorded the field.
  *
- * Divides by rows that RECORDED the state, not by every row. Including the 129
- * sheet-era rows in the denominator understated the true rate by 5.1 points
- * (25.9% against 31.0%), the same way collapsing three-state `liked` understated
- * the affection rate by 7.5.
+ * Divides by the rows the data can answer for, per `hasKnownRewatchState`, not by
+ * every row. The predicate is imported rather than restated: this file held its
+ * own copy once, the two drifted apart, and the page rendered both answers at the
+ * same time.
+ *
+ * Sweeping all 129 sheet-era rows into the denominator understates the rate by
+ * 5.0 points (27.3% against 32.3%), the same way collapsing three-state `liked`
+ * understated the affection rate by 7.5.
  */
 export function computeRewatchShare(watches: EnrichedWatch[]): number | null {
   const known = watches.filter(hasKnownRewatchState);

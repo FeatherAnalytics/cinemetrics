@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, INK } from "@/lib/palette";
+import { hairline, useTheme } from "@/lib/theme";
 import { useDragRect, watchKey } from "@/lib/brush";
+import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import { useWidth } from "@/lib/useWidth";
 import { trunc } from "@/lib/format";
 import { buildSeries, DIMENSIONS, type Dimension, type Series } from "@/lib/series";
@@ -21,7 +22,6 @@ const MT = 12;
 const MB = 20; // bottom margin (x labels)
 const WINDOW = 10;
 
-const OVERALL_COLOR = "#a7a59c"; // muted neutral — a reference, not a category
 const LABEL_MAX = 18; // panel labels truncate shorter than the film-title default
 
 type SeriesPointLite = { x: number; y: number };
@@ -54,16 +54,40 @@ function PanelChart({
   setSelection: (keys: Set<string> | null) => void;
 }) {
   const [ref, w] = useWidth();
+  const { tokens } = useTheme();
+  // Muted neutral — a reference, not a category. Derived from the active
+  // theme, so it lives here rather than at module scope.
+  const OVERALL_COLOR = tokens.ink.axis;
   const { xMin, xMax, lo, hi, yTicks, overallAvg } = dom;
 
   const x = (n: number) => ML + ((n - xMin) / Math.max(1, xMax - xMin)) * (w - ML - MR);
   const y = (v: number) => MT + (1 - (v - lo) / (hi - lo || 1)) * (H - MT - MB);
   const xInv = (px: number) => xMin + ((px - ML) / Math.max(1, w - ML - MR)) * (xMax - xMin);
-  const line = (pts: SeriesPointLite[]) =>
-    pts.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.x)},${y(p.y)}`).join(" ");
-  const at = (pts: SeriesPointLite[], n: number) => pts.find((p) => p.x === n);
 
-  const hov = hoverX != null ? at(s.points, hoverX) : undefined;
+  /**
+   * The line's y positions in SCREEN space, not in rating space.
+   *
+   * A filter almost never leaves a panel's rating values alone while keeping
+   * its point count, so tweening the ratings would snap on the length change
+   * and move nothing on the rest. What actually shifts a surviving panel is the
+   * SHARED domain: toggle a genre, the other panels leave, `lo` and `hi` refit,
+   * and this line lands somewhere new having never changed a single rating.
+   * Tweening after the scale is what carries that.
+   *
+   * Memoised because `useAnimatedValues` compares by identity and a hover
+   * anywhere in the grid re-renders every panel.
+   */
+  const ys = useMemo(
+    () => s.points.map((p) => MT + (1 - (p.y - lo) / (hi - lo || 1)) * (H - MT - MB)),
+    [s.points, lo, hi],
+  );
+  const drawnY = useAnimatedValues(ys);
+
+  const line = (pts: SeriesPointLite[]) =>
+    pts.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.x)},${drawnY[i]}`).join(" ");
+
+  const hovIdx = hoverX != null ? s.points.findIndex((p) => p.x === hoverX) : -1;
+  const hov = hovIdx >= 0 ? s.points[hovIdx] : undefined;
 
   // x-range brush: the selection is every watch that fed the brushed data points,
   // i.e. positions [a-(window-1), b] of this series (each point is a trailing
@@ -95,10 +119,10 @@ function PanelChart({
 
   return (
     <figure className="m-0">
-      <figcaption className="mb-0.5 flex items-baseline gap-1.5 text-xs" style={{ color: INK.secondary }}>
+      <figcaption className="mb-0.5 flex items-baseline gap-1.5 text-xs" style={{ color: tokens.ink.secondary }}>
         <span className="inline-block rounded-sm" style={{ width: 12, height: 2.5, background: s.color }} />
         <span className="font-medium">{trunc(s.label, LABEL_MAX)}</span>
-        <span style={{ color: INK.muted }}>· {s.total}</span>
+        <span style={{ color: tokens.ink.muted }}>· {s.total}</span>
       </figcaption>
       <div ref={ref}>
         <svg
@@ -118,9 +142,9 @@ function PanelChart({
               y={MT}
               width={rect.x1 - rect.x0}
               height={H - MT - MB}
-              fill={ACCENT}
+              fill={tokens.accent}
               fillOpacity={0.1}
-              stroke={ACCENT}
+              stroke={tokens.accent}
               strokeOpacity={0.4}
               strokeWidth={1}
               pointerEvents="none"
@@ -128,18 +152,18 @@ function PanelChart({
           )}
           {yTicks.map((v) => (
             <g key={v}>
-              <line x1={ML} y1={y(v)} x2={w - MR} y2={y(v)} stroke={INK.grid} strokeWidth={0.75} />
-              <text x={ML - 5} y={y(v)} fill={INK.muted} fontSize={10} textAnchor="end" dominantBaseline="middle">
+              <line x1={ML} y1={y(v)} x2={w - MR} y2={y(v)} stroke={tokens.ink.grid} strokeWidth={0.75} />
+              <text x={ML - 5} y={y(v)} fill={tokens.ink.muted} fontSize={10} textAnchor="end" dominantBaseline="middle">
                 {v}
               </text>
             </g>
           ))}
 
-          <text x={ML} y={H - 5} fill={INK.muted} fontSize={10} textAnchor="start">{xMin}</text>
-          <text x={w - MR} y={H - 5} fill={INK.muted} fontSize={10} textAnchor="end">{xMax}</text>
+          <text x={ML} y={H - 5} fill={tokens.ink.muted} fontSize={10} textAnchor="start">{xMin}</text>
+          <text x={w - MR} y={H - 5} fill={tokens.ink.muted} fontSize={10} textAnchor="end">{xMax}</text>
 
           {hoverX != null && (
-            <line x1={x(hoverX)} y1={MT} x2={x(hoverX)} y2={H - MB} stroke={INK.axis} strokeWidth={0.75} strokeDasharray="2 2" />
+            <line x1={x(hoverX)} y1={MT} x2={x(hoverX)} y2={H - MB} stroke={tokens.ink.axis} strokeWidth={0.75} strokeDasharray="2 2" />
           )}
 
           {overallAvg != null && (
@@ -155,7 +179,9 @@ function PanelChart({
           )}
           <path d={line(s.points)} fill="none" stroke={s.color} strokeWidth={2.25} strokeLinejoin="round" strokeLinecap="round" />
 
-          {hov && <circle cx={x(hov.x)} cy={y(hov.y)} r={3.2} fill={s.color} stroke={INK.surface} strokeWidth={1} />}
+          {/* Rides the drawn line, not the settled one, so it cannot float off
+              the stroke mid-tween. The READOUT below stays on the target. */}
+          {hov && <circle cx={x(hov.x)} cy={drawnY[hovIdx]} r={3.2} fill={s.color} stroke={tokens.ink.surface} strokeWidth={1} />}
 
           {hov && (
             <text
@@ -177,6 +203,10 @@ function PanelChart({
 
 export function RollingRating() {
   const { all, filtered, setSelection, rollingDimension, heartLens } = useExplorer();
+  const { tokens } = useTheme();
+  // Muted neutral — a reference, not a category. Derived from the active
+  // theme, so it lives here rather than at module scope.
+  const OVERALL_COLOR = tokens.ink.axis;
   // A story's rollingDimension only SEEDS the switcher (adjusted during render
   // as it changes); the user can still regroup to drill into the story.
   const [localDim, setLocalDim] = useState<Dimension>("genre");
@@ -201,8 +231,8 @@ export function RollingRating() {
   );
 
   const series = useMemo(
-    () => buildSeries(lensAll, lensFiltered, dim, { window: WINDOW }),
-    [lensAll, lensFiltered, dim],
+    () => buildSeries(lensAll, lensFiltered, dim, { window: WINDOW }, { genre: tokens.genre, ink: tokens.ink }),
+    [lensAll, lensFiltered, dim, tokens],
   );
 
   const panels = useMemo(() => series.filter((s) => !s.isOverall), [series]);
@@ -233,7 +263,7 @@ export function RollingRating() {
   }, [panels, lensFiltered]);
 
   if (panels.length === 0) {
-    return <p className="text-sm" style={{ color: INK.muted }}>Not enough rated watches to plot.</p>;
+    return <p className="text-sm" style={{ color: tokens.ink.muted }}>Not enough rated watches to plot.</p>;
   }
 
   return (
@@ -242,7 +272,10 @@ export function RollingRating() {
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <div
           className="flex flex-wrap overflow-hidden rounded-full border text-sm"
-          style={{ borderColor: "rgba(11,11,11,0.18)", width: "fit-content" }}
+          style={{
+            borderColor: hairline(tokens.ink.primary, 18),
+            width: "fit-content",
+          }}
           role="group"
           aria-label="Group the panels by"
         >
@@ -253,15 +286,15 @@ export function RollingRating() {
               aria-pressed={dim === d.key}
               className="px-3 py-1 capitalize transition"
               style={{
-                background: dim === d.key ? ACCENT : "transparent",
-                color: dim === d.key ? INK.surface : INK.secondary,
+                background: dim === d.key ? tokens.ui.active : "transparent",
+                color: dim === d.key ? tokens.ui.activeText : tokens.ink.secondary,
               }}
             >
               {d.label}
             </button>
           ))}
         </div>
-        <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: INK.muted }}>
+        <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: tokens.ink.muted }}>
           <span
             className="inline-block"
             style={{ width: 14, borderTop: `2px dashed ${OVERALL_COLOR}` }}
@@ -288,7 +321,7 @@ export function RollingRating() {
         ))}
       </div>
 
-      <p className="mt-2 font-mono text-xs" style={{ color: INK.muted }}>
+      <p className="mt-2 font-mono text-xs" style={{ color: tokens.ink.muted }}>
         trailing {WINDOW}-watch mean of my rating · x = nth watch in that group (starts at the {WINDOW}th)
       </p>
     </div>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import {
   ceilTo,
   chicagoParts,
@@ -27,7 +27,6 @@ const ML = 34;
 // where the curves are always near zero and the space is dead anyway.
 const MR = 12;
 const MB = 22;
-const FADE = "#b3b1a6";
 
 // Standings overlay geometry, in plot coordinates.
 const LEG_X = 6; // inset from the y-axis
@@ -50,9 +49,11 @@ const LEG_VAL_W = 26; // the count, right aligned
  */
 export function ViewingsToDate() {
   const { filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
+  const FADE = tokens.ink.mark;
   const [hover, setHover] = useState<number | null>(null);
   const [ref, W] = useWidth(W0, W_MIN);
-  const accent = accentFor(filters.genres);
+  const accent = accentFor(filters.genres, tokens);
 
   const years = useMemo(() => {
     const daily = new Map<number, number[]>();
@@ -157,9 +158,9 @@ export function ViewingsToDate() {
     <div ref={ref}>
       <div
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
-        style={{ color: INK.muted }}
+        style={{ color: tokens.ink.muted }}
       >
-        watches to <span style={{ color: INK.primary }}>{hoverLabel}</span>
+        watches to <span style={{ color: tokens.ink.primary }}>{hoverLabel}</span>
       </div>
       <svg
         width={W}
@@ -171,14 +172,14 @@ export function ViewingsToDate() {
       >
         {ticksEvery(scaleMax, TICK_STEP).map((v) => (
           <g key={v}>
-            <line x1={ML} y1={y(v)} x2={W - MR} y2={y(v)} stroke="#eee" />
-            <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill={INK.muted}>
+            <line x1={ML} y1={y(v)} x2={W - MR} y2={y(v)} stroke={tokens.ink.grid} strokeOpacity={0.4} />
+            <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill={tokens.ink.muted}>
               {v}
             </text>
           </g>
         ))}
         {LEAP_OFFSETS.map((off, m) => (
-          <text key={m} x={x(off)} y={H - 6} textAnchor="start" fontSize={8} fill={INK.muted}>
+          <text key={m} x={x(off)} y={H - 6} textAnchor="start" fontSize={8} fill={tokens.ink.muted}>
             {MONTH_ABBR[m]}
           </text>
         ))}
@@ -188,7 +189,7 @@ export function ViewingsToDate() {
             y1={0}
             x2={x(hover)}
             y2={H - MB}
-            stroke={INK.primary}
+            stroke={tokens.ink.primary}
             strokeWidth={0.75}
             pointerEvents="none"
           />

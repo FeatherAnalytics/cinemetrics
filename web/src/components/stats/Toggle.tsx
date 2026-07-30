@@ -1,6 +1,6 @@
 "use client";
 
-import { ACCENT, INK } from "@/lib/palette";
+import { hairline, useTheme } from "@/lib/theme";
 
 /**
  * The pill switcher, matching the one on "Warming up or wearing out".
@@ -20,10 +20,14 @@ export function Toggle<T extends string>({
   onChange: (v: T) => void;
   label: string;
 }) {
+  const { tokens } = useTheme();
   return (
     <div
       className="flex flex-wrap overflow-hidden rounded-full border text-xs"
-      style={{ borderColor: "rgba(11,11,11,0.18)", width: "fit-content" }}
+      style={{
+        borderColor: hairline(tokens.ink.primary, 18),
+        width: "fit-content",
+      }}
       role="group"
       aria-label={label}
     >
@@ -34,8 +38,8 @@ export function Toggle<T extends string>({
           aria-pressed={value === o}
           className="px-3 py-0.5 capitalize transition"
           style={{
-            background: value === o ? ACCENT : "transparent",
-            color: value === o ? INK.surface : INK.secondary,
+            background: value === o ? tokens.ui.active : "transparent",
+            color: value === o ? tokens.ui.activeText : tokens.ink.secondary,
           }}
         >
           {o}

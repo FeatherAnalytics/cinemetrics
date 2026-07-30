@@ -271,7 +271,7 @@ type ExplorerValue = {
   activeStory: string | null;
   storyResult: StoryResult | null;
   storyFocus: { primary: ChartId; emphasize: ChartId[]; dim: ChartId[] } | null;
-  storyHeadlines: { id: string; label: string; headline: string; chip: string }[];
+  storyHeadlines: ReturnType<typeof computeStoryHeadlines>;
   /**
    * Whether the favorites story is running, and with it the heart vocabulary.
    *

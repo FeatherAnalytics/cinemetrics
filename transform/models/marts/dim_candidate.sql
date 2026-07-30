@@ -23,7 +23,8 @@ select
     production_countries,
     rated,
     original_language,
-    collection
+    collection,
+    poster_path
 from {{ ref('stg_candidate_enrichment') }} c
 where not exists (
     select 1 from {{ ref('dim_film') }} f where f.tmdb_id = c.tmdb_id

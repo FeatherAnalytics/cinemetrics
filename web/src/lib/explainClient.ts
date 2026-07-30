@@ -26,27 +26,33 @@ export function explainRecommendation(
   target: CandidateMetadata,
   genreAffinities: Record<string, number>,
 ): Reason[] {
-  if (!source) return [];
   const reasons: Reason[] = [];
 
-  const sourceKw = new Set(getKeywords(source));
-  const targetKw = new Set(splitComma(target.keywords));
-  const sharedKw = [...sourceKw].filter((k) => targetKw.has(k));
-  if (sharedKw.length > 0) {
-    reasons.push({
-      type: "keywords",
-      text: `Keywords: ${sharedKw.slice(0, 3).join(", ")}`,
-    });
-  }
+  // Keywords and a shared director are comparisons, so they exist only in
+  // "similar" mode. The drawer's DEFAULT mode carries no source at all --
+  // `sourceTmdbId` is null unless a film was clicked -- and returning early on
+  // that threw away the genre reason below, which needs no source. The result
+  // was a drawer that never explained itself in the mode most readers open.
+  if (source) {
+    const sourceKw = new Set(getKeywords(source));
+    const targetKw = new Set(splitComma(target.keywords));
+    const sharedKw = [...sourceKw].filter((k) => targetKw.has(k));
+    if (sharedKw.length > 0) {
+      reasons.push({
+        type: "keywords",
+        text: `Keywords: ${sharedKw.slice(0, 3).join(", ")}`,
+      });
+    }
 
-  const sourceDirs = splitComma(getDirector(source));
-  const targetDirs = splitComma(target.director);
-  const sharedDirs = sourceDirs.filter((d) => targetDirs.includes(d));
-  if (sharedDirs.length > 0) {
-    reasons.push({
-      type: "director",
-      text: `Director: ${sharedDirs[0]}`,
-    });
+    const sourceDirs = splitComma(getDirector(source));
+    const targetDirs = splitComma(target.director);
+    const sharedDirs = sourceDirs.filter((d) => targetDirs.includes(d));
+    if (sharedDirs.length > 0) {
+      reasons.push({
+        type: "director",
+        text: `Director: ${sharedDirs[0]}`,
+      });
+    }
   }
 
   const targetGenres = splitComma(target.genres);

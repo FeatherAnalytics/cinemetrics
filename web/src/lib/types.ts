@@ -18,6 +18,18 @@ export type Film = {
   rated: string | null; // MPAA content rating (G/PG/PG-13/R/…)
   language: string | null; // TMDB original_language (ISO 639-1)
   collection: string | null; // TMDB franchise/collection name, if any
+  /**
+   * TMDB poster path, e.g. "/abc123.jpg", or null when TMDB serves none.
+   * Build the URL with posterUrl() in lib/fourFavs.ts — the CDN host and size
+   * segment are a rendering choice, not data.
+   */
+  poster: string | null;
+  /**
+   * 20 RGB stops sampled down the poster, packed as 120 hex characters with no
+   * separators. Drawn by the landing-page barcode. Null when the film has no
+   * poster.
+   */
+  slice: string | null;
 };
 
 export type Watch = {
@@ -25,7 +37,23 @@ export type Watch = {
   tmdb_id: number;
   rating: number | null;
   stars: number | null;
+  /**
+   * Was this viewing a rewatch — the recorded flag OR the film's watch order.
+   *
+   * The flag alone reads every sheet-era return as a first viewing, because the
+   * Google Sheet had no such field. The order alone misses a film whose only row
+   * is flagged, where the original viewing predates the dataset. Derived as the
+   * union in `fct_watches`.
+   */
   rewatch: boolean;
+  /**
+   * Whether an earlier watch of this same film exists in the dataset.
+   *
+   * Narrower than `rewatch` and knowable for every row regardless of era, which
+   * is what lets `computeRewatchShare` tell a sheet-era row it can measure from
+   * one it cannot.
+   */
+  returned: boolean;
   /**
    * The Letterboxd heart. Carried on the watch, but a property of the FILM:
    * hearting is a single toggle per film, stamped onto every diary entry for
@@ -101,15 +129,18 @@ export type EnrichedWatch = Watch & {
    * otherwise the value carried by another watch of the SAME FILM.
    *
    * Because hearting is one toggle per film rather than per viewing, a sheet-era
-   * row whose film was watched again later is not unknown at all. That recovers 31
-   * of the 129 rows and moves the affection rate from 46.3% to 47.3%.
+   * row whose film was watched again later is not unknown at all. That recovers 32
+   * of the 129 rows and moves the affection rate from 46.2% to 47.1%.
    *
-   * Still null for the 98 rows whose films were never watched again, so this is
+   * Still null for the 97 rows whose films were never watched again, so this is
    * narrower than `liked` in meaning and wider in coverage. Rates use THIS field;
    * `liked` stays exactly as the pipeline recorded it.
    *
-   * ⚠️ NOT an era marker. `hasKnownRewatchState` keys off raw `liked` on purpose:
-   * these 31 rows are still sheet-era and still recorded no rewatch flag.
+   * ⚠️ NOT an era marker, so `hasKnownRewatchState` never reads it. That
+   * predicate takes raw `liked`, widened by `returned` rather than by the heart:
+   * a recovered heart says only that the FILM was seen again, which is evidence
+   * about affection and none at all about whether the row recorded a rewatch
+   * flag. These rows are still sheet-era and still recorded none.
    */
   heart: boolean | null;
 };

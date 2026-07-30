@@ -1,10 +1,57 @@
 @import "tailwindcss";
 
-/* Committed to a light surface (the Explorer is a tool; legibility wins). */
-:root {
-  --background: #f7f6f3;
+/* Light by default, dark on request (system preference, or the toggle).
+   Page ground is the recessed "well" tone; chart sections sit on the raised
+   "card" tone (--surface-card) so the page has depth without any chart
+   needing a colour. `data-theme` (set by ThemeProvider) wins over the media
+   query in both directions, so an explicit choice always beats the OS: an
+   explicit light is excluded from the media query by its own selector, and an
+   explicit dark is reasserted below it. Charts still read their own JS token
+   set (lib/palette.ts) rather than these variables — the two are kept in step
+   by hand, not by a shared source. */
+:root,
+:root[data-theme="light"] {
+  --background: #eeece4;
+  --surface-card: #fdfdfb;
+  --surface-paper: #f7f6f3;
   --foreground: #0b0b0b;
   color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #131210;
+    --surface-card: #1c1b17;
+    --surface-paper: #171613;
+    --foreground: #f2f0ea;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --background: #131210;
+  --surface-card: #1c1b17;
+  --surface-paper: #171613;
+  --foreground: #f2f0ea;
+  color-scheme: dark;
+}
+
+/* The left column, shared by the landing page's filter rail and the lab's
+   section rail. Two different payloads, one geometry: the pages only read as
+   one site if the content column starts at the same x on both, so the width
+   lives here once instead of as a utility class each page could drift from.
+
+   A custom property and a media query rather than an inline style, because the
+   value is breakpoint-dependent: below lg neither page has a rail. The landing
+   page's aside is a drawer at that width and the lab's is a card in the flow,
+   so this rule deliberately says nothing about the small screen. */
+:root {
+  --rail-width: 18rem;
+}
+@media (min-width: 64rem) {
+  .rail-column {
+    width: var(--rail-width);
+    flex-shrink: 0;
+  }
 }
 
 @theme inline {

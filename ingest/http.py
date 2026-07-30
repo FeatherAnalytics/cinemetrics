@@ -89,7 +89,8 @@ def _get_json(
                     "script, so running from outside the repo finds no key at all."
                 )
             if resp.status_code == 429:
-                time.sleep(2 + attempt)
+                if attempt < attempts - 1:
+                    time.sleep(2 + attempt)
                 continue
         except requests.exceptions.SSLError as exc:
             # Must be caught before RequestException, which is its parent.
@@ -99,7 +100,9 @@ def _get_json(
                 continue  # retry at once, now verifying against the OS store
         except requests.RequestException:
             pass
-        time.sleep(1 + attempt)
+        # No backoff after the last attempt: nothing follows it to back off for.
+        if attempt < attempts - 1:
+            time.sleep(1 + attempt)
     if ssl_failures == attempts and last_ssl is not None:
         raise RuntimeError(
             f"TLS verification failed for {url} on every attempt. If this machine "
@@ -118,6 +121,38 @@ def tmdb_get(path: str, *, api_key: str | None, fetch: Fetch = requests.get, **p
 def omdb_get(imdb_id: str, *, api_key: str | None, fetch: Fetch = requests.get) -> dict:
     """GET the OMDb record for an imdb_id with retry/backoff handling."""
     return _get_json(OMDB_BASE, {"i": imdb_id, "apikey": api_key}, fetch=fetch)
+
+
+def get_bytes(
+    url: str, *, fetch: Fetch = requests.get, attempts: int = 3, timeout: int = 20
+) -> bytes:
+    """GET a binary asset, with the same OS-trust recovery as the JSON helpers.
+
+    Deliberately not routed through ``_get_json``: the poster CDN is a static
+    file host with no API key, no 401 semantics and no 429 budget, so the parts
+    of that function worth sharing are the trust-store retry and the backoff,
+    not its response handling.
+
+    Returns b"" when every attempt fails, mirroring ``_get_json``'s empty-dict
+    contract — the caller decides whether an absent asset is fatal.
+    """
+    for attempt in range(attempts):
+        try:
+            resp = fetch(url, timeout=timeout)
+            if resp.status_code == 200:
+                return resp.content
+        except requests.exceptions.SSLError:
+            # Must be caught before RequestException, which is its parent.
+            if _ensure_os_trust():
+                continue
+        except requests.RequestException:
+            pass
+        # No backoff after the last attempt. Unguarded, a poster the CDN will
+        # never serve idled here for three seconds past the point of giving up,
+        # once per film, in a loop that runs over the whole catalogue.
+        if attempt < attempts - 1:
+            time.sleep(1 + attempt)
+    return b""
 
 
 def cached_json(

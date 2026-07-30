@@ -91,9 +91,21 @@ export function rankMulti(
      * logic behind it. Untracked genres take the neutral instead.
      */
     colorBy?: "dominant" | "self";
+    /**
+     * The genre colour map, defaulted to the light set so pure callers (tests,
+     * the story headline in stories.ts, which only reads `label`/`count`) see
+     * the same colours this always returned; charts pass the active theme's.
+     */
+    genreColors?: Record<GenreKey, string>;
   } = {},
 ): RankedBar[] {
-  const { limit = 10, minCount = 1, label = (k) => k, colorBy = "dominant" } = opts;
+  const {
+    limit = 10,
+    minCount = 1,
+    label = (k) => k,
+    colorBy = "dominant",
+    genreColors = GENRE_COLORS,
+  } = opts;
   const members = new Map<string, WatchlistFilm[]>();
   for (const f of films) {
     // A value listed twice on one film still counts once: the question is how
@@ -122,26 +134,44 @@ export function rankMulti(
         label: label(key),
         count: fs.length,
         genre,
-        color: GENRE_COLORS[genre],
+        color: genreColors[genre],
       };
     });
 }
 
-export function genreBars(films: WatchlistFilm[], limit = 10): RankedBar[] {
+export function genreBars(
+  films: WatchlistFilm[],
+  limit = 10,
+  genreColors?: Record<GenreKey, string>,
+): RankedBar[] {
   // Canonicalised so the one watchlist film TMDB tagged "Sci-Fi" joins the 25
   // tagged "Science Fiction" instead of ranking as its own one-film bar — and so
   // the bar's key matches the key the rating deviation is stored under.
-  return rankMulti(films, (f) => f.genres.map(canonicalGenre), { limit, colorBy: "self" });
+  return rankMulti(films, (f) => f.genres.map(canonicalGenre), {
+    limit,
+    colorBy: "self",
+    genreColors,
+  });
 }
 
-export function keywordBars(films: WatchlistFilm[], limit = 12, minCount = 3): RankedBar[] {
-  return rankMulti(films, (f) => f.keywords, { limit, minCount });
+export function keywordBars(
+  films: WatchlistFilm[],
+  limit = 12,
+  minCount = 3,
+  genreColors?: Record<GenreKey, string>,
+): RankedBar[] {
+  return rankMulti(films, (f) => f.keywords, { limit, minCount, genreColors });
 }
 
-export function countryBars(films: WatchlistFilm[], limit = 10): RankedBar[] {
+export function countryBars(
+  films: WatchlistFilm[],
+  limit = 10,
+  genreColors?: Record<GenreKey, string>,
+): RankedBar[] {
   return rankMulti(films, (f) => f.production_countries, {
     limit,
     label: (iso) => countryName(iso),
+    genreColors,
   });
 }
 
@@ -149,10 +179,15 @@ export function countryBars(films: WatchlistFilm[], limit = 10): RankedBar[] {
  * Language is single-valued, so it goes through the same ranker with a one-item
  * list rather than a second counting path that could disagree with the first.
  */
-export function languageBars(films: WatchlistFilm[], limit = 10): RankedBar[] {
+export function languageBars(
+  films: WatchlistFilm[],
+  limit = 10,
+  genreColors?: Record<GenreKey, string>,
+): RankedBar[] {
   return rankMulti(films, (f) => (f.language ? [f.language] : []), {
     limit,
     label: languageName,
+    genreColors,
   });
 }
 
@@ -164,17 +199,25 @@ export function languageBars(films: WatchlistFilm[], limit = 10): RankedBar[] {
  * only sometimes. Stating the count is the only honest way to use "waiting" in
  * the headline.
  */
+/**
+ * The release year a film has to fall below to count as pre-millennium.
+ *
+ * Exported because the story headline names it in prose, and a threshold written
+ * out there would go on describing this cutoff after it moved.
+ */
+export const PRE_MILLENNIUM = 2000;
+
 export function watchlistSummary(films: WatchlistFilm[]) {
   const years = films.map((f) => f.year).filter((y): y is number => y != null);
   const watched = films.filter((f) => f.watched).length;
-  const preMillennium = years.filter((y) => y < 2000).length;
+  const preMillennium = years.filter((y) => y < PRE_MILLENNIUM).length;
   return {
     total: films.length,
     watched,
     unwatched: films.length - watched,
     oldest: years.length ? Math.min(...years) : null,
     newest: years.length ? Math.max(...years) : null,
-    // Share of the list that predates 2000, the shape that actually
+    // Share of the list that predates the cutoff, the shape that actually
     // distinguishes this list. Of the whole list, not of the dated subset:
     // every row currently carries a year, and the two agree.
     preMillenniumShare: films.length ? preMillennium / films.length : 0,

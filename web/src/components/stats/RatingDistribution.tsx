@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { ratingsByStarBin, starLabel, STAR_BINS } from "@/lib/likedChart";
 import { CategoryBars } from "./CategoryBars";
 import { accentFor, isPicked, pickWatches } from "./pick";
@@ -25,15 +25,21 @@ import { accentFor, isPicked, pickWatches } from "./pick";
  */
 export function RatingDistribution() {
   const { filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
   const [hover, setHover] = useState<number | null>(null);
 
   const groups = useMemo(() => ratingsByStarBin(filtered), [filtered]);
-  const bars = groups.map((ws, i) => ({ label: starLabel(STAR_BINS[i]), value: ws.length }));
+  // Memoised, not built inline: `CategoryBars` tweens these and compares the
+  // array by identity, and this component re-renders on every hover.
+  const bars = useMemo(
+    () => groups.map((ws, i) => ({ label: starLabel(STAR_BINS[i]), value: ws.length })),
+    [groups],
+  );
   const total = groups.reduce((s, g) => s + g.length, 0);
 
   if (total === 0) {
     return (
-      <p className="text-sm" style={{ color: INK.muted }}>
+      <p className="text-sm" style={{ color: tokens.ink.muted }}>
         Nothing in view is rated.
       </p>
     );
@@ -50,7 +56,7 @@ export function RatingDistribution() {
           cannot give, since the axis is absolute. */}
       <div
         className="mb-1 font-mono text-[10px] uppercase tracking-wider"
-        style={{ color: INK.muted }}
+        style={{ color: tokens.ink.muted }}
       >
         {shown && hover != null
           ? `${starLabel(STAR_BINS[hover])} · ${((shown.length / total) * 100).toFixed(1)}% of my ratings`
@@ -58,7 +64,7 @@ export function RatingDistribution() {
       </div>
       <CategoryBars
         bars={bars}
-        accent={accentFor(filters.genres)}
+        accent={accentFor(filters.genres, tokens)}
         active={activeIndex >= 0 ? activeIndex : null}
         onPick={(i) => pickWatches(groups[i], filters.selection, setSelection)}
         onHover={setHover}
@@ -66,7 +72,7 @@ export function RatingDistribution() {
       />
       <div
         className="mt-1 text-center font-mono text-[10px] uppercase tracking-wider"
-        style={{ color: INK.muted }}
+        style={{ color: tokens.ink.muted }}
       >
         my rating
       </div>

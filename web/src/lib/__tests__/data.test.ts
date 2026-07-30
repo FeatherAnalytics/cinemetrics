@@ -22,6 +22,8 @@ describe("data type parsing", () => {
     rated: "R",
     language: "en",
     collection: null,
+    poster: null,
+    slice: null,
   };
 
   const sampleWatch: Watch = {
@@ -29,7 +31,7 @@ describe("data type parsing", () => {
     tmdb_id: 550,
     rating: 85,
     stars: 4,
-    rewatch: false,
+    rewatch: false, returned: false,
     liked: true,
   };
 
@@ -76,6 +78,8 @@ describe("data type parsing", () => {
       rated: null,
       language: null,
       collection: null,
+      poster: null,
+      slice: null,
     };
     expect(sparse.director).toBeNull();
     expect(sparse.metascore).toBeNull();
@@ -88,7 +92,7 @@ describe("data type parsing", () => {
       tmdb_id: 999,
       rating: null,
       stars: null,
-      rewatch: true,
+      rewatch: true, returned: false,
       liked: null,
     };
     expect(w.rating).toBeNull();
@@ -98,7 +102,7 @@ describe("data type parsing", () => {
   it("unlinked watch returns undefined from map", () => {
     const dataset: Dataset = {
       films: [sampleFilm],
-      watches: [{ date: "2024-01-01", tmdb_id: 99999, rating: 50, stars: 2.5, rewatch: false, liked: null }],
+      watches: [{ date: "2024-01-01", tmdb_id: 99999, rating: 50, stars: 2.5, rewatch: false, returned: false, liked: null }],
     };
     const byId = new Map(dataset.films.map((f) => [f.tmdb_id, f]));
     expect(byId.get(dataset.watches[0].tmdb_id)).toBeUndefined();

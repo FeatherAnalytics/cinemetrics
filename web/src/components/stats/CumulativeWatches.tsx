@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
-import { ACCENT, GENRE_COLORS, INK, primaryGenre, type GenreKey } from "@/lib/palette";
+import { primaryGenre, type GenreKey } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import { ceilTo, GENRE_ALPHA, monthSpan, ticksEvery } from "@/lib/statsChart";
 import { useWidth } from "@/lib/useWidth";
 import { accentFor } from "./pick";
@@ -12,7 +13,6 @@ const W_MIN = 300;
 const H = 260;
 const ML = 44;
 const MB = 24;
-const FADE = "#b3b1a6";
 
 type Band = {
   key: string;
@@ -39,6 +39,8 @@ type Band = {
  */
 export function CumulativeWatches() {
   const { all, filtered, filters } = useExplorer();
+  const { tokens } = useTheme();
+  const FADE = tokens.ink.mark;
   const [hover, setHover] = useState<number | null>(null);
   const [ref, W] = useWidth(W0, W_MIN);
 
@@ -73,7 +75,7 @@ export function CumulativeWatches() {
       bands.push(
         {
           key: only ? only.toLowerCase() : "selected",
-          color: only ? accentFor(new Set([only])) : ACCENT,
+          color: only ? accentFor(new Set([only]), tokens) : tokens.accent,
           running: blank(),
           sum: blank(),
           rated: blank(),
@@ -89,7 +91,7 @@ export function CumulativeWatches() {
       for (const g of GENRE_ALPHA) {
         bands.push({
           key: g.toLowerCase(),
-          color: GENRE_COLORS[g],
+          color: tokens.genre[g],
           running: blank(),
           sum: blank(),
           rated: blank(),
@@ -113,7 +115,7 @@ export function CumulativeWatches() {
     const live = bands.filter((b) => b.running[b.running.length - 1] > 0);
     const total = live.reduce((s, b) => s + b.running[b.running.length - 1], 0);
     return { months, bands: live, total, isFiltered };
-  }, [all, filtered, filters.genres]);
+  }, [all, filtered, filters.genres, tokens, FADE]);
 
   if (!model) return null;
   const { months, bands, total, isFiltered } = model;
@@ -176,7 +178,7 @@ export function CumulativeWatches() {
           The counts legend that used to sit below is folded in here. */}
       <div
         className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 font-mono text-[10px]"
-        style={{ color: INK.muted }}
+        style={{ color: tokens.ink.muted }}
       >
         <span className="uppercase tracking-wider">
           {isFiltered ? `${bands[0].key} vs rest` : "all films"}
@@ -199,8 +201,8 @@ export function CumulativeWatches() {
       >
         {ticksEvery(scaleMax, TICK_STEP).map((v) => (
           <g key={v}>
-            <line x1={ML} y1={y(v)} x2={W - 12} y2={y(v)} stroke="#eee" />
-            <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill={INK.muted}>
+            <line x1={ML} y1={y(v)} x2={W - 12} y2={y(v)} stroke={tokens.ink.grid} strokeOpacity={0.4} />
+            <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill={tokens.ink.muted}>
               {v}
             </text>
           </g>
@@ -215,7 +217,7 @@ export function CumulativeWatches() {
               y1={10}
               x2={x(hover)}
               y2={H - MB}
-              stroke={INK.primary}
+              stroke={tokens.ink.primary}
               strokeWidth={0.75}
               pointerEvents="none"
             />
@@ -228,7 +230,7 @@ export function CumulativeWatches() {
               textAnchor={hover > months.length * 0.85 ? "end" : "start"}
               fontSize={9}
               fontWeight={700}
-              fill={INK.primary}
+              fill={tokens.ink.primary}
               pointerEvents="none"
             >
               {months[hover]}
@@ -237,7 +239,7 @@ export function CumulativeWatches() {
         )}
         {months.map((m, i) =>
           m.endsWith("-01") ? (
-            <text key={m} x={x(i)} y={H - 6} textAnchor="middle" fontSize={9} fill={INK.muted}>
+            <text key={m} x={x(i)} y={H - 6} textAnchor="middle" fontSize={9} fill={tokens.ink.muted}>
               {m.slice(0, 4)}
             </text>
           ) : null,

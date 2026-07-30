@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { filterWatches, useExplorer } from "@/lib/store";
+import { hairline, useTheme } from "@/lib/theme";
 import { ratingDeltaByKey } from "@/lib/ratingDelta";
 import { keywordBars } from "@/lib/watchlistChart";
 import { ChartTakeaway } from "../ChartTakeaway";
@@ -26,9 +27,10 @@ const MIN_FILMS = 3;
  */
 export function WatchlistKeywords() {
   const { filteredWatchlist, all, filters, setKeyword } = useExplorer();
+  const { tokens } = useTheme();
   const bars = useMemo(
-    () => keywordBars(filteredWatchlist, 12, MIN_FILMS),
-    [filteredWatchlist],
+    () => keywordBars(filteredWatchlist, 12, MIN_FILMS, tokens.genre),
+    [filteredWatchlist, tokens.genre],
   );
 
 /**
@@ -55,8 +57,11 @@ export function WatchlistKeywords() {
   if (bars.length === 0) {
     return (
       <div
-        className="rounded-md border border-dashed px-4 py-6 text-sm text-[#67655f]"
-        style={{ borderColor: "rgba(11,11,11,0.15)" }}
+        className="rounded-md border border-dashed px-4 py-6 text-sm"
+        style={{
+          color: tokens.ink.muted,
+          borderColor: hairline(tokens.ink.primary, 15),
+        }}
       >
         No keyword is shared by {MIN_FILMS}+ films in this view. Widen the filters.
       </div>

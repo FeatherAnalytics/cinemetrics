@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useExplorer } from "@/lib/store";
-import { INK } from "@/lib/palette";
+import { useTheme } from "@/lib/theme";
 import {
   byStarBin,
   likedRate,
@@ -24,6 +24,7 @@ import { RateBars, type RateBar } from "./RateBars";
  */
 export function LikedByRating() {
   const { filtered, filters, setSelection } = useExplorer();
+  const { tokens } = useTheme();
 
   const groups = useMemo(() => byStarBin(filtered), [filtered]);
 
@@ -38,12 +39,12 @@ export function LikedByRating() {
     <div>
       <RateBars
         bars={bars}
-        accent={accentFor(filters.genres)}
+        accent={accentFor(filters.genres, tokens)}
         active={activeIndex >= 0 ? activeIndex : null}
         onPick={(i) => pickWatches(groups[i], filters.selection, setSelection)}
       />
       <div className="mt-1 text-center font-mono text-[10px] uppercase tracking-wider"
-        style={{ color: INK.muted }}
+        style={{ color: tokens.ink.muted }}
       >
         my rating
       </div>
@@ -58,8 +59,9 @@ export function LikedByRating() {
  * above it already states and the bars already print. Three copies of one finding.
  */
 export function LikedByRatingBlurb() {
+  const { tokens } = useTheme();
   return (
-    <p className="text-sm" style={{ color: INK.secondary }}>
+    <p className="text-sm" style={{ color: tokens.ink.secondary }}>
       The share of each rating that got a heart.
     </p>
   );

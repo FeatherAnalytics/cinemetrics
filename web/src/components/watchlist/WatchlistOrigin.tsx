@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { filterWatches, useExplorer } from "@/lib/store";
+import { useTheme } from "@/lib/theme";
 import { ratingDeltaByKey } from "@/lib/ratingDelta";
 import { countryBars, languageBars } from "@/lib/watchlistChart";
 import { ChartTakeaway } from "../ChartTakeaway";
@@ -28,12 +29,16 @@ type Mode = (typeof MODES)[number];
  */
 export function WatchlistOrigin() {
   const { filteredWatchlist, all, filters, setCountry, setLanguage } = useExplorer();
+  const { tokens } = useTheme();
   const [mode, setMode] = useState<Mode>("country");
   const isLang = mode === "language";
 
   const bars = useMemo(
-    () => (isLang ? languageBars(filteredWatchlist) : countryBars(filteredWatchlist)),
-    [filteredWatchlist, isLang],
+    () =>
+      isLang
+        ? languageBars(filteredWatchlist, 10, tokens.genre)
+        : countryBars(filteredWatchlist, 10, tokens.genre),
+    [filteredWatchlist, isLang, tokens.genre],
   );
 
 /**

@@ -1,4 +1,4 @@
-import { ACCENT, GENRE_COLORS } from "./palette";
+import type { GenreKey } from "./palette";
 import type { EnrichedWatch } from "./types";
 
 /**
@@ -13,13 +13,22 @@ import type { EnrichedWatch } from "./types";
  * Reuses colors already in the palette rather than introducing any. Crimson is
  * the house accent, the blue is Drama's, and the pale is the same "no data" tint
  * every other chart uses, so nothing here needed the all-pairs validation re-run.
+ *
+ * Takes the caller's active theme tokens, and requires them: the whole point of
+ * one vocabulary across the story is that a reader learns it once, which a
+ * chart quietly falling back to the light set would undo.
  */
-export const HEART_LIKED = ACCENT;
-export const HEART_COOL = GENRE_COLORS.Drama;
+export function heartPalette(tokens: {
+  accent: string;
+  genre: Record<GenreKey, string>;
+}): { liked: string; cool: string; unknown: string } {
+  return { liked: tokens.accent, cool: tokens.genre.Drama, unknown: HEART_UNKNOWN };
+}
+
 /**
  * Unknown, which is NOT "not liked".
  *
- * 98 watches recorded no heart and belong to films never watched again, so there
+ * 97 watches recorded no heart and belong to films never watched again, so there
  * is nothing to recover them from. Painting them blue would assert a fact about
  * the sheet era that the sheet era simply never recorded.
  *
@@ -27,6 +36,10 @@ export const HEART_COOL = GENRE_COLORS.Drama;
  * `#eceae3` no-data tint. That tint is designed to be read as a region with an ink
  * outline around it, and these charts draw 3px dots and 2px stripes with no room
  * for one: on an off-white page the pale version simply vanished.
+ *
+ * Fixed rather than themed: it is already independent of the palette (a literal,
+ * not a re-export of an ink token), and it needs the same "reads on either
+ * surface" property the barcode's own NEUTRAL constant documents.
  */
 export const HEART_UNKNOWN = "#b3b1a6";
 
@@ -37,9 +50,13 @@ function heartState(w: EnrichedWatch): HeartState {
   return w.heart ? "liked" : "not";
 }
 
-export function heartColor(w: EnrichedWatch): string {
+export function heartColor(
+  w: EnrichedWatch,
+  tokens: { accent: string; genre: Record<GenreKey, string> },
+): string {
   const s = heartState(w);
-  return s === "liked" ? HEART_LIKED : s === "not" ? HEART_COOL : HEART_UNKNOWN;
+  const { liked, cool, unknown } = heartPalette(tokens);
+  return s === "liked" ? liked : s === "not" ? cool : unknown;
 }
 
 /**
@@ -101,7 +118,7 @@ type HeartShare = { liked: number; n: number; rate: number };
  * The share of a group of watches that carry the heart, over the known ones only.
  *
  * Divides by watches whose heart is KNOWN, never by the group size, which is the
- * invariant every rate in this project holds: 98 watches recorded nothing, and
+ * invariant every rate in this project holds: 97 watches recorded nothing, and
  * counting them as "not liked" understates the rate by about seven points.
  *
  * Returns null below `minKnown`. A country with two known watches produces 0% or
