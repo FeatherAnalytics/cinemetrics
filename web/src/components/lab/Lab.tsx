@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { hairline, useTheme } from "@/lib/theme";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import type { Dataset } from "@/lib/types";
 import { computeTravelStats, ratioLabel } from "@/lib/travelStats";
 import { computeEraStats } from "@/lib/gradSchool";
@@ -99,14 +101,33 @@ export function Lab({ data }: { data: Dataset }) {
           className="font-mono text-xs tracking-[0.2em] uppercase"
           style={{ color: tokens.ink.muted }}
         >
-          Unlisted · permanent
+          The cutting room floor
         </p>
-        <h1
-          className="font-display text-4xl font-bold tracking-tight"
-          style={{ color: tokens.ink.primary }}
-        >
-          The lab
-        </h1>
+        {/* The toggle rides the h1's row here for the same reason it does on the
+            landing page: it is chrome, and the row below it is content. */}
+        <div className="flex items-center justify-between gap-4">
+          <h1
+            className="font-display text-4xl font-bold tracking-tight"
+            style={{ color: tokens.ink.primary }}
+          >
+            The lab
+            {/* The way back, and the mirror of the landing page's own period,
+                which is the way in. Same crimson, same absence of any other
+                marking: a reader who found this page by running the pointer
+                across a title will try the same thing here.
+
+                next/link, not an anchor. The site deploys under a basePath of
+                /cinemetrics, which Link prepends and a raw href does not. */}
+            <Link
+              href="/"
+              aria-label="Back to the dashboard"
+              style={{ color: tokens.accent }}
+            >
+              .
+            </Link>
+          </h1>
+          <ThemeToggle />
+        </div>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
           Work that has not earned a place on the main page: a finding still choosing how to be
           drawn, or a number that wants more data behind it. Sections leave when they are decided,
