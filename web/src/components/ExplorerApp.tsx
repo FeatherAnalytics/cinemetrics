@@ -529,12 +529,21 @@ function Explorer() {
         >
           {eyebrow(startYear, endYear)}
         </p>
-        <h1
-          className="font-display text-4xl font-bold tracking-tight"
-          style={{ color: tokens.ink.primary }}
-        >
-          cinemetrics<span style={{ color: tokens.accent }}>.</span>
-        </h1>
+        {/* The toggle rides the h1's own row, opposite the title, because it is
+            page chrome and the chips below are content controls. The row still
+            has to survive 390px, which is why it pairs the toggle with the h1
+            rather than pinning it to the header's corner: the h1 is one short
+            line at every width, so the two share a line and neither can land on
+            top of the chip list when the chips wrap to two rows. */}
+        <div className="flex items-center justify-between gap-4">
+          <h1
+            className="font-display text-4xl font-bold tracking-tight"
+            style={{ color: tokens.ink.primary }}
+          >
+            cinemetrics<span style={{ color: tokens.accent }}>.</span>
+          </h1>
+          <ThemeToggle />
+        </div>
         {/* Same sentence the share preview uses, from lib/summary. No instruction
             and no watch total: the stat bar prints that a few inches below, and
             telling a reader to tap a chip spends a line on something the chip's
@@ -542,12 +551,8 @@ function Explorer() {
         <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
           {summaryLine(years, films.length)}
         </p>
-        {/* flex-wrap here, not a fixed corner position: at 390px the chip list
-            alone can run to two lines, and a pinned toggle would sit on top of
-            it. Wrapping lets the toggle drop to its own line instead. */}
-        <div className="mt-3 flex flex-wrap items-center gap-3">
+        <div className="mt-3">
           <StoryChips />
-          <ThemeToggle />
         </div>
       </header>
 
