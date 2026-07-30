@@ -45,8 +45,8 @@ export function TravelCallout({ stats }: { stats: TravelStats }) {
         <span className="font-mono tabular-nums">{travel.filmsPerDay.toFixed(2)}</span> per flight
         day against{" "}
         <span className="font-mono tabular-nums">{ordinary.filmsPerDay.toFixed(2)}</span> on an
-        ordinary viewing day, which is{" "}
-        <span className="font-mono">{ratioLabel(stats.filmsPerDayRatio)}</span>, and{" "}
+        ordinary viewing day ({" "}
+        <span className="font-mono">{ratioLabel(stats.filmsPerDayRatio)}</span>) and{" "}
         <span className="font-mono tabular-nums">{travel.multiFilmDays}</span> of the{" "}
         <span className="font-mono tabular-nums">{travel.days}</span> flight days held more than
         one film against{" "}

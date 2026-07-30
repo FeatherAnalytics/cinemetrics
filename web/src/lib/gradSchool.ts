@@ -53,13 +53,18 @@ export const PACE_MONTHS = 12;
  * I rated it, which is precisely the confusion this section exists to avoid. Ten
  * watches is the same amount of evidence at every point on the line.
  *
- * TEN IS A DELIBERATE TRADE, made with the cost known. It was forty, and forty
- * bought a headline: the line came back to where it entered the span, 0.8 points
- * net, quieter than 92% of comparable stretches. Ten does not. It travels 4.0
- * points net and lands around the 30th percentile, which is middling. The owner
- * chose the livelier line and gave up the finding, so the copy states a middling
- * stretch rather than a still one, and `ranks the span as a middling stretch`
- * pins that down.
+ * TEN, BECAUSE THE MAIN PAGE SMOOTHS ON TEN. `rollingMean` in `series.ts`
+ * defaults to a window of 10 and the landing page's rolling charts take that
+ * default, so ten is the site's existing notion of a trend. A reader moving
+ * between the two pages sees one smoothing rather than two, which is worth more
+ * than anything this section gains by picking its own number.
+ *
+ * IT IS A TRADE, made with the cost known. It was forty, and forty bought a
+ * headline: the line came back to where it entered the span, 0.8 points net,
+ * quieter than 92% of comparable stretches. Ten does not. It travels 4.0 points
+ * net and lands around the 30th percentile, which is middling. Consistency won
+ * over legibility, deliberately, so the copy states a middling stretch rather
+ * than a still one and `ranks the span as a middling stretch` pins that down.
  *
  * WHAT TEN COSTS, measured against the shipped payload:
  *
@@ -67,10 +72,13 @@ export const PACE_MONTHS = 12;
  *   months, and `ratingWindowMonths` reports the real range for windows closing
  *   inside the span
  * - one film moves the line by up to 6 points, because a mean over ten shifts by
- *   a tenth of the gap between the watch arriving and the watch leaving
+ *   a tenth of the gap between the watch arriving and the watch leaving. Six is
+ *   the largest step actually taken across the log, not the 10 the arithmetic
+ *   allows
  *
- * So this is a LIGHTLY SMOOTHED SERIES AND NOT A TREND. Read it as movement.
- * Any claim about its level at a point is a claim about ten films.
+ * So this is a LIGHTLY SMOOTHED SERIES AND NOT A TREND, and it reads on screen
+ * closer to noise than to a trend. Read it as movement. Any claim about its
+ * level at a point is a claim about ten films.
  *
  * It still resolves the era, which is the one property the section needs from it:
  * `ratingWindowMonths` is far short of the 22 months the span runs, so a dip
@@ -131,8 +139,15 @@ export type Window = {
   end: string;
   watches: number;
   days: number;
-  /** Watches per 30 days. */
-  per30: number;
+  /**
+   * Watches per 7 days. A week is the unit a reader can picture; the same
+   * quantity in months forced everyone to divide by four in their head.
+   *
+   * ONE RATE ON THIS TYPE, deliberately. A second field in other units would let
+   * the rail and the table drift apart in the last digit, which is exactly the
+   * failure a shared derivation is here to prevent.
+   */
+  perWeek: number;
   meanRating: number;
   sdRating: number;
 };
@@ -209,10 +224,19 @@ export type EraStats = {
    * NOT the sum of the other three `neighbors`. Those two flanking windows are
    * deliberately 365 days each so the comparison either side of the span is
    * symmetric, which leaves the tail of the log past the last of them uncovered.
-   * The copy quotes this when it explains what the discarded 5.0 point figure was
-   * measuring against, and that figure was computed against ALL of them.
+   * The copy quotes this as the denominator of the misleading comparison, which
+   * is computed against ALL of these rather than against the flanking windows.
    */
   outsideWatches: number;
+  /**
+   * The span against EVERYTHING outside it, which is the comparison this section
+   * warns about rather than the one it makes.
+   *
+   * Derived so the warning cannot go stale. The page states the gap this split
+   * produces and then says why it is the wrong split, and a hardcoded figure
+   * there would keep asserting a number the data had moved away from.
+   */
+  vsOutside: { meanRating: number; ratingDiff: number };
   /** The span against the year before it, and against the year after. */
   vsBefore: Contrast;
   vsAfter: Contrast;
@@ -280,7 +304,7 @@ function summarize(
     end,
     watches: hit.length,
     days,
-    per30: (hit.length / days) * 30,
+    perWeek: (hit.length / days) * 7,
     meanRating: m,
     sdRating: sd,
   };
@@ -303,7 +327,9 @@ function contrast(span: Window, other: Window, label: string): Contrast {
   const ratingDiff = span.meanRating - other.meanRating;
   const ratingZ = ratingSe === 0 ? 0 : ratingDiff / ratingSe;
 
-  const rateRatio = other.per30 === 0 ? 0 : span.per30 / other.per30;
+  // A ratio of two rates, so the unit cancels and the answer is the same in any
+  // of them. It reads off `perWeek` because that is the only rate there now.
+  const rateRatio = other.perWeek === 0 ? 0 : span.perWeek / other.perWeek;
   const rateSe = Math.sqrt(1 / Math.max(1, span.watches) + 1 / Math.max(1, other.watches));
   const rateZ = rateRatio <= 0 ? 0 : Math.log(rateRatio) / rateSe;
 
@@ -361,7 +387,7 @@ export function paceSeries(
  * The rating line over the whole log, at the given window width in WATCHES.
  *
  * Starts at the `width`th rated watch rather than the first. A trailing mean over
- * three watches is not the same statistic as one over forty, and drawing both on
+ * three watches is not the same statistic as one over ten, and drawing both on
  * one line would put the noisiest part of it at the left edge, exactly where a
  * reader reads off the line's starting level.
  */
@@ -511,6 +537,16 @@ export function computeEraStats(data: Dataset): EraStats {
     span,
     neighbors: [early, before, span, after],
     outsideWatches: rows.length - span.watches,
+    vsOutside: (() => {
+      // Every rated watch outside the span, pooled. Deliberately the naive
+      // split, because the page's warning is about what this number does.
+      const out = rows
+        .filter((r) => r.date < GRAD_SCHOOL.start || r.date > GRAD_SCHOOL.end)
+        .map((r) => r.rating)
+        .filter((r): r is number => r != null);
+      const m = mean(out);
+      return { meanRating: m, ratingDiff: span.meanRating - m };
+    })(),
     vsBefore: contrast(span, before, before.label),
     vsAfter: contrast(span, after, after.label),
     pace,

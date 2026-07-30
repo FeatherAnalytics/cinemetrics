@@ -288,8 +288,8 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
 
   const geo = useMemo<Geometry>(() => {
     // Across BOTH series, so neither line is clipped and the two agree on x. The
-    // rating line starts earlier than the pace line, because 40 watches accumulate
-    // before 12 months do.
+    // rating line starts earlier than the pace line, because RATING_WATCHES
+    // watches accumulate before PACE_MONTHS months do.
     const times = [...stats.pace.map((p) => p.time), ...stats.rating.map((p) => p.time)];
     const first = Math.min(...times);
     const last = Math.max(...times);
@@ -323,7 +323,8 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
   }));
 
   const [early, , span, after] = stats.neighbors;
-  const { opens, closes, vsBefore, spanPaceRange, ratingStretch, ratingWindowMonths } = stats;
+  const { opens, closes, vsBefore, vsOutside, spanPaceRange, ratingStretch, ratingWindowMonths } =
+    stats;
   // Looked up rather than indexed. The sentence below names the year the climb
   // started from, and a hardcoded position in the list would keep asserting it
   // after a worse year arrived.
@@ -347,7 +348,12 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
         />
         <RollingChart
           title="Films per month"
-          caption={`Trailing ${PACE_MONTHS} months. Different window, same axis and same shading.`}
+          // Monthly here, weekly in the table below, and that is deliberate: a
+          // twelve-month window reporting a monthly rate is self-consistent,
+          // while the table's fixed stretches read more plainly per week. Said
+          // out loud so a reader who spots the two units finds a choice rather
+          // than a mistake.
+          caption={`Trailing ${PACE_MONTHS} months, a monthly rate. The table below is per week.`}
           points={pacePoints}
           domain={niceDomain(
             pacePoints.map((p) => p.value),
@@ -398,8 +404,8 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
         {fmt1(spanPaceRange.high.filmsPerMonth)} by {monthLabel(spanPaceRange.high.key)}, and
         finishes higher than it began. Neither edge breaks. The fall from the early years ends
         before the span opens, and the steepest decline in the log comes after it closes:{" "}
-        {fmt1(after.per30)} watches per 30 days in the twelve months after against{" "}
-        {fmt1(span.per30)} inside.
+        {fmt1(after.perWeek)} watches a week in the twelve months after against{" "}
+        {fmt1(span.perWeek)} inside.
       </p>
 
       {/* The honest comparison, and the reason this section does not quote the
@@ -411,7 +417,7 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
           <tr style={{ color: tokens.ink.muted }}>
             <th className="py-1 text-left font-normal" />
             <th className="py-1 text-right font-normal">Watches</th>
-            <th className="py-1 text-right font-normal">Per 30 days</th>
+            <th className="py-1 text-right font-normal">Per week</th>
             <th className="py-1 text-right font-normal">Mean rating</th>
           </tr>
         </thead>
@@ -428,7 +434,10 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
                 {win.label}
               </td>
               <td className="py-1 text-right">{win.watches}</td>
-              <td className="py-1 text-right">{fmt1(win.per30)}</td>
+              {/* toFixed rather than fmt1: a column of 2.6 / 1.6 / 1.8 with a
+                  bare 1 in it reads as a different measure, and fmt1 drops the
+                  decimal on a whole number. */}
+              <td className="py-1 text-right">{win.perWeek.toFixed(1)}</td>
               <td className="py-1 text-right">{fmt1(win.meanRating)}</td>
             </tr>
           ))}
@@ -451,15 +460,16 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
           . The percentile above is a rank among overlapping stretches rather than a test. It
           locates the span, which is not evidence about it.
         </p>
-        {/* The correction, kept on the page rather than in the git log. The
-            discarded figure is the worked example of the baseline trap this
-            library is prone to, so a reader who meets 5.0 somewhere else has to
-            be able to find out here why it went. */}
+        {/* The baseline trap this library is prone to, stated as a property of
+            the data rather than as a note about what the page used to say. A
+            reader meeting the bigger number somewhere else needs to be able to
+            find out here why it is the wrong one. */}
         <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-          An earlier draft of this section reported the span rating 5.0 points above everything
-          outside it. Real arithmetic, bad baseline: {early.watches} of the {stats.outsideWatches}{" "}
-          watches outside the span are early years, at {fmt1(early.meanRating)}. Against its
-          neighbors in the table above, it goes away.
+          Set the span against everything outside it and the rating looks{" "}
+          {fmt1(vsOutside.ratingDiff)} points higher. That is the wrong comparison:{" "}
+          {early.watches} of the {stats.outsideWatches} watches outside the span are early years,
+          at {fmt1(early.meanRating)}, so it mostly measures the distance from those. Against the
+          neighbors in the table above, the gap goes away.
         </p>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
           This is when I was in school and this is where the lines went. It is not evidence that

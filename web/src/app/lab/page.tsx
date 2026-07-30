@@ -10,7 +10,7 @@ import dataset from "../../../public/data/cinemetrics.json";
 // is the whole of what keeps this out of a search index on a static export: there
 // is no server to serve a header and no sitemap listing it. Verified against
 // node_modules/next/dist/docs/01-app/03-api-reference/04-functions/generate-metadata.md.
-export const metadata: Metadata = { title: "Prototypes", robots: { index: false } };
+export const metadata: Metadata = { title: "the lab", robots: { index: false } };
 
 export default function Page() {
   return <Lab data={dataset as unknown as Dataset} />;

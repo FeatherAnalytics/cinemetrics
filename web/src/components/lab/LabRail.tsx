@@ -1,7 +1,6 @@
 "use client";
 
 import { hairline, useTheme } from "@/lib/theme";
-import { fmt1 } from "@/lib/format";
 import { ratioLabel, signedLabel, type TravelStats } from "@/lib/travelStats";
 import type { EraStats } from "@/lib/gradSchool";
 
@@ -110,7 +109,7 @@ export function LabRail({
           <Figure
             value={`${eraStats.eraMonths} mo`}
             label="in school"
-            note={`${eraStats.span.watches} watches, ${fmt1(eraStats.span.per30)}/30d`}
+            note={`${eraStats.span.watches} watches, ${eraStats.span.perWeek.toFixed(1)}/wk`}
           />
         </div>
 

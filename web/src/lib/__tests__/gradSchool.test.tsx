@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { fireEvent, render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import dataset from "../../../public/data/cinemetrics.json";
@@ -20,7 +22,7 @@ import type { Dataset } from "../types";
  * The shipped payload, not a fixture.
  *
  * Every number below is a claim about my actual viewing, and the section's whole
- * argument is that an earlier figure had a confound behind it. A fixture would
+ * argument is that one obvious comparison has a confound behind it. A fixture would
  * let both the figure and the confound be whatever the fixture said.
  */
 const data = dataset as unknown as Dataset;
@@ -68,15 +70,21 @@ describe("the span and the log it sits in", () => {
   it("holds the four stretches to their measured figures", () => {
     const seen = stats.neighbors.map((w) => [
       w.watches,
-      Number(w.per30.toFixed(2)),
+      Number(w.perWeek.toFixed(2)),
       Number(w.meanRating.toFixed(1)),
     ]);
     expect(seen).toEqual([
-      [480, 11.12, 71.0],
-      [85, 6.99, 76.6],
-      [169, 7.57, 77.4],
-      [53, 4.36, 76.8],
+      [480, 2.59, 71.0],
+      [85, 1.63, 76.6],
+      [169, 1.77, 77.4],
+      [53, 1.02, 76.8],
     ]);
+    // The four rates stay distinct at the one decimal the table prints: 2.6,
+    // 1.6, 1.8, 1.0. Per week compresses them against the per-30-day version,
+    // so a table with an apparent tie in it would be this assertion's job to
+    // catch before a reader read two different stretches as equal.
+    const shown = stats.neighbors.map((w) => w.perWeek.toFixed(1));
+    expect(new Set(shown).size, `ties in ${shown.join(" ")}`).toBe(shown.length);
   });
 });
 
@@ -95,8 +103,8 @@ describe("the two rolling windows", () => {
   });
 
   it("keeps the rating window narrow enough to resolve the era too", () => {
-    // Expressed in months, since that is the unit the era is in. A 40-watch
-    // window covers a few months at the span's own pace, so this line could show
+    // Expressed in months, since that is the unit the era is in. The window
+    // covers a couple of months at the span's own pace, so this line could show
     // a dip for the same reason the pace line could.
     const inside = stats.rating.filter(
       (p) => p.date >= GRAD_SCHOOL.start && p.date <= GRAD_SCHOOL.end,
@@ -172,13 +180,12 @@ describe("the two rolling windows", () => {
  */
 describe("what the lines do at the edges of the span", () => {
   /**
-   * This used to assert the opposite, and the change is the point.
+   * The line MOVES across the span, and no sentence may say it returns.
    *
-   * At a forty-watch window the line came back to where it entered, 0.8 points
-   * net, and the section led on that. The window is ten now, the line travels
-   * 4.0 points across the span, and the owner took the livelier line knowing it
-   * cost the finding. So the guard holds the copy to the weaker truth: the line
-   * MOVES across the span, and no sentence may say it returns.
+   * At the ten-watch window the section's copy has to live with: it enters at 85
+   * and leaves at 81. A wider window would bring it back to where it started and
+   * make a stillness claim available again, which is exactly why this is pinned
+   * to the series rather than to the prose.
    */
   it("does not return to where it entered, so the copy may not say it does", () => {
     expect(Math.abs(stats.opens.meanRating - stats.closes.meanRating)).toBeGreaterThan(1);
@@ -202,19 +209,19 @@ describe("what the lines do at the edges of the span", () => {
   });
 
   /**
-   * The rank, and the reason the section no longer leads on it.
+   * The rank, and the reason the section does not lead on it.
    *
    * A ten-watch window wanders visibly everywhere, so "the rating line is flat
    * across the span" would be an eyeball claim the chart contradicts. What is
    * checkable is where the span's movement sits among comparable stretches, and
    * the answer is the middle. The copy says middling and says there is no
-   * stillness finding; this guard is what stops it drifting back to a headline.
+   * stillness finding; this guard is what stops it drifting into a headline.
    */
   it("ranks the span as a middling stretch, not a still one", () => {
     expect(stats.ratingStretch.comparable).toBeGreaterThan(30);
-    // Not the top decile, which is what the earlier draft claimed at a wider
-    // window. If this ever drops under 25 the section may lead on it again, but
-    // the sentence has to be rewritten in the same commit.
+    // Not the top decile, which is the only place a stillness claim would be
+    // honest. If this ever drops under 25 the section may lead on it, but the
+    // sentence has to be rewritten in the same commit.
     expect(stats.ratingStretch.netPercentile).toBeGreaterThan(25);
     expect(stats.ratingStretch.netPercentile).toBeLessThan(60);
     // And the swing inside is unremarkable, which is why the copy claims neither
@@ -239,9 +246,9 @@ describe("the span against its neighbors rather than against everything else", (
     expect(stats.vsAfter.ratingIsNoise).toBe(true);
   });
 
-  it("locates the discarded 5.0 point gap in the early years", () => {
-    // Why the span-against-everything split was dropped. Reconstructed here so
-    // the reason survives as a fact and not only as a comment.
+  it("locates the against-everything gap in the early years", () => {
+    // Why the span-against-everything split is the wrong one, held as a fact
+    // about the data rather than only as a comment.
     const [early, before, span, after] = stats.neighbors;
     const outside = [early, before, after];
     const outsideN = outside.reduce((a, w) => a + w.watches, 0);
@@ -296,7 +303,7 @@ describe("what the section is required to print", () => {
     for (const w of stats.neighbors) {
       expect(text, w.label).toContain(w.label);
       expect(text, `${w.label} watches`).toContain(String(w.watches));
-      expect(text, `${w.label} rate`).toContain(w.per30.toFixed(1));
+      expect(text, `${w.label} rate`).toContain(w.perWeek.toFixed(1));
       expect(text, `${w.label} mean`).toContain(w.meanRating.toFixed(1));
     }
   });
@@ -333,10 +340,36 @@ describe("what the section is required to print", () => {
     expect(text).not.toMatch(/statistically significant/i);
   });
 
-  it("quotes the discarded figure only as something it stopped saying", () => {
+  /**
+   * The misleading split, named on the page as a property of the data.
+   *
+   * The page narrates no draft history: it has never been published, so there is
+   * no reader carrying a memory of an older figure, and a sentence that only
+   * parses as a correction would be talking to nobody. What has to survive is
+   * the caution itself, in the present tense, because the trap is real and a
+   * reader who meets the bigger number elsewhere needs it explained here.
+   */
+  it("names the against-everything comparison as the wrong one, in the present tense", () => {
     const text = textOf();
-    expect(text).toContain("An earlier draft of this section reported");
-    expect(text).toContain("5.0 points above everything outside it");
+    expect(text).toContain(
+      `Set the span against everything outside it and the rating looks ${fmt1(
+        stats.vsOutside.ratingDiff,
+      )} points higher`,
+    );
+    expect(text).toContain("That is the wrong comparison");
+    // The reason, which is the part that makes it a caution rather than a fact.
+    const [early] = stats.neighbors;
+    expect(text).toContain(`${early.watches} of the ${stats.outsideWatches} watches`);
+    // And no draft history anywhere in the section.
+    expect(text).not.toMatch(/earlier draft|previous version|used to (say|report)|stopped saying/i);
+    // The gap is DERIVED. A literal reading 5.0 would satisfy every assertion
+    // above, because 5.0 is what the payload computes today, so the only way to
+    // tell the two apart is to look at the source.
+    const src = readFileSync(
+      path.join(__dirname, "../../components/lab/GradSchoolEra.tsx"),
+      "utf8",
+    );
+    expect(src, "the gap must be read, not typed").toContain("fmt1(vsOutside.ratingDiff)");
   });
 
   it("says out loud that the volume line is not flat", () => {
@@ -348,9 +381,9 @@ describe("what the section is required to print", () => {
   /**
    * The stillness language, banned outright.
    *
-   * The section carried a real finding at a forty-watch window and lost it at
-   * ten. The failure mode is a sentence that keeps the old shape on the new
-   * number, so the words that would do it may not appear at all.
+   * At this window the rank does not support a stillness claim, and the failure
+   * mode is a sentence that asserts one anyway on the strength of how the phrase
+   * sounds. The words that would do it may not appear at all.
    */
   it("claims no stillness in words either, now that the rank does not support one", () => {
     const text = textOf();
@@ -380,8 +413,11 @@ describe("what the section is required to print", () => {
     const [, , span, after] = stats.neighbors;
     const text = textOf();
     expect(text).toContain("the steepest decline in the log comes after it closes");
-    expect(text).toContain(`${fmt1(after.per30)} watches per 30 days`);
-    expect(text).toContain(`against ${fmt1(span.per30)} inside`);
+    expect(text).toContain(`${fmt1(after.perWeek)} watches a week`);
+    expect(text).toContain(`against ${fmt1(span.perWeek)} inside`);
+    // One unit for this quantity across the whole page. A converted figure under
+    // an unconverted label is worse than either.
+    expect(text).not.toMatch(/per 30 days|\/30d/);
   });
 
   it("puts the rating climb before the span rather than inside it", () => {
@@ -439,7 +475,7 @@ describe("what the section is required to print", () => {
       const svg = container.querySelectorAll("svg")[0];
       fireEvent.mouseMove(svg, { clientX: 0, clientY: 40 });
       const text = (tip(container)?.textContent ?? "").replace(/\s+/g, " ");
-      // The first point of the rating line: the watch its 40-watch window closes
+      // The first point of the rating line: the watch its window closes
       // on, and the mean over that window.
       const first = stats.rating[0];
       expect(text).toContain(first.mean.toFixed(1));

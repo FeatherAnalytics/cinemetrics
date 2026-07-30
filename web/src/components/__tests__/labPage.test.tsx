@@ -167,9 +167,36 @@ describe("what the trim was allowed to remove and what it was not", () => {
     expect(text).toContain("It is not evidence that school did it");
     expect(text).toContain("A chart cannot establish an absence");
     expect(text).toContain("rank among overlapping stretches rather than a test");
-    expect(text).toContain("5.0 points above everything outside it");
+    expect(text).toContain("That is the wrong comparison");
     expect(text).toContain("Two windows, because the two measures need different ones");
     expect(text).toContain("The climb that got it to");
+  });
+
+  /**
+   * No draft history anywhere in the page's copy.
+   *
+   * The page states what the charts and the data show now. It does not narrate
+   * how it got there, because it has never been published: there is no reader
+   * holding a memory of an older version for a correction to address. A
+   * sentence that only makes sense as a correction is talking to nobody.
+   *
+   * The cautions those sentences carried are kept, restated as present-tense
+   * facts about the data. This guards the framing, not the content.
+   */
+  it("narrates no draft history anywhere on the page", () => {
+    const text = collapse(mount().container.textContent);
+    for (const pattern of [
+      /earlier draft/i,
+      /previous version/i,
+      /an earlier (figure|version|draft)/i,
+      /used to (say|report|read|be)/i,
+      /stopped saying/i,
+      /got wrong/i,
+      /this page now/i,
+      /no longer (says|reports|claims)/i,
+    ]) {
+      expect(text, `draft history: ${pattern}`).not.toMatch(pattern);
+    }
   });
 
   /**

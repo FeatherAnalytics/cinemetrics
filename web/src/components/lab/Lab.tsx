@@ -73,15 +73,15 @@ export function Lab({ data }: { data: Dataset }) {
         stats.filmsPerDayRatio,
       )} more films, ratings unchanged.`,
       caveat:
-        "Six marks is a table with a scale drawn on it, and the rating panel spends the most ink of the three on saying that nothing happened. That is the right thing to say and an expensive way to say it.",
+        "The rating panel uses most of the ink to say that there is no meaningful difference in days with multiple viewings compared to travel and non-travel days.",
       Chart: () => <TravelComparison stats={stats} />,
     },
     {
       id: "callout",
       title: "Callout",
-      aim: "No axes. The trips named, the films listed, the figures inline. The cheaper of the two.",
+      aim: "No axes. The trips named, the films listed with the figures inline.",
       caveat:
-        "Prose does not compare. The ordinary-day baseline can only be a number in a sentence, so a reader asking whether 2.10 is a lot has nothing but this panel's word for it.",
+        "Prose is not a visual. The ordinary-day baseline can only be a number in a sentence, so a reader asking whether 2.10 is a lot has nothing but this panel's word for it.",
       Chart: () => <TravelCallout stats={stats} />,
     },
   ];
@@ -110,7 +110,7 @@ export function Lab({ data }: { data: Dataset }) {
             className="font-display text-4xl font-bold tracking-tight"
             style={{ color: tokens.ink.primary }}
           >
-            The lab
+            the lab
             {/* The way back, and the mirror of the landing page's own period,
                 which is the way in. Same crimson, same absence of any other
                 marking: a reader who found this page by running the pointer
@@ -129,9 +129,7 @@ export function Lab({ data }: { data: Dataset }) {
           <ThemeToggle />
         </div>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-          Work that has not earned a place on the main page: a finding still choosing how to be
-          drawn, or a number that wants more data behind it. Sections leave when they are decided,
-          promoted or deleted. Nothing links here.
+          Work that has not earned a place on the main page.
         </p>
       </header>
 
@@ -183,9 +181,9 @@ export function Lab({ data }: { data: Dataset }) {
                 The grad school years
               </h2>
               <p className="mb-2 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
-                I was in school from August 2023 to May 2025. Two rolling lines over the whole log,
+                I was in graduate school for my Economics MS degree from August 2023 to May 2025. Two rolling lines over the whole log,
                 rating and volume, on one time axis with the span shaded on both. Neither line does
-                anything at the shading, which is the finding.
+                anything meaningful at the shading, which is the finding.
               </p>
 
               <div
@@ -202,8 +200,7 @@ export function Lab({ data }: { data: Dataset }) {
                 <span className="font-bold">Why it is here and not on the main page:</span> the
                 section spends more words refusing the causal reading than stating the finding.
                 That is the right ratio and a bad fit for a page a stranger skims, because a null
-                result needs its method shown before it means anything. It also carries the
-                correction to a figure an earlier draft got wrong.
+                result needs its method shown before it means anything.
               </p>
             </section>
           </div>

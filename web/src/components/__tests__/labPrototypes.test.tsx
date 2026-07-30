@@ -156,11 +156,9 @@ describe("the travel prototypes agree with each other", () => {
     /**
      * The counts BEHIND the bar, and only those.
      *
-     * This used to require the rate as a prefix too, "2.10 a day · 21 watches,
-     * 10 days". The owner dropped it deliberately: the bar prints 2.10 at its
-     * own end, so the prefix repeated a number already on screen an inch away.
-     * What the face of the chart cannot show is what the rate is a rate OF, so
-     * that is what the readout is now for.
+     * The bar prints 2.10 at its own end, so a rate in the readout would repeat
+     * a number already on screen an inch away. What the face of the chart cannot
+     * show is what the rate is a rate OF, so that is what the readout carries.
      */
     it("gives the films-per-day row the counts its bar cannot show", () => {
       const { travel, ordinary } = stats;
