@@ -199,17 +199,25 @@ export function languageBars(
  * only sometimes. Stating the count is the only honest way to use "waiting" in
  * the headline.
  */
+/**
+ * The release year a film has to fall below to count as pre-millennium.
+ *
+ * Exported because the story headline names it in prose, and a threshold written
+ * out there would go on describing this cutoff after it moved.
+ */
+export const PRE_MILLENNIUM = 2000;
+
 export function watchlistSummary(films: WatchlistFilm[]) {
   const years = films.map((f) => f.year).filter((y): y is number => y != null);
   const watched = films.filter((f) => f.watched).length;
-  const preMillennium = years.filter((y) => y < 2000).length;
+  const preMillennium = years.filter((y) => y < PRE_MILLENNIUM).length;
   return {
     total: films.length,
     watched,
     unwatched: films.length - watched,
     oldest: years.length ? Math.min(...years) : null,
     newest: years.length ? Math.max(...years) : null,
-    // Share of the list that predates 2000, the shape that actually
+    // Share of the list that predates the cutoff, the shape that actually
     // distinguishes this list. Of the whole list, not of the dated subset:
     // every row currently carries a year, and the two agree.
     preMillenniumShare: films.length ? preMillennium / films.length : 0,

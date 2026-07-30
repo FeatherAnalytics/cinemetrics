@@ -8,7 +8,7 @@ import { hairline, useTheme } from "@/lib/theme";
 import { RecommendProvider, useRecommend } from "@/lib/recommendStore";
 import { RecommendDrawer } from "@/components/RecommendDrawer";
 import { FilterBar } from "@/components/FilterBar";
-import { SwimLaneChart } from "@/components/SwimLaneChart";
+import { SwimLaneChart, SwimLaneHeartBlurb } from "@/components/SwimLaneChart";
 import { ResidualDotStack } from "@/components/ResidualDotStack";
 import { StreakStripes } from "@/components/StreakStripes";
 import { KeywordBars } from "@/components/KeywordBars";
@@ -25,7 +25,7 @@ import { WeekdayCounts } from "@/components/stats/WeekdayCounts";
 import { RatingsByGenre } from "@/components/stats/RatingsByGenre";
 import { GenrePairing } from "@/components/stats/GenrePairing";
 import { RatingDistribution } from "@/components/stats/RatingDistribution";
-import { PosterBarcode } from "@/components/PosterBarcode";
+import { PosterBarcode, PosterBarcodeBlurb } from "@/components/PosterBarcode";
 import { FavPosters } from "@/components/heart/FavPosters";
 import { LikedByRating, LikedByRatingBlurb } from "@/components/heart/LikedByRating";
 import { WhatMovesTheHeart } from "@/components/heart/WhatMovesTheHeart";
@@ -102,7 +102,7 @@ export const CHART_SECTIONS: ChartSection[] = [
     // span in the copy is a number the chart under it can contradict.
     title: "Every watch, in order",
     blurbClass: "mb-2 max-w-2xl text-xs",
-    blurb: <>Every watch since 2019, as a slice of that film&rsquo;s own poster.</>,
+    blurb: <PosterBarcodeBlurb />,
     Chart: PosterBarcode,
   },
   // The shape of the scale every other chart is expressed in, so it comes before
@@ -178,11 +178,7 @@ export const CHART_SECTIONS: ChartSection[] = [
         One row per year, January to December. Height is my rating.
       </>
     ),
-    heartBlurb: (
-      <>
-        Films I hearted hold their color. Everything else fades, 2019 included: it predates the heart entirely.
-      </>
-    ),
+    heartBlurb: <SwimLaneHeartBlurb />,
     Chart: SwimLaneChart,
   },
   {

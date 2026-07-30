@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import dataset from "../../../public/data/cinemetrics.json";
-import { barcodeLabel, tipLeft } from "../../components/PosterBarcode";
+import { barcodeLabel, firstWatchYear, tipLeft } from "../../components/PosterBarcode";
 import { primaryGenre } from "../palette";
 import type { Film, Watch } from "../types";
 
@@ -61,6 +61,35 @@ describe("barcodeLabel", () => {
       if (w.rating == null) continue;
       expect(label(w).endsWith(` · ${w.stars}★`)).toBe(true);
     }
+  });
+});
+
+describe("firstWatchYear", () => {
+  const dated = (dates: string[]) => dates.map((s) => ({ d: new Date(s + "T00:00:00Z") }));
+
+  it("reports the log's own start year, from the shipped payload", () => {
+    // The external check. Taken off the raw date strings rather than off any
+    // Date the helper builds, so a helper reading the wrong end of the log, or
+    // reading it in local time, disagrees here.
+    const earliest = watches.map((w) => w.date).sort()[0];
+    expect(firstWatchYear(watches.map((w) => ({ d: new Date(w.date + "T00:00:00Z") })))).toBe(
+      Number(earliest.slice(0, 4)),
+    );
+  });
+
+  it("takes the earliest watch whatever order the array is in", () => {
+    // The caption reads `filtered`, which the store does not promise to sort.
+    expect(firstWatchYear(dated(["2023-04-02", "2019-01-14", "2026-07-25"]))).toBe(2019);
+  });
+
+  it("keeps a January 1st watch in its own year", () => {
+    // Parsed at UTC midnight, so a local-time reading would report 2020 here
+    // anywhere west of Greenwich.
+    expect(firstWatchYear(dated(["2021-01-01"]))).toBe(2021);
+  });
+
+  it("has no year for an empty filter rather than a wrong one", () => {
+    expect(firstWatchYear([])).toBeNull();
   });
 });
 

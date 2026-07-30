@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Filters } from "./store";
 import type { Film, EnrichedWatch, WatchlistFilm } from "./types";
-import { genreBars, watchlistSummary } from "./watchlistChart";
+import { genreBars, PRE_MILLENNIUM, watchlistSummary } from "./watchlistChart";
 import { primaryGenre, type GenreKey } from "./palette";
 import { watchKey } from "./brush";
 import { travelLeg, type TravelLeg } from "./travel";
@@ -340,7 +340,7 @@ function topKeywordHeartGap(
 
 /** Exported for the same reason as the gem thresholds. */
 export const LONG_MIN = 150; // minutes
-const SHORT_MAX = 90;
+const SHORT_MAX = 90; // minutes; the headline names it, so it may not be typed twice
 
 function computeRuntime(films: Film[], watches: EnrichedWatch[]): StoryResult {
   const longWatches: EnrichedWatch[] = [];
@@ -372,7 +372,7 @@ function computeRuntime(films: Film[], watches: EnrichedWatch[]): StoryResult {
   );
 
   return {
-    headline: `I rate ${LONG_MIN}-min+ films ${delta} points above sub-90s`,
+    headline: `I rate ${LONG_MIN}-min+ films ${delta} points above sub-${SHORT_MAX}s`,
     teaser: `${LONG_MIN}-min+ films rate ${delta} points higher`,
     chip: "The longer, the better",
     selection: new Set(longWatches.map(watchKey)),
@@ -823,11 +823,11 @@ function computeWatchlist(
 
   // Both numbers are measured here rather than written down, so the line cannot
   // drift from the charts underneath it.
-  const headline = `${total} films on the list, ${pct}% of them from before 2000`;
+  const headline = `${total} films on the list, ${pct}% of them from before ${PRE_MILLENNIUM}`;
 
   return {
     headline,
-    teaser: `${pct}% of the ${total} films predate 2000`,
+    teaser: `${pct}% of the ${total} films predate ${PRE_MILLENNIUM}`,
     chip: "Watchlist",
     ...(watched > 0
       ? {

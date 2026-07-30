@@ -59,6 +59,38 @@ export function barcodeLabel(w: {
   return parts.join(" · ");
 }
 
+/**
+ * The year the run on screen starts, or null when nothing is on screen.
+ *
+ * getUTCFullYear against a date parsed as UTC midnight. Local time would shift a
+ * January 1st watch back into the previous year.
+ *
+ * Taken over the whole array rather than off a sorted first element, so the
+ * caption and the canvas's accessible name cannot disagree about the sort.
+ */
+export function firstWatchYear(watches: readonly { d: Date }[]): number | null {
+  let earliest: number | null = null;
+  for (const w of watches) {
+    const t = w.d.getTime();
+    if (earliest === null || t < earliest) earliest = t;
+  }
+  return earliest === null ? null : new Date(earliest).getUTCFullYear();
+}
+
+/**
+ * The caption, which names the year the visible run starts.
+ *
+ * A component and not a string, because the barcode draws `filtered`: with the
+ * rail set to 2023 and later, a caption carrying the log's own start year would
+ * say one thing while the canvas an element below it said another.
+ */
+export function PosterBarcodeBlurb() {
+  const { filtered } = useExplorer();
+  const year = firstWatchYear(filtered);
+  if (year == null) return null;
+  return <>Every watch since {year}, as a slice of that film&rsquo;s own poster.</>;
+}
+
 export function PosterBarcode() {
   const { filtered, setSelected } = useExplorer();
   const { tokens } = useTheme();
@@ -150,9 +182,7 @@ export function PosterBarcode() {
         ref={canvasRef}
         style={{ display: "block", width: "100%", height: H, cursor: "pointer" }}
         role="img"
-        // getUTCFullYear against a date parsed as UTC midnight. Local time would
-        // shift a January 1st watch back into the previous year.
-        aria-label={`Every watch since ${watches[0].d.getUTCFullYear()}, in order, as a slice of its own poster`}
+        aria-label={`Every watch since ${firstWatchYear(watches)}, in order, as a slice of its own poster`}
         onMouseMove={(e) => setHover(at(e.clientX))}
         onMouseLeave={() => setHover(null)}
         onClick={(e) => {

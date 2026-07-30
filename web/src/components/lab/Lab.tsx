@@ -6,7 +6,7 @@ import { hairline, useTheme } from "@/lib/theme";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { Dataset } from "@/lib/types";
 import { computeTravelStats, ratioLabel } from "@/lib/travelStats";
-import { computeEraStats } from "@/lib/gradSchool";
+import { computeEraStats, GRAD_SCHOOL, monthLabel } from "@/lib/gradSchool";
 import { GradSchoolEra } from "./GradSchoolEra";
 import { LabRail } from "./LabRail";
 import { TravelComparison } from "./TravelComparison";
@@ -29,7 +29,7 @@ import { TravelCallout } from "./TravelCallout";
  * to sit at the top of this page is the worked example: ten columns of one to four
  * films is too little data for a chart with axes, and the callout below said the
  * same thing better in prose, so it went. What survived that cut is the comparison,
- * because it is the only one that answers whether 2.10 films a day is a lot, which
+ * because it is the only one that answers whether the travel rate is a lot, which
  * the callout can assert and cannot show.
  *
  * NO FILTER RAIL, and no `ExplorerProvider`. Deliberate, and the opposite of what
@@ -81,7 +81,9 @@ export function Lab({ data }: { data: Dataset }) {
       title: "Callout",
       aim: "No axes. The trips named, the films listed with the figures inline.",
       caveat:
-        "Prose is not a visual. The ordinary-day baseline can only be a number in a sentence, so a reader asking whether 2.10 is a lot has nothing but this panel's word for it.",
+        `Prose is not a visual. The ordinary-day baseline can only be a number in a sentence, so a reader asking whether ${stats.travel.filmsPerDay.toFixed(
+          2,
+        )} is a lot has nothing but this panel's word for it.`,
       Chart: () => <TravelCallout stats={stats} />,
     },
   ];
@@ -181,7 +183,8 @@ export function Lab({ data }: { data: Dataset }) {
                 The grad school years
               </h2>
               <p className="mb-2 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
-                I was in graduate school for my Economics MS degree from August 2023 to May 2025. Two rolling lines over the whole log,
+                I was in graduate school for my Economics MS degree from{" "}
+                {monthLabel(GRAD_SCHOOL.start, "long")} to {monthLabel(GRAD_SCHOOL.end, "long")}. Two rolling lines over the whole log,
                 rating and volume, on one time axis with the span shaded on both. Neither line does
                 anything meaningful at the shading, which is the finding.
               </p>

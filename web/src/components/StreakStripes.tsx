@@ -73,8 +73,8 @@ export function StreakStripes() {
         aria: "One stripe per rated watch in order, marking the watches of films that are hidden gems",
         keys: () => [
           { color: WARM, label: "a hidden gem" },
-          { color: NEUTRAL, label: "rated 80+, widely seen" },
-          { color: COOL, label: "rated under 80" },
+          { color: NEUTRAL, label: `rated ${GEM_MIN_RATING}+, widely seen` },
+          { color: COOL, label: `rated under ${GEM_MIN_RATING}` },
         ],
       },
       runtime: {

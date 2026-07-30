@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SwimLaneChart } from "@/components/SwimLaneChart";
+import { SwimLaneChart, SwimLaneHeartBlurb } from "@/components/SwimLaneChart";
 import { FAV_IDS } from "@/lib/fourFavs";
 import { SOLSTICE_WATCH } from "@/lib/solstice";
 import { ExplorerProvider } from "@/lib/store";
@@ -101,6 +101,42 @@ describe("which mark wins when a watch qualifies for two", () => {
     // And that one watch is the difference in the plane count: the rest of its
     // day is still flown, so the flight does not go unmarked.
     expect(planes).toBe(travelWatches.length - favOnTravelDay.length);
+  });
+
+  /**
+   * The heart caption counts the watches the LENS actually dims.
+   *
+   * The heart is one toggle per film, so the store recovers it to film level: a
+   * sheet-era watch of a film hearted on a later viewing already carries one and
+   * stays lit. Counting raw `liked` nulls instead would name every sheet-era row
+   * and overstate the dim set by the films that were recovered, which is a third
+   * of them.
+   */
+  it("counts the watches with no heart on record, not every sheet-era row", () => {
+    const recovered = new Map<number, boolean>();
+    for (const w of data.watches) {
+      if (w.liked != null && !recovered.has(w.tmdb_id)) recovered.set(w.tmdb_id, w.liked);
+    }
+    const dim = data.watches.filter((w) => (w.liked ?? recovered.get(w.tmdb_id) ?? null) === null);
+    const rawNulls = data.watches.filter((w) => w.liked == null);
+    // The two differ, so this is a real distinction rather than a restatement.
+    expect(dim.length).toBeLessThan(rawNulls.length);
+
+    const years = dim.map((w) => Number(w.date.slice(0, 4)));
+    const lo = Math.min(...years);
+    const hi = Math.max(...years);
+
+    const { container } = render(
+      <ThemeProvider>
+        <ExplorerProvider data={data}>
+          <SwimLaneHeartBlurb />
+        </ExplorerProvider>
+      </ThemeProvider>,
+    );
+    const text = (container.textContent ?? "").replace(/\s+/g, " ");
+    expect(text).toContain(`${dim.length} watches there predate the heart entirely`);
+    expect(text).toContain(lo === hi ? `${lo} with it` : `${lo} to ${hi} with it`);
+    expect(text).not.toContain(`${rawNulls.length} watches`);
   });
 
   it("leaves the solstice sun ahead of both", () => {

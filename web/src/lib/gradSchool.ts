@@ -560,10 +560,16 @@ export function computeEraStats(data: Dataset): EraStats {
   };
 }
 
-/** "Aug 2023". The charts print years, so this is for the prose. */
-export function monthLabel(iso: string): string {
+/**
+ * "Aug 2023", or "August 2023" in the long form. The charts print years, so this
+ * is for the prose.
+ *
+ * The long form exists for running sentences, where an abbreviation reads as a
+ * label that wandered in off an axis. Chart furniture stays short.
+ */
+export function monthLabel(iso: string, month: "short" | "long" = "short"): string {
   return new Date(iso.slice(0, 7) + "-01T00:00:00Z").toLocaleString("en-US", {
-    month: "short",
+    month,
     year: "numeric",
     timeZone: "UTC",
   });

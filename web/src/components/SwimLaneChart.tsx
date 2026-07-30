@@ -96,9 +96,9 @@ export function SwimLaneChart() {
 
     // Under the heart lens the dot KEEPS its genre color and fades when the film
     // was not hearted, so the hearted films come forward without costing the reader
-    // the encoding they already learned. Unrecorded hearts fade with the rest: all
-    // 129 of them sit in 2019, and giving them a gray turned the whole first row
-    // into chrome.
+    // the encoding they already learned. Unrecorded hearts fade with the rest: they
+    // all sit in the log's first year, and giving them a gray turned the whole
+    // first row into chrome. `SwimLaneHeartBlurb` counts them for the caption.
     const dotColor = (w: EnrichedWatch) => tokens.genre[primaryGenre(w.film)];
     const dotFade = (w: EnrichedWatch) => (heartLens ? heartDim(w) : 1);
 
@@ -436,5 +436,42 @@ export function SwimLaneChart() {
         <ChartTakeaway>October is {octoberHorror}% horror</ChartTakeaway>
       )}
     </figure>
+  );
+}
+
+/**
+ * The caption under the heart lens.
+ *
+ * It names the watches that fade for having no heart on record rather than for
+ * missing out on one, which is the row a reader is most likely to misread. Both
+ * the count and the years are MEASURED, and against `heart` rather than raw
+ * `liked`: the heart is one toggle per film, so a sheet-era watch of a film
+ * hearted on a later viewing already carries it and does not fade. Counting the
+ * raw nulls instead would name more watches than the chart dims.
+ */
+export function SwimLaneHeartBlurb() {
+  const { all } = useExplorer();
+  const unrecorded = useMemo(() => {
+    let n = 0;
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const w of all) {
+      if (w.heart != null) continue;
+      n += 1;
+      const y = w.d.getUTCFullYear();
+      if (y < lo) lo = y;
+      if (y > hi) hi = y;
+    }
+    return n === 0 ? null : { n, span: lo === hi ? `${lo}` : `${lo} to ${hi}` };
+  }, [all]);
+
+  if (unrecorded == null) {
+    return <>Films I hearted hold their color. Everything else fades.</>;
+  }
+  return (
+    <>
+      Films I hearted hold their color. Everything else fades, and {unrecorded.span} with it:{" "}
+      {unrecorded.n} watches there predate the heart entirely.
+    </>
   );
 }
