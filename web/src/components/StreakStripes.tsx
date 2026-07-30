@@ -19,10 +19,11 @@ const MB = 22;
 /**
  * The middle state under a story lens.
  *
- * Chrome gray, not the pale `DIVERGE_MID`. The pale tint is designed to be read as
- * a region with an outline around it; on a two-pixel stripe against an off-white
- * page it disappears, which is what made the Double features barcode look like a
- * handful of crimson bars on an empty field.
+ * Chrome gray, not the pale "at par" tint the rating ramp fades through. That
+ * tint is a hair off the paper surface, designed to be read as a region with an
+ * outline around it; on a two-pixel stripe against an off-white page it
+ * disappears, which is what made the Double features barcode look like a handful
+ * of crimson bars on an empty field.
  *
  * Fixed rather than themed: it is a literal chrome gray, not a re-export of a
  * palette color, and (like `HEART_UNKNOWN`) reads on either surface as-is.
@@ -105,7 +106,6 @@ export function StreakStripes() {
     return {
       WARM,
       COOL,
-      MID,
       lerpToWarm: interpolateRgb(MID, WARM),
       lerpToCool: interpolateRgb(MID, COOL),
       LEGENDS,

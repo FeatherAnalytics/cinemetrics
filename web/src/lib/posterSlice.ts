@@ -9,7 +9,5 @@ export const SLICE_STOPS = 20;
  */
 export function sliceStops(packed: string | null | undefined): string[] {
   if (!packed || packed.length !== SLICE_STOPS * 6) return [];
-  const out: string[] = [];
-  for (let i = 0; i < SLICE_STOPS; i++) out.push(`#${packed.slice(i * 6, i * 6 + 6)}`);
-  return out;
+  return Array.from({ length: SLICE_STOPS }, (_, i) => `#${packed.slice(i * 6, i * 6 + 6)}`);
 }

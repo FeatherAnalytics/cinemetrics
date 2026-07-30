@@ -116,13 +116,6 @@ export const INK = {
 // controls, and the agreement axis. Spent in one place, on purpose.
 export const ACCENT = "#c01023";
 
-// Diverging poles for the streak barcode: crimson = above my average, blue =
-// below, pale = at par. WARM reuses the accent crimson and COOL the Drama blue;
-// MID is a neutral tint of the paper surface so "we agree" recedes.
-export const DIVERGE_WARM = ACCENT;
-export const DIVERGE_COOL = GENRE_COLORS.Drama;
-export const DIVERGE_MID = "#eceae3";
-
 /**
  * UI state, deliberately without hue.
  *
