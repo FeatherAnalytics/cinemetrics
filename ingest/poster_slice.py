@@ -10,20 +10,26 @@ keeps the poster's own vertical contrast, which is what makes the strip
 readable.
 """
 
+import csv
 import io
+from pathlib import Path
 
 from PIL import Image
 
+from ingest.csvio import write_rows
 from ingest.http import get_bytes
 
 SLICE_STOPS = 20
 POSTER_CDN = "https://image.tmdb.org/t/p/w92"
 
 # The column order of transform/seeds/poster_slices.csv, owned here because the
-# seed has two writers: scripts/update.py appends a row per newly enriched film,
-# scripts/backfill_poster_slices.py rewrites the whole file. A private copy in
-# each is the arrangement that let poster_path go stale in the enrichment seeds
-# for months, since dict_writer silently drops a key no column list mentions.
+# seed has three writers: scripts/update.py adds a row per newly enriched film,
+# scripts/backfill_poster_slices.py fills in whatever is missing, and
+# scripts/reslice_overridden_posters.py re-samples a curated override. A private
+# copy in each is the arrangement that let poster_path go stale in the
+# enrichment seeds for months, since dict_writer silently drops a key no column
+# list mentions. All three go through write_slice_seed below for the same
+# reason.
 SLICE_CSV_COLUMNS = ["tmdb_id", "slice"]
 
 Stop = tuple[int, int, int]
@@ -55,3 +61,36 @@ def slice_for_poster(poster_path: str) -> str:
     if not raw:
         return ""
     return encode_slice(sample_slice(raw))
+
+
+def read_slice_seed(path: Path) -> dict[str, str]:
+    """The slice seed as {tmdb_id: slice}, empty when the file does not exist."""
+    if not path.exists():
+        return {}
+    with open(path, encoding="utf-8", newline="") as fh:
+        return {r["tmdb_id"]: r["slice"] for r in csv.DictReader(fh)}
+
+
+def write_slice_seed(path: Path, slices: dict[str, str]) -> None:
+    """Atomically rewrite the seed in numeric tmdb_id order.
+
+    Numeric order is an INVARIANT every writer holds, not a tidy-up one of them
+    performs at the end. It used to be the latter, and the difference was
+    expensive: scripts/update.py appended a new film's slice to the END of the
+    file, and because tmdb_ids are not monotonic with watch date the row almost
+    always landed out of order. The next backfill_poster_slices.py run then
+    re-sorted all 676 rows, so every nightly commit that added one film carried a
+    whole-file reorder, and the workflow's byte-identical check reported a repair
+    on a night when nothing had been repaired.
+
+    Holding the order on every write keeps each commit to the rows that actually
+    changed, which is the property docs/ARCHITECTURE.md claims for the seeds in
+    git history. Rewriting rather than appending also makes a duplicate tmdb_id
+    unrepresentable, which the seed's unique test previously had to catch.
+    """
+    write_rows(
+        path,
+        [{"tmdb_id": t, "slice": slices[t]} for t in sorted(slices, key=int)],
+        SLICE_CSV_COLUMNS,
+        strict=True,
+    )

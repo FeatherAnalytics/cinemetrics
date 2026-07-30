@@ -32,8 +32,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ingest.csvio import write_rows  # noqa: E402
-from ingest.poster_slice import SLICE_CSV_COLUMNS, slice_for_poster  # noqa: E402
+from ingest.poster_slice import read_slice_seed, slice_for_poster, write_slice_seed  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SEEDS = ROOT / "transform" / "seeds"
@@ -41,12 +40,12 @@ OVERRIDES = SEEDS / "poster_overrides.csv"
 SLICES = SEEDS / "poster_slices.csv"
 
 
-def read_column(path: Path, key: str, value: str) -> dict[str, str]:
-    """Two columns of a seed as a dict, keyed by ``key``."""
-    if not path.exists():
+def read_overrides() -> dict[str, str]:
+    """The override seed as {tmdb_id: poster_path}, empty when it does not exist."""
+    if not OVERRIDES.exists():
         return {}
-    with open(path, encoding="utf-8", newline="") as fh:
-        return {r[key]: r[value] for r in csv.DictReader(fh)}
+    with open(OVERRIDES, encoding="utf-8", newline="") as fh:
+        return {r["tmdb_id"]: r["poster_path"] for r in csv.DictReader(fh)}
 
 
 def main() -> None:
@@ -54,8 +53,8 @@ def main() -> None:
     ap.add_argument("--apply", action="store_true", help="write the seed")
     args = ap.parse_args()
 
-    overrides = read_column(OVERRIDES, "tmdb_id", "poster_path")
-    slices = read_column(SLICES, "tmdb_id", "slice")
+    overrides = read_overrides()
+    slices = read_slice_seed(SLICES)
     print(f"{len(overrides)} overridden posters")
 
     changed: dict[str, str] = {}
@@ -82,12 +81,7 @@ def main() -> None:
         return
 
     slices.update(changed)
-    write_rows(
-        SLICES,
-        [{"tmdb_id": t, "slice": slices[t]} for t in sorted(slices, key=int)],
-        SLICE_CSV_COLUMNS,
-        strict=True,
-    )
+    write_slice_seed(SLICES, slices)
     print(f"wrote {len(changed)} slice(s) to {SLICES.relative_to(ROOT)}")
 
 

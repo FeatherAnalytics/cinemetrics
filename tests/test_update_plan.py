@@ -3,10 +3,18 @@
 A watch is only logged when its film enrichment is present — either it was
 already enriched, or it was enriched successfully in this run. Watches whose
 enrichment failed are held back so a watch is never logged without enrichment.
+
+Also covers the other order the nightly depends on: the poster slice seed stays
+in numeric tmdb_id order, so the row a run adds is the only row its commit
+touches. That one is asserted against the bytes on disk, because the whole point
+of the ordering is what the file looks like to git.
 """
 
+import difflib
 import importlib.util
 from pathlib import Path
+
+import pytest
 
 _SPEC = importlib.util.spec_from_file_location(
     "update_mod", Path(__file__).resolve().parents[1] / "scripts" / "update.py"
@@ -18,6 +26,19 @@ loggable_watches = update_mod.loggable_watches
 FILM = {"tmdb_id": "60", "poster_path": "/x.jpg"}
 
 
+@pytest.fixture(autouse=True)
+def _seed_out_of_reach(monkeypatch, tmp_path):
+    """No test in this module may address the committed seed.
+
+    Not hypothetical: a test that stubs the wrong writer falls through to the
+    real one, and these tests exercise a function whose whole job is writing
+    poster_slices.csv. Three rows for tmdb_id 60 reached the committed seed that
+    way. Redirecting the module's path constant means the worst case is a
+    scribbled tmp file.
+    """
+    monkeypatch.setattr(update_mod, "SLICES_PATH", tmp_path / "poster_slices.csv")
+
+
 def _no_network(monkeypatch, encoded: str = "ab" * 60) -> None:
     monkeypatch.setattr(update_mod, "slice_for_poster", lambda _p: encoded)
 
@@ -27,41 +48,100 @@ def test_slice_fetch_failure_does_not_abort_the_run(monkeypatch, capsys):
         raise RuntimeError("CDN down")
 
     monkeypatch.setattr(update_mod, "slice_for_poster", boom)
-    monkeypatch.setattr(update_mod, "append_rows", lambda *a, **k: None)
+    monkeypatch.setattr(update_mod, "write_slice_seed", lambda *a, **k: None)
 
-    update_mod.append_to_slices([FILM])  # must not raise
+    update_mod.insert_into_slices([FILM])  # must not raise
     assert "WARNING" in capsys.readouterr().out
 
 
 def test_slice_write_failure_does_not_abort_the_run(monkeypatch, capsys):
-    """A failed slice append must not cost the watch.
+    """A failed slice write must not cost the watch.
 
-    append_to_slices runs before append_to_log, so anything it raises stops the
-    watch from ever reaching film_log.csv. The slice is repairable on the next
-    run; the watch is not, once it scrolls off the RSS feed.
+    insert_into_slices runs before append_to_log, so anything it raises stops
+    the watch from ever reaching film_log.csv. The slice is repairable on the
+    next run; the watch is not, once it scrolls off the RSS feed.
     """
     _no_network(monkeypatch)
 
     def boom(*_a, **_k):
         raise OSError("disk full")
 
-    monkeypatch.setattr(update_mod, "append_rows", boom)
+    monkeypatch.setattr(update_mod, "write_slice_seed", boom)
 
-    update_mod.append_to_slices([FILM])  # must not raise
+    update_mod.insert_into_slices([FILM])  # must not raise
     assert "WARNING" in capsys.readouterr().out
 
 
-def test_slices_are_appended_when_the_write_succeeds(monkeypatch):
+def test_slices_are_written_when_the_write_succeeds(monkeypatch):
     _no_network(monkeypatch)
     calls = []
-    monkeypatch.setattr(update_mod, "append_rows", lambda *a, **k: calls.append((a, k)))
+    monkeypatch.setattr(update_mod, "read_slice_seed", lambda _p: {})
+    monkeypatch.setattr(update_mod, "write_slice_seed", lambda *a: calls.append(a))
 
-    update_mod.append_to_slices([FILM])
+    update_mod.insert_into_slices([FILM])
 
-    (path, rows, columns), kwargs = calls[0]
-    assert rows == [{"tmdb_id": "60", "slice": "ab" * 60}]
-    assert columns == ["tmdb_id", "slice"]
-    assert kwargs == {"strict": True}
+    (path, slices) = calls[0]
+    assert path == update_mod.SLICES_PATH
+    assert slices == {"60": "ab" * 60}
+
+
+def test_the_new_slice_is_merged_into_what_the_seed_already_holds(monkeypatch):
+    """The write is a read-modify-write, so it must not drop the existing rows."""
+    _no_network(monkeypatch)
+    calls = []
+    monkeypatch.setattr(update_mod, "read_slice_seed", lambda _p: {"9": "cd" * 60})
+    monkeypatch.setattr(update_mod, "write_slice_seed", lambda *a: calls.append(a))
+
+    update_mod.insert_into_slices([FILM])
+
+    assert calls[0][1] == {"9": "cd" * 60, "60": "ab" * 60}
+
+
+def test_a_new_slice_lands_in_numeric_order_not_at_the_end(monkeypatch, tmp_path):
+    """Bytes on disk, because the reason for the ordering is the git diff.
+
+    Also pins LF endings: the seed is checked out LF and a CRLF row would fail
+    DuckDB's sniffer on the next build.
+    """
+    seed = tmp_path / "poster_slices.csv"
+    seed.write_text("tmdb_id,slice\n100,aaa\n900,ccc\n", encoding="utf-8")
+    monkeypatch.setattr(update_mod, "SLICES_PATH", seed)
+    _no_network(monkeypatch, encoded="bbb")
+
+    update_mod.insert_into_slices([{"tmdb_id": "300", "poster_path": "/x.jpg"}])
+
+    assert seed.read_bytes() == b"tmdb_id,slice\n100,aaa\n300,bbb\n900,ccc\n"
+
+
+def test_adding_one_film_leaves_a_sorted_seed_and_rewrites_no_row(monkeypatch, tmp_path):
+    """One line added, every other line untouched, and the order still holds.
+
+    The last assertion is the one that matters, and it is not implied by the
+    other two: appending the row to the END of the file also adds one line and
+    rewrites none. What it leaves behind is an unsorted seed, and the cost lands
+    on a LATER night, when the first repair run that has something to fetch
+    re-sorts the file and puts the move in that night's commit.
+
+    The id inserted is lower than every id already in the seed, which is the
+    realistic case: tmdb_ids are not monotonic with watch date.
+    """
+    seed = tmp_path / "poster_slices.csv"
+    seed.write_text(
+        "tmdb_id,slice\n" + "".join(f"{i},{'ab' * 60}\n" for i in range(1000, 1100)),
+        encoding="utf-8",
+    )
+    before = seed.read_text(encoding="utf-8").splitlines()
+    monkeypatch.setattr(update_mod, "SLICES_PATH", seed)
+    _no_network(monkeypatch, encoded="cd" * 60)
+
+    update_mod.insert_into_slices([{"tmdb_id": "42", "poster_path": "/x.jpg"}])
+
+    after = seed.read_text(encoding="utf-8").splitlines()
+    diff = list(difflib.ndiff(before, after))
+    assert [d for d in diff if d.startswith("+ ")] == [f"+ 42,{'cd' * 60}"]
+    assert [d for d in diff if d.startswith("- ")] == []
+    ids = [int(line.split(",")[0]) for line in after[1:]]
+    assert ids == sorted(ids)
 
 
 def test_logs_watch_with_existing_enrichment():

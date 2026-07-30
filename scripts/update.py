@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 from ingest.csvio import append_rows  # noqa: E402
 from ingest.enrich import FILM_CSV_COLUMNS, build_enrichment_row  # noqa: E402
 from ingest.http import omdb_get, tmdb_get  # noqa: E402
-from ingest.poster_slice import SLICE_CSV_COLUMNS, slice_for_poster  # noqa: E402
+from ingest.poster_slice import read_slice_seed, slice_for_poster, write_slice_seed  # noqa: E402
 
 SEEDS = ROOT / "transform" / "seeds"
 TRANSFORM = ROOT / "transform"
@@ -99,8 +99,8 @@ def append_to_enrichment(rows: list[dict[str, str]]) -> None:
     append_rows(ENRICH_PATH, rows, FILM_CSV_COLUMNS, strict=True)
 
 
-def append_to_slices(rows: list[dict[str, str]]) -> None:
-    """Append a poster slice for each newly enriched film.
+def insert_into_slices(rows: list[dict[str, str]]) -> None:
+    """Add a poster slice for each newly enriched film, in numeric tmdb_id order.
 
     Without this the barcode draws a blank stripe for everything watched after
     the backfill ran. A failure here must NOT hold the watch back: the film is
@@ -111,9 +111,14 @@ def append_to_slices(rows: list[dict[str, str]]) -> None:
     before append_to_log, so anything raising in here aborts the run before the
     watch reaches film_log.csv, and the RSS feed will not offer that watch again
     once it scrolls off. Losing a watch to protect a stripe is the wrong trade,
-    and the seed is unharmed either way because append_rows is atomic.
+    and the seed is unharmed either way because write_slice_seed is atomic.
+
+    This one INSERTS rather than appends, unlike its two neighbours. New
+    tmdb_ids are not monotonic with watch date, so a row appended to the end of
+    a seed that is kept in numeric order is out of place the moment it lands and
+    the next repair run re-sorts the whole file. See write_slice_seed.
     """
-    new: list[dict[str, str]] = []
+    new: dict[str, str] = {}
     for row in rows:
         try:
             encoded = slice_for_poster(row.get("poster_path", ""))
@@ -121,15 +126,17 @@ def append_to_slices(rows: list[dict[str, str]]) -> None:
             print(f"  WARNING: poster slice failed for tmdb_id={row['tmdb_id']}: {e}")
             continue
         if encoded:
-            new.append({"tmdb_id": row["tmdb_id"], "slice": encoded})
+            new[row["tmdb_id"]] = encoded
     if not new:
         return
     try:
-        append_rows(SLICES_PATH, new, SLICE_CSV_COLUMNS, strict=True)
+        slices = read_slice_seed(SLICES_PATH)
+        slices.update(new)
+        write_slice_seed(SLICES_PATH, slices)
     except Exception as e:  # noqa: BLE001
-        print(f"  WARNING: poster slice append failed for {len(new)} films: {e}")
+        print(f"  WARNING: poster slice write failed for {len(new)} films: {e}")
         return
-    print(f"  appended {len(new)} poster slices")
+    print(f"  wrote {len(new)} poster slices")
 
 
 def append_to_log(watches: list[dict]) -> None:
@@ -182,7 +189,7 @@ def main() -> None:
     # its enrichment. Only log watches whose film enrichment is present.
     if new_films:
         append_to_enrichment(new_films)
-        append_to_slices(new_films)
+        insert_into_slices(new_films)
 
     watches_to_log = loggable_watches(new_watches, existing_tmdb, enriched_ids)
 

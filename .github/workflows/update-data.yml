@@ -60,6 +60,13 @@ jobs:
       # already has a slice but whose art changed, which only a hand edit to
       # poster_overrides.csv can cause. Two image fetches, and on the usual run
       # both scripts find nothing and leave the seed byte-identical.
+      #
+      # Byte-identical, not merely equivalent: update.py has already written the
+      # new film's slice in numeric tmdb_id order, so neither script here has a
+      # row to add or a row to move, and neither writes at all unless it does.
+      # Before that ordering held, a run that added one film left the seed out of
+      # order, the first script re-sorted all 676 rows, and this gate reported a
+      # repair every night.
       - name: Repair any missing or stale poster slices
         id: slices
         if: steps.diff.outputs.changed == 'true'

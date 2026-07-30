@@ -1,9 +1,16 @@
-"""A dry run must not spend the calls it is previewing.
+"""The repair scripts must not spend what they have nothing to repair.
 
-Both poster backfills used to run the whole fetch loop and then check --apply,
-so a preview cost 676 TMDB requests, or 676 poster downloads, for output that
-was discarded. The network is stubbed here and the assertion is that the stub is
+Two costs, one theme. A dry run must not spend the calls it is previewing: both
+poster backfills used to run the whole fetch loop and then check --apply, so a
+preview cost 676 TMDB requests, or 676 poster downloads, for output that was
+discarded. The network is stubbed here and the assertion is that the stub is
 never reached.
+
+And an --apply run with nothing to repair must not spend a commit: the nightly
+reads poster_slices.csv's hash to decide whether a repair happened, so a run
+that changed no slice has to leave the file alone. That one is asserted against
+the bytes and the mtime, since writing identical bytes would pass a content
+check while still doing the write.
 """
 
 import csv
@@ -58,6 +65,79 @@ def test_slices_dry_run_downloads_no_posters(monkeypatch, tmp_path, capsys, _dry
 
     assert fetched == []
     assert "1 to fetch" in capsys.readouterr().out
+
+
+SEED_BYTES = b"tmdb_id,slice\n100,aaa\n900,ccc\n"
+
+
+@pytest.fixture
+def _apply_argv(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["backfill", "--apply"])
+
+
+def _seeded(tmp_path: Path) -> Path:
+    seed = tmp_path / "poster_slices.csv"
+    seed.write_bytes(SEED_BYTES)
+    return seed
+
+
+def test_apply_with_every_slice_present_does_not_touch_the_seed(
+    monkeypatch, tmp_path, _apply_argv
+):
+    mod = _load("backfill_poster_slices")
+    seed = _seeded(tmp_path)
+    stat_before = seed.stat()
+
+    monkeypatch.setattr(mod, "SEED", seed)
+    monkeypatch.setattr(
+        mod.duckdb, "connect", lambda *a, **k: _FakeConnection([(100, "/a.jpg"), (900, "/c.jpg")])
+    )
+
+    mod.main()
+
+    assert seed.read_bytes() == SEED_BYTES
+    # Not merely equal: the write was skipped, so the file was never replaced.
+    assert seed.stat().st_mtime_ns == stat_before.st_mtime_ns
+
+
+def test_apply_whose_every_fetch_fails_does_not_touch_the_seed(
+    monkeypatch, tmp_path, _apply_argv
+):
+    """`todo` was non-empty and the mapping still ended up unchanged."""
+    mod = _load("backfill_poster_slices")
+    seed = _seeded(tmp_path)
+    stat_before = seed.stat()
+
+    def boom(_path: str) -> str:
+        raise RuntimeError("CDN down")
+
+    monkeypatch.setattr(mod, "SEED", seed)
+    monkeypatch.setattr(
+        mod.duckdb, "connect", lambda *a, **k: _FakeConnection([(300, "/b.jpg")])
+    )
+    monkeypatch.setattr(mod, "slice_for_poster", boom)
+
+    mod.main()
+
+    assert seed.read_bytes() == SEED_BYTES
+    assert seed.stat().st_mtime_ns == stat_before.st_mtime_ns
+
+
+def test_apply_writes_only_the_slice_it_repaired(monkeypatch, tmp_path, _apply_argv):
+    mod = _load("backfill_poster_slices")
+    seed = _seeded(tmp_path)
+
+    monkeypatch.setattr(mod, "SEED", seed)
+    monkeypatch.setattr(
+        mod.duckdb,
+        "connect",
+        lambda *a, **k: _FakeConnection([(100, "/a.jpg"), (300, "/b.jpg"), (900, "/c.jpg")]),
+    )
+    monkeypatch.setattr(mod, "slice_for_poster", lambda _p: "bbb")
+
+    mod.main()
+
+    assert seed.read_bytes() == b"tmdb_id,slice\n100,aaa\n300,bbb\n900,ccc\n"
 
 
 def test_paths_dry_run_calls_no_tmdb(monkeypatch, tmp_path, capsys, _dry_argv):

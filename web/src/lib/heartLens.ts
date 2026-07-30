@@ -1,4 +1,4 @@
-import { ACCENT, GENRE_COLORS, type GenreKey } from "./palette";
+import type { GenreKey } from "./palette";
 import type { EnrichedWatch } from "./types";
 
 /**
@@ -14,16 +14,14 @@ import type { EnrichedWatch } from "./types";
  * the house accent, the blue is Drama's, and the pale is the same "no data" tint
  * every other chart uses, so nothing here needed the all-pairs validation re-run.
  *
- * Takes the caller's active theme tokens; defaults to the light set so pure
- * callers (tests, anything not yet wired to `useTheme`) see the same colors this
- * module always returned.
+ * Takes the caller's active theme tokens, and requires them: the whole point of
+ * one vocabulary across the story is that a reader learns it once, which a
+ * chart quietly falling back to the light set would undo.
  */
-export function heartPalette(
-  tokens: { accent: string; genre: Record<GenreKey, string> } = {
-    accent: ACCENT,
-    genre: GENRE_COLORS,
-  },
-): { liked: string; cool: string; unknown: string } {
+export function heartPalette(tokens: {
+  accent: string;
+  genre: Record<GenreKey, string>;
+}): { liked: string; cool: string; unknown: string } {
   return { liked: tokens.accent, cool: tokens.genre.Drama, unknown: HEART_UNKNOWN };
 }
 
@@ -54,7 +52,7 @@ function heartState(w: EnrichedWatch): HeartState {
 
 export function heartColor(
   w: EnrichedWatch,
-  tokens?: { accent: string; genre: Record<GenreKey, string> },
+  tokens: { accent: string; genre: Record<GenreKey, string> },
 ): string {
   const s = heartState(w);
   const { liked, cool, unknown } = heartPalette(tokens);

@@ -154,7 +154,6 @@ export type Window = {
 
 /** The span measured against one of its neighbors, on both measures. */
 export type Contrast = {
-  label: string;
   /** Span mean minus the other window's mean, in rating points. Signed. */
   ratingDiff: number;
   ratingZ: number;
@@ -196,17 +195,13 @@ export type Stretch = {
   swing: number;
   /** Absolute difference between the value entering and the value leaving. */
   netDelta: number;
-  /** Where `swing` falls among all same-length stretches, 0 to 100. Lower is calmer. */
-  swingPercentile: number;
-  /** Where `netDelta` falls among all same-length stretches, 0 to 100. */
+  /** Where `netDelta` falls among all same-length stretches, 0 to 100. Lower is calmer. */
   netPercentile: number;
-  /** How many same-length stretches the two percentiles are computed against. */
+  /** How many same-length stretches the percentile is computed against. */
   comparable: number;
 };
 
 export type EraStats = {
-  logStart: string;
-  logEnd: string;
   /** Length of the span in whole months. 22 today, and the reason the window is 12. */
   eraMonths: number;
   /** The span's own size. Not a comparison, so it is safe to state plainly. */
@@ -319,7 +314,7 @@ function summarize(
  * is not the honest statistic for them. `sqrt(1/k1 + 1/k2)` is the usual Poisson
  * approximation to the standard error of a log rate ratio.
  */
-function contrast(span: Window, other: Window, label: string): Contrast {
+function contrast(span: Window, other: Window): Contrast {
   const ratingSe = Math.sqrt(
     span.sdRating ** 2 / Math.max(1, span.watches) +
       other.sdRating ** 2 / Math.max(1, other.watches),
@@ -334,7 +329,6 @@ function contrast(span: Window, other: Window, label: string): Contrast {
   const rateZ = rateRatio <= 0 ? 0 : Math.log(rateRatio) / rateSe;
 
   return {
-    label,
     ratingDiff,
     ratingZ,
     ratingIsNoise: Math.abs(ratingZ) < 1.96,
@@ -446,7 +440,6 @@ function rankStretch(
   return {
     swing: here.swing,
     netDelta: here.netDelta,
-    swingPercentile: pct(here.swing, (m) => m.swing),
     netPercentile: pct(here.netDelta, (m) => m.netDelta),
     comparable: all.length,
   };
@@ -482,7 +475,6 @@ export function computeEraStats(data: Dataset): EraStats {
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const logStart = rows[0].date;
-  const logEnd = rows[rows.length - 1].date;
 
   const span = summarize(rows, "in school", GRAD_SCHOOL.start, GRAD_SCHOOL.end);
   const yearBefore = shiftDays(GRAD_SCHOOL.start, -365);
@@ -531,8 +523,6 @@ export function computeEraStats(data: Dataset): EraStats {
   });
 
   return {
-    logStart,
-    logEnd,
     eraMonths: monthIndex(GRAD_SCHOOL.end) - monthIndex(GRAD_SCHOOL.start) + 1,
     span,
     neighbors: [early, before, span, after],
@@ -547,8 +537,8 @@ export function computeEraStats(data: Dataset): EraStats {
       const m = mean(out);
       return { meanRating: m, ratingDiff: span.meanRating - m };
     })(),
-    vsBefore: contrast(span, before, before.label),
-    vsAfter: contrast(span, after, after.label),
+    vsBefore: contrast(span, before),
+    vsAfter: contrast(span, after),
     pace,
     rating,
     opens: readAt(pace, rating, GRAD_SCHOOL.start),

@@ -8,7 +8,7 @@
 // independent "overall" line across every rated watch.
 
 import type { EnrichedWatch, Film } from "./types";
-import { GENRE_COLORS, GENRE_ORDER, INK, primaryGenre, type GenreKey } from "./palette";
+import { GENRE_ORDER, primaryGenre, type GenreKey } from "./palette";
 import { countryName } from "./countries";
 
 export type Dimension = "genre" | "language" | "country" | "runtime" | "decade" | "mpaa";
@@ -27,8 +27,6 @@ export const OVERALL_KEY = "__overall__";
 
 /** The theme-shaped bits `buildSeries` needs to color a plan. */
 type SeriesTokens = { genre: Record<GenreKey, string>; ink: { primary: string } };
-
-const LIGHT_TOKENS: SeriesTokens = { genre: GENRE_COLORS, ink: INK };
 
 // The five validated categorical slots (from palette.ts) reused across every
 // categorical dimension, assigned in a fixed, count-stable order so cross-
@@ -261,15 +259,16 @@ function label(key: string, dim: Dimension): string {
  * Build the plotted series from a (possibly cross-filtered) set of watches.
  * `all` seeds the stable color plan; `filtered` supplies the points to draw.
  *
- * `tokens` defaults to the light set so pure callers (tests) see the same
- * colors this function always returned; the chart passes the active theme's.
+ * `tokens` comes from the caller's active theme and is required. The color plan
+ * is the part of this that a reader learns and relies on staying put, so a
+ * silent fallback to the light set is the one thing it must not do.
  */
 export function buildSeries(
   all: EnrichedWatch[],
   filtered: EnrichedWatch[],
   dim: Dimension,
-  options: BuildOptions = {},
-  tokens: SeriesTokens = LIGHT_TOKENS,
+  options: BuildOptions,
+  tokens: SeriesTokens,
 ): Series[] {
   const window = options.window ?? 10;
   const opts: Required<BuildOptions> = {

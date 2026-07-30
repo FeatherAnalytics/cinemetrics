@@ -71,3 +71,22 @@ def test_slice_columns_match_the_seed_header():
     with open(seed, encoding="utf-8", newline="") as fh:
         header = next(csv.reader(fh))
     assert SLICE_CSV_COLUMNS == header
+
+
+def test_the_committed_seed_is_in_numeric_order():
+    """The invariant write_slice_seed exists to hold, checked where it counts.
+
+    Every writer sorts, and none of them re-sorts a file that arrives out of
+    order, so a hand edit or a writer that stopped sorting would go unnoticed
+    until the next full rewrite put the whole reorder in one commit.
+    """
+    import csv
+    from pathlib import Path
+
+    seed = (
+        Path(__file__).resolve().parents[1] / "transform" / "seeds" / "poster_slices.csv"
+    )
+    with open(seed, encoding="utf-8", newline="") as fh:
+        ids = [int(r["tmdb_id"]) for r in csv.DictReader(fh)]
+    assert ids == sorted(ids)
+    assert len(ids) == len(set(ids))

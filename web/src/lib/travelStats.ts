@@ -54,7 +54,6 @@ export type TravelSplit = {
   ratingN: number;
   meanRating: number;
   medianRating: number;
-  sdRating: number;
   /** Standard error of the mean, which is the figure the null result turns on. */
   seRating: number;
 };
@@ -142,7 +141,6 @@ function summarize(dayCounts: number[], ratings: number[]): TravelSplit {
     ratingN: n,
     meanRating: mean,
     medianRating: median,
-    sdRating: sd,
     seRating: n === 0 ? 0 : sd / Math.sqrt(n),
   };
 }

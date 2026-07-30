@@ -1,4 +1,3 @@
-import { ACCENT } from "./palette";
 import type { EnrichedWatch } from "./types";
 
 // Midsommar, watched on the 2024 summer solstice — the one watch that earns a
@@ -13,19 +12,19 @@ export function isSolstice(w: EnrichedWatch): boolean {
  * A crimson sun: core dot plus eight rays. Sized by `r` (the core radius);
  * rays reach r + 3.8. Pointer handlers belong on the parent group.
  *
- * `accent` defaults to the light constant so pure callers (tests) see the same
- * color this always drew; the chart passes the active theme's.
+ * `accent` comes from the caller's active theme, and is required: the sun is a
+ * highlight, and one left on the light constant would stop being one.
  */
 export function SunMarker({
   x,
   y,
   r = 3.2,
-  accent = ACCENT,
+  accent,
 }: {
   x: number;
   y: number;
   r?: number;
-  accent?: string;
+  accent: string;
 }) {
   const rays = Array.from({ length: 8 }, (_, k) => {
     const a = (k * Math.PI) / 4;

@@ -1,8 +1,9 @@
 """Backfill transform/seeds/poster_slices.csv from dim_film.poster_path.
 
 Idempotent: only films missing a slice are fetched, so a re-run after new films
-land costs one request each rather than 676. That is what makes it safe to wire
-into the daily workflow as a repair step.
+land costs one request each rather than 676, and a run that repairs nothing
+leaves the seed byte-identical. That is what makes it safe to wire into the daily
+workflow as a repair step.
 
 Fetches poster images from image.tmdb.org, which needs no API key and has no
 daily cap. It never calls OMDb.
@@ -14,7 +15,6 @@ Dry run by default; pass --apply to write.
 """
 
 import argparse
-import csv
 import sys
 from pathlib import Path
 
@@ -22,19 +22,11 @@ import duckdb
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ingest.csvio import write_rows  # noqa: E402
-from ingest.poster_slice import SLICE_CSV_COLUMNS, slice_for_poster  # noqa: E402
+from ingest.poster_slice import read_slice_seed, slice_for_poster, write_slice_seed  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data" / "movies.duckdb"
 SEED = ROOT / "transform" / "seeds" / "poster_slices.csv"
-
-
-def existing() -> dict[str, str]:
-    if not SEED.exists():
-        return {}
-    with open(SEED, encoding="utf-8", newline="") as fh:
-        return {r["tmdb_id"]: r["slice"] for r in csv.DictReader(fh)}
 
 
 def main() -> None:
@@ -49,7 +41,8 @@ def main() -> None:
     ).fetchall()
     con.close()
 
-    have = existing()
+    have = read_slice_seed(SEED)
+    before = dict(have)
     # "" means both "never fetched" and "fetched, the CDN served nothing", so a
     # poster that 404s permanently is retried on every run. Kept that way on
     # purpose: it is one request per such film per night, image.tmdb.org has no
@@ -79,13 +72,23 @@ def main() -> None:
     filled = sum(1 for v in have.values() if v)
     print(f"{filled} slices, {misses} failed")
 
-    write_rows(
-        SEED,
-        [{"tmdb_id": t, "slice": have[t]} for t in sorted(have, key=int)],
-        SLICE_CSV_COLUMNS,
-        strict=True,
-    )
-    print(f"wrote {SEED.relative_to(ROOT)}")
+    # Nothing to write is the normal nightly outcome, and the write is skipped
+    # rather than performed and found to be a no-op. The nightly's sha256sum gate
+    # reads this file to decide whether a repair happened, and the commit that
+    # follows carries whatever the file says, so a writer with nothing to change
+    # has to leave the bytes alone.
+    #
+    # Compares the mapping rather than checking `todo`, because a run whose
+    # every fetch failed, and a run that re-fetched a permanently empty poster
+    # and got "" again, both had work to do and both changed nothing.
+    if have == before:
+        print("nothing changed — seed left untouched")
+        return
+
+    write_slice_seed(SEED, have)
+    # SEED.name, not relative_to(ROOT): the write has already landed by this
+    # point, so a path this line cannot render must not be able to raise.
+    print(f"wrote {SEED.name}")
 
 
 if __name__ == "__main__":
