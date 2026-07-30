@@ -162,12 +162,23 @@ export function SwimLaneChart() {
         }
         // A watch flown rather than sat through takes a plane. Faded and lifted
         // exactly like the sun, so a filtered-out flight recedes with the ghosts.
+        //
+        // In the film's GENRE color, like the favorite star below and unlike an
+        // earlier ink version of this mark. The lane encodes two things at once,
+        // genre in the hue and rating in the height, and an ink glyph silently
+        // drops the first for every watch it replaces. Crimson here means Horror
+        // exactly as it does on a dot: the mark says "flown" through its SHAPE,
+        // so the color is free to keep doing its own job.
+        //
+        // `p.color` rather than a fresh genre lookup: the ghost layer builds its
+        // points with muted ink, so this follows a filtered-out flight into the
+        // background instead of leaving one saturated dart behind.
         const leg = travelLeg(p.w);
         if (leg) {
           const op = p.op < 0.3 ? 0.35 : Math.max(p.op, 0.9);
           return (
             <g key={i} opacity={op} style={{ cursor: "pointer" }} {...handlers}>
-              <PlaneMarker x={p.x} y={p.y} leg={leg} color={tokens.ink.primary} />
+              <PlaneMarker x={p.x} y={p.y} leg={leg} color={p.color} />
             </g>
           );
         }
