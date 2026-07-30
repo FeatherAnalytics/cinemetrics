@@ -30,22 +30,17 @@ export const FAV_IDS: ReadonlySet<number> = new Set(FOUR_FAVS.map((f) => f.tmdb_
 /* ---------------------------------------------------------------- poster art */
 
 /**
- * Alternates chosen over TMDB's default pick, for the two favorites where the
- * default is not the preferred art.
+ * Curated poster art is NOT resolved here. It lives in the pipeline, as
+ * transform/seeds/poster_overrides.csv, and dim_film.poster_path coalesces it
+ * over what TMDB returned, so `film.poster` is already the chosen art.
  *
- * These are TMDB paths, not a second source, which is what makes them free of a
- * licensing question the project has not already answered: the same API terms
- * and the same attribution cover them. Verified present in TMDB's image set for
- * each film: Suspiria's is the Japanese release art (1200x1692), Raw's an
- * English sheet at 2000x3000.
- *
- * A film with no entry here falls back to whatever poster the pipeline carries,
- * which is TMDB's default pick for it.
+ * It used to be a map in this file behind a favPosterPath() helper that every
+ * renderer had to remember to call. Two called it; one did not, and the barcode
+ * hover drew the wrong poster. The barcode's STRIPES could never have been
+ * fixed here at all: they come from poster_slice, sampled in the pipeline, and
+ * re-deriving them in the browser would mean loading the poster image, which is
+ * the exact cost the slice exists to avoid.
  */
-const FAV_POSTERS: Record<number, string> = {
-  361292: "/uaZSq2EdzNLwGS2Cba5VfespvyM.jpg", // Suspiria (2018)
-  393519: "/6kXW9b1FZXvB3l0mLMDbKwGgL3P.jpg", // Raw
-};
 
 /**
  * The width TMDB is asked for.
@@ -60,11 +55,6 @@ const POSTER_WIDTH = "w342";
 export function posterUrl(path: string | null | undefined): string | null {
   if (!path) return null;
   return `https://image.tmdb.org/t/p/${POSTER_WIDTH}${path}`;
-}
-
-/** The path to draw for a film: the curated choice first, the pipeline's second. */
-export function favPosterPath(tmdb_id: number, fallback: string | null): string | null {
-  return FAV_POSTERS[tmdb_id] ?? fallback ?? null;
 }
 
 /**

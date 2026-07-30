@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import { favColor, StarMarker } from "@/lib/favMarker";
-import { favPosterPath, FOUR_FAVS, posterUrl } from "@/lib/fourFavs";
+import { FOUR_FAVS, posterUrl } from "@/lib/fourFavs";
 import { isPicked, pickWatches } from "@/components/stats/pick";
 import type { EnrichedWatch } from "@/lib/types";
 
@@ -59,7 +59,10 @@ export function FavPosters() {
         // The short link the id was resolved FROM, so it cannot drift from the film
         // this card is about the way a rebuilt slug could.
         href: `https://boxd.it/${f.letterboxd}`,
-        src: posterUrl(favPosterPath(f.tmdb_id, watches[0]?.film?.poster ?? null)),
+        // The film's own poster, which for a film with a curated override is
+        // already that override: dim_film resolves it, so every renderer of
+        // `film.poster` agrees without knowing overrides exist.
+        src: posterUrl(watches[0]?.film?.poster),
         watches,
       };
     });

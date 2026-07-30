@@ -3,7 +3,6 @@ import {
   ceilingFilms,
   FAV_IDS,
   favDirectorCohorts,
-  favPosterPath,
   FOUR_FAVS,
   isFav,
   posterUrl,
@@ -99,27 +98,6 @@ describe("posterUrl", () => {
 
   it("builds a TMDB CDN url from a path", () => {
     expect(posterUrl("/abc123.jpg")).toContain("/abc123.jpg");
-  });
-});
-
-describe("favPosterPath", () => {
-  it("prefers the curated alternate art for the two films that have one", () => {
-    // Suspiria and Raw are pinned to non-default TMDB art on purpose. A previous
-    // refactor deleted these as redundant; they are not.
-    expect(favPosterPath(361292, "/tmdb-default.jpg")).toBe(
-      "/uaZSq2EdzNLwGS2Cba5VfespvyM.jpg",
-    );
-    expect(favPosterPath(393519, "/tmdb-default.jpg")).toBe(
-      "/6kXW9b1FZXvB3l0mLMDbKwGgL3P.jpg",
-    );
-  });
-
-  it("falls back to the film's own poster when there is no curated choice", () => {
-    expect(favPosterPath(4977, "/tmdb-default.jpg")).toBe("/tmdb-default.jpg");
-  });
-
-  it("returns null when there is neither a curated choice nor a poster", () => {
-    expect(favPosterPath(4977, null)).toBeNull();
   });
 });
 

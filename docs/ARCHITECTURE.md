@@ -49,8 +49,9 @@ The database mirrors the layers, so the **Database** tab of the
 ```
 movies.duckdb
   letterboxd/   film_log, watchlist
-  enrichment/   film_enrichment, candidate_enrichment, poster_slices
-  staging/      stg_film_log, stg_watchlist, stg_film_enrichment, stg_candidate_enrichment, stg_poster_slices
+  enrichment/   film_enrichment, candidate_enrichment, poster_slices, poster_overrides
+  staging/      stg_film_log, stg_watchlist, stg_film_enrichment, stg_candidate_enrichment,
+                stg_poster_slices, stg_poster_overrides
   marts/        dim_film, fct_watches, dim_candidate
 ```
 
@@ -85,12 +86,14 @@ flowchart LR
   subgraph enrichment[enrichment]
     candidate_enrichment
     film_enrichment
+    poster_overrides
     poster_slices
   end
   subgraph staging[staging]
     stg_candidate_enrichment
     stg_film_enrichment
     stg_film_log
+    stg_poster_overrides
     stg_poster_slices
     stg_watchlist
   end
@@ -105,6 +108,7 @@ flowchart LR
   fct_watches --> dim_watchlist
   film_enrichment --> stg_film_enrichment
   film_log --> stg_film_log
+  poster_overrides --> stg_poster_overrides
   poster_slices --> stg_poster_slices
   stg_candidate_enrichment --> dim_candidate
   stg_candidate_enrichment --> dim_watchlist
@@ -112,6 +116,7 @@ flowchart LR
   stg_film_enrichment --> dim_watchlist
   stg_film_log --> dim_film
   stg_film_log --> fct_watches
+  stg_poster_overrides --> dim_film
   stg_poster_slices --> dim_film
   stg_watchlist --> dim_watchlist
   watchlist --> stg_watchlist
@@ -124,7 +129,7 @@ selects from it, [`export_web.py`](../scripts/export_web.py) does not export it,
 [`build_watchlist_seed.py`](../scripts/build_watchlist_seed.py) and the model is typed and tested,
 but the branch stops there — it is staged and ready rather than in use.
 
-Current scale: <!--stat:watches-->795<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->7,770<!--/stat--> recommendation candidates, <!--stat:dbt_models-->9<!--/stat--> dbt models, <!--stat:dbt_seeds-->5<!--/stat--> seeds, <!--stat:dbt_tests-->36<!--/stat--> data tests.
+Current scale: <!--stat:watches-->795<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->7,770<!--/stat--> recommendation candidates, <!--stat:dbt_models-->10<!--/stat--> dbt models, <!--stat:dbt_seeds-->6<!--/stat--> seeds, <!--stat:dbt_tests-->40<!--/stat--> data tests.
 
 Those figures are generated — see [Keeping the figures honest](#keeping-the-figures-honest). The
 dashboard header and the share card derive their own counts separately at build time, from
@@ -136,12 +141,25 @@ The DuckDB file (`data/movies.duckdb`) is gitignored and disposable. Every run r
 from the seeds. So the entire dataset is a diffable set of CSVs in git history, and any build
 (local, CI, or deploy) starts from identical inputs.
 
-The five seeds: [`film_log.csv`](../transform/seeds/film_log.csv) (watch events),
+The six seeds: [`film_log.csv`](../transform/seeds/film_log.csv) (watch events),
 [`film_enrichment.csv`](../transform/seeds/film_enrichment.csv) (attributes for watched films),
 [`candidate_enrichment.csv`](../transform/seeds/candidate_enrichment.csv) (the recommendation
-pool), [`watchlist.csv`](../transform/seeds/watchlist.csv), and
+pool), [`watchlist.csv`](../transform/seeds/watchlist.csv),
 [`poster_slices.csv`](../transform/seeds/poster_slices.csv) (20-stop colour columns sampled from
-each poster). Their column types are pinned in [`dbt_project.yml`](../transform/dbt_project.yml).
+each poster), and [`poster_overrides.csv`](../transform/seeds/poster_overrides.csv) (the films
+whose default TMDB art is not the art wanted). Their column types are pinned in
+[`dbt_project.yml`](../transform/dbt_project.yml).
+
+`poster_overrides` is the one seed no script writes. It is a curation, like the franchise rollups
+in [`franchise_mapping()`](../transform/macros/), and it is data rather than a constant in
+[`web/`](../web/) because a curated poster has two consumers — the poster image and the barcode
+stripe sampled from it — and only the pipeline can serve both.
+[`dim_film.poster_path`](../transform/models/marts/dim_film.sql) coalesces the override over the
+enrichment seed, so it is the single answer to which art a film gets and no renderer needs a
+helper of its own. Changing an override means re-sampling its slice:
+[`reslice_overridden_posters.py`](../scripts/reslice_overridden_posters.py), because the nightly
+[`backfill_poster_slices.py`](../scripts/backfill_poster_slices.py) only fetches films that have
+no slice at all.
 
 Two rules protect this:
 
@@ -218,7 +236,7 @@ Everything is free-tier and stateless except the object store.
 
 **[`ci.yml`](../.github/workflows/ci.yml)** — on pull requests to `main`. Three independent
 jobs: `lint` (ruff + eslint), `data` (`dbt deps` then `dbt build`, which runs all
-<!--stat:dbt_tests-->36<!--/stat--> tests), and `web` (vitest + Next.js build).
+<!--stat:dbt_tests-->40<!--/stat--> tests), and `web` (vitest + Next.js build).
 
 **[`deploy.yml`](../.github/workflows/deploy.yml)** — on push to `main` and on manual dispatch.
 Builds the web bundle and publishes to Pages. Concurrency group `pages`, no
@@ -354,12 +372,14 @@ flowchart LR
   subgraph enrichment[enrichment]
     candidate_enrichment
     film_enrichment
+    poster_overrides
     poster_slices
   end
   subgraph staging[staging]
     stg_candidate_enrichment
     stg_film_enrichment
     stg_film_log
+    stg_poster_overrides
     stg_poster_slices
     stg_watchlist
   end
@@ -374,6 +394,7 @@ flowchart LR
   fct_watches --> dim_watchlist
   film_enrichment --> stg_film_enrichment
   film_log --> stg_film_log
+  poster_overrides --> stg_poster_overrides
   poster_slices --> stg_poster_slices
   stg_candidate_enrichment --> dim_candidate
   stg_candidate_enrichment --> dim_watchlist
@@ -381,6 +402,7 @@ flowchart LR
   stg_film_enrichment --> dim_watchlist
   stg_film_log --> dim_film
   stg_film_log --> fct_watches
+  stg_poster_overrides --> dim_film
   stg_poster_slices --> dim_film
   stg_watchlist --> dim_watchlist
   watchlist --> stg_watchlist
