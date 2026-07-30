@@ -25,14 +25,14 @@ import { RatingsByGenre } from "@/components/stats/RatingsByGenre";
 import { GenrePairing } from "@/components/stats/GenrePairing";
 import { RatingDistribution } from "@/components/stats/RatingDistribution";
 import { PosterBarcode } from "@/components/PosterBarcode";
-import { FavPosters } from "@/components/lab/FavPosters";
-import { LikedByRating, LikedByRatingBlurb } from "@/components/lab/LikedByRating";
-import { WhatMovesTheHeart } from "@/components/lab/WhatMovesTheHeart";
+import { FavPosters } from "@/components/heart/FavPosters";
+import { LikedByRating, LikedByRatingBlurb } from "@/components/heart/LikedByRating";
+import { WhatMovesTheHeart } from "@/components/heart/WhatMovesTheHeart";
 import {
   FavsAmongTheBest,
   FavsAmongTheBestBlurb,
-} from "@/components/lab/FavsAmongTheBest";
-import { FavDirectors, FavDirectorsBlurb } from "@/components/lab/FavDirectors";
+} from "@/components/heart/FavsAmongTheBest";
+import { FavDirectors, FavDirectorsBlurb } from "@/components/heart/FavDirectors";
 import { SelectionPanel } from "@/components/SelectionPanel";
 import { StatBar } from "@/components/StatBar";
 import { StoryAnnotation } from "@/components/StoryAnnotation";
