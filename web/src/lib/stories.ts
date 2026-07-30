@@ -411,23 +411,64 @@ function computePickier(films: Film[], watches: EnrichedWatch[]): StoryResult {
   const last = byYear.get(years[years.length - 1])!;
   const firstAvg = first.rated ? first.sum / first.rated : 0;
   const lastAvg = last.rated ? last.sum / last.rated : 0;
+
+  /**
+   * The volume change, measured against the last COMPLETE year.
+   *
+   * The newest year in the log is only as far into itself as the last watch
+   * got, so its count is not comparable to a full one: seven months of 2026
+   * against twelve of 2019 reads as a 76% collapse where the honest figure is
+   * 51%. An average tolerates a partial year, which is why the rating half
+   * above still uses the newest one; a count does not.
+   *
+   * "Complete" is read off the data rather than the clock. Any year the log has
+   * already moved past is done with, so the rule needs no year written into it
+   * and is still right next January. Null when the first year is the only
+   * complete one, since there is then nothing to compare it against.
+   */
+  const newest = years[years.length - 1];
+  const complete = years.filter((y) => y < newest);
+  const lastFull = complete[complete.length - 1];
+  const volume =
+    lastFull > years[0]
+      ? {
+          year: lastFull,
+          n: byYear.get(lastFull)!.n,
+          pct: Math.round((100 * (first.n - byYear.get(lastFull)!.n)) / first.n),
+        }
+      : null;
+  // The same complete-year count the teaser quotes, so the headline cannot call
+  // it a decline off the partial year the teaser refuses to.
+  const watchesLess = volume ? volume.pct > 0 : last.n < first.n;
+
   const headline =
-    last.n < first.n && lastAvg > firstAvg
+    watchesLess && lastAvg > firstAvg
       ? "I watch less now, but rate higher"
       : `From ${years[0]} to ${years[years.length - 1]}, my pace and taste shifted`;
   return {
     headline,
-    // The headline names a direction, not a number. The two yearly averages are
-    // the figures this story actually rests on, and the swim lane note already
-    // prints them, so the chip carries those rather than a fourth phrasing of
-    // "higher". Stated as two endpoints so it stays true if the trend reverses.
-    teaser: `${Math.round(firstAvg)} average in ${years[0]}, ${Math.round(lastAvg)} in ${years[years.length - 1]}`,
+    // The headline names a direction, not a number, and the direction the reader
+    // asked the chip to carry is the VOLUME one. Measured here from the same
+    // locals the rolling note prints, so the chip and the note are two views of
+    // one figure. Stated as two endpoints, and with its direction word measured,
+    // so it stays true if the trend reverses. Dropped where there is no complete
+    // year to compare against, which leaves `storyTeaser` on the headline.
+    ...(volume
+      ? {
+          teaser: `${Math.abs(volume.pct)}% ${volume.pct >= 0 ? "fewer" : "more"} watches in ${volume.year} than in ${years[0]}`,
+        }
+      : {}),
     chip: "Getting pickier",
     yearMeans: true,
     notes: {
       stripes: "Recent stripes lean crimson: higher scores across fewer films each year.",
       spiral: `The dashed line across each row is that year's average rating: ${Math.round(firstAvg)} in ${years[0]}, ${Math.round(lastAvg)} in ${years[years.length - 1]}.`,
-      rolling: "My overall average drifts up as the yearly pace slows.",
+      // Carries the raw counts the chip has no room for, and the percentage the
+      // chip does quote: every figure on a teaser has to appear in the story's
+      // own annotations or the two can be edited into disagreeing.
+      rolling: volume
+        ? `My overall average drifts up as the yearly pace ${volume.pct >= 0 ? "slows" : "picks up"}: ${first.n} watches in ${years[0]} against ${volume.n} in ${volume.year}, ${volume.pct >= 0 ? "down" : "up"} ${Math.abs(volume.pct)}%.`
+        : "My overall average drifts up as the yearly pace slows.",
     },
   };
 }

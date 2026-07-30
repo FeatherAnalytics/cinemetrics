@@ -74,23 +74,59 @@ describe("runtime", () => {
 });
 
 describe("getting-pickier", () => {
-  it("reports fewer watches at a higher average over time", () => {
+  // Eight watches in 2019, five in 2025, three so far in 2026. The volume figure
+  // is 2019 against 2025 (-38%), never against the partial 2026 (-63%).
+  const yearly = (year: number, n: number, rating: number, from = 0) => {
     const films: Film[] = [];
     const watches: EnrichedWatch[] = [];
-    for (let i = 0; i < 8; i++) {
-      const f = makeFilm({ tmdb_id: 100 + i });
+    for (let i = 0; i < n; i++) {
+      const f = makeFilm({ tmdb_id: from + i });
       films.push(f);
-      watches.push(makeWatch(f, { tmdb_id: f.tmdb_id, rating: 62, date: `2019-0${(i % 8) + 1}-10` }));
+      watches.push(
+        makeWatch(f, { tmdb_id: f.tmdb_id, rating, date: `${year}-0${(i % 9) + 1}-10` }),
+      );
     }
-    for (let i = 0; i < 3; i++) {
-      const f = makeFilm({ tmdb_id: 200 + i });
-      films.push(f);
-      watches.push(makeWatch(f, { tmdb_id: f.tmdb_id, rating: 85, date: `2026-0${i + 1}-10` }));
-    }
+    return { films, watches };
+  };
+  const a = yearly(2019, 8, 62, 100);
+  const b = yearly(2025, 5, 85, 200);
+  const c = yearly(2026, 3, 85, 300);
+  const films = [...a.films, ...b.films, ...c.films];
+  const watches = [...a.watches, ...b.watches, ...c.watches];
+
+  it("reports fewer watches at a higher average over time", () => {
     const result = pickier.compute(films, watches);
-    expect(result.headline).toBeTruthy();
+    expect(result.headline).toBe("I watch less now, but rate higher");
     expect(result.notes).toBeDefined();
     expect(Object.keys(result.notes!).length).toBeGreaterThan(0);
+  });
+
+  it("counts volume against the last complete year, not the partial newest one", () => {
+    const result = pickier.compute(films, watches);
+    // 8 to 5 is -38%. 8 to 3 is -63%, and that is the number a partial year
+    // manufactures out of the calendar rather than out of the watching.
+    expect(result.teaser).toBe("38% fewer watches in 2025 than in 2019");
+    expect(result.teaser).not.toContain("2026");
+    expect(result.notes?.rolling).toContain("8 watches in 2019 against 5 in 2025, down 38%");
+  });
+
+  it("drops the volume figure when no year but the first is complete", () => {
+    // One full year and one partial: there is no honest comparison to make, so
+    // the chip falls back to the headline rather than quoting the partial year.
+    const result = pickier.compute([...a.films, ...c.films], [...a.watches, ...c.watches]);
+    expect(result.teaser).toBeUndefined();
+    expect(storyTeaser("getting-pickier", result)).toBe(result.headline);
+  });
+
+  it("says more, not fewer, when the pace has risen", () => {
+    const rising = yearly(2025, 12, 85, 400);
+    const result = pickier.compute(
+      [...a.films, ...rising.films, ...c.films],
+      [...a.watches, ...rising.watches, ...c.watches],
+    );
+    expect(result.teaser).toBe("50% more watches in 2025 than in 2019");
+    expect(result.notes?.rolling).toContain("picks up");
+    expect(result.notes?.rolling).toContain("up 50%");
   });
 });
 
@@ -394,6 +430,35 @@ describe("storyTeaser against the real dataset", () => {
         /\b(see|explore|discover|find out|check out|take a look)\b/i,
       );
     }
+  });
+
+  it("measures the pickier volume drop against the shipped watch log", () => {
+    // The fixture above proves the rule; this proves the number a reader sees.
+    // The payload runs to July of its newest year, so first-to-newest on raw
+    // counts is a figure the calendar produced, not the watching.
+    const perYear = new Map<number, number>();
+    for (const w of all) {
+      const y = w.d.getUTCFullYear();
+      perYear.set(y, (perYear.get(y) ?? 0) + 1);
+    }
+    const years = [...perYear.keys()].sort((x, y) => x - y);
+    const firstYear = years[0];
+    const newest = years[years.length - 1];
+    const lastComplete = years[years.length - 2];
+    const honest = Math.round(
+      (100 * (perYear.get(firstYear)! - perYear.get(lastComplete)!)) / perYear.get(firstYear)!,
+    );
+    const artifact = Math.round(
+      (100 * (perYear.get(firstYear)! - perYear.get(newest)!)) / perYear.get(firstYear)!,
+    );
+    expect(honest, "the two figures must differ or this proves nothing").not.toBe(artifact);
+
+    const result = results.find((r) => r.id === "getting-pickier")!.result;
+    expect(result.teaser).toBe(
+      `${honest}% fewer watches in ${lastComplete} than in ${firstYear}`,
+    );
+    expect(result.teaser).not.toContain(String(newest));
+    expect(result.teaser).not.toContain(String(artifact));
   });
 
   it("quotes no figure the story's own annotations do not carry", () => {
