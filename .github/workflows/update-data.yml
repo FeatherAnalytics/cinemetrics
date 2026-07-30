@@ -53,9 +53,37 @@ jobs:
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
+      # Runs after update.py because it reads dim_film.poster_path out of the
+      # DuckDB file that update.py's build produces.
       - name: Repair any missing poster slices
+        id: slices
         if: steps.diff.outputs.changed == 'true'
-        run: uv run python scripts/backfill_poster_slices.py --apply
+        run: |
+          before=$(sha256sum transform/seeds/poster_slices.csv)
+          uv run python scripts/backfill_poster_slices.py --apply
+          after=$(sha256sum transform/seeds/poster_slices.csv)
+          if [ "$before" = "$after" ]; then
+            echo "repaired=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "repaired=true" >> "$GITHUB_OUTPUT"
+          fi
+      # A repaired slice has to be validated and exported by the same run that
+      # commits it, and neither happened. The repair wrote the seed after
+      # update.py had already built and exported, and the only dbt call left in
+      # the job selects candidate_enrichment+, which contains no poster_slices,
+      # no stg_poster_slices and no dim_film. So the seed reached main with no
+      # dbt node having read it -- its unique and not_null tests never saw the
+      # new rows -- and cinemetrics.json was committed beside a slice it did not
+      # carry, leaving a blank stripe on the barcode until the next day's run.
+      #
+      # Both steps are skipped on the normal path, where the repair finds
+      # nothing missing and leaves the seed byte-identical.
+      - name: Rebuild the models a repaired slice feeds
+        if: steps.slices.outputs.repaired == 'true'
+        run: cd transform && uv run dbt build --profiles-dir . --select poster_slices+
+      - name: Re-export web JSON with the repaired slices
+        if: steps.slices.outputs.repaired == 'true'
+        run: uv run python scripts/export_web.py
       # Validates the candidate seed that `Fetch candidates` just appended, via the
       # unique/not_null tests on stg_candidate_enrichment and dim_candidate. Scoped
       # to that path rather than a full build: update.py already built and tested
