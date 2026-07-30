@@ -96,7 +96,6 @@ def build_enrichment_row(
     omdb_countries: bool,
     include_lang_collection: bool,
     strip_text: bool = False,
-    include_poster_path: bool = True,
     include_candidate_meta: bool = False,
 ) -> dict[str, str]:
     """Map a TMDB detail + OMDb dict to an enrichment row.
@@ -109,10 +108,6 @@ def build_enrichment_row(
     include_lang_collection True -> append original_language + collection (TMDB).
     strip_text             True  -> strip text fields (rebuild_enrichment.py).
                            False -> preserve text as-is (update/fetch_candidates).
-    include_poster_path     True  -> emit poster_path (both enrichment seeds).
-                           False -> omit it, for a caller whose column list has
-                                    no slot for it; a stray key would trip
-                                    dict_writer's strict=True at write time.
     include_candidate_meta  True  -> emit title/release_date/tmdb_rating/
                                     tmdb_votes (candidate_enrichment.csv only).
                            False -> omit them (film_enrichment.csv has no such
@@ -160,10 +155,14 @@ def build_enrichment_row(
         "production_countries": countries,
     }
 
-    if include_poster_path:
-        # TMDB image path, e.g. "/abc123.jpg". Stored as the path, not a URL:
-        # the CDN host and size segment belong to the renderer, not the data.
-        row["poster_path"] = tmdb.get("poster_path") or ""
+    # TMDB image path, e.g. "/abc123.jpg". Stored as the path, not a URL: the
+    # CDN host and size segment belong to the renderer, not the data.
+    #
+    # Emitted for every caller, because both enrichment seeds carry the column.
+    # Where they differ is its POSITION -- mid-row in FILM_CSV_COLUMNS, last in
+    # CANDIDATE_CSV_COLUMNS -- and position is the column list's business, not
+    # the row builder's.
+    row["poster_path"] = tmdb.get("poster_path") or ""
 
     if include_lang_collection:
         # fetch_candidates.py reads these raw; rebuild_enrichment.py cleans them.
