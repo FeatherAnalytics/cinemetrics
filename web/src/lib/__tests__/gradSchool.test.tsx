@@ -7,8 +7,11 @@ import {
   computeEraStats,
   GRAD_SCHOOL,
   monthIndex,
-  rollingSeries,
-  TREND_MONTHS,
+  PACE_MONTHS,
+  paceSeries,
+  RATING_WATCHES,
+  ratingTrend,
+  timeAt,
 } from "../gradSchool";
 import type { Dataset } from "../types";
 
@@ -77,50 +80,70 @@ describe("the span and the log it sits in", () => {
 });
 
 /**
- * The window width, which is the one number here that a well-meaning edit would
- * change and that would silently take the finding with it.
+ * The two window widths, which are the numbers here that a well-meaning edit
+ * would change and that would silently take the finding with them.
  */
-describe("the rolling window", () => {
-  it("keeps the window narrower than the era it has to resolve", () => {
+describe("the two rolling windows", () => {
+  it("keeps the pace window narrower than the era it has to resolve", () => {
     // At 24 this fails, which is the point. A window wider than the span cannot
-    // produce a dip inside it, so flatness there would be an artifact of the
+    // produce a dip inside it, so smoothness there would be an artifact of the
     // method rather than a fact about the viewing.
-    expect(TREND_MONTHS).toBeLessThan(stats.eraMonths);
+    expect(PACE_MONTHS).toBeLessThan(stats.eraMonths);
     // And narrow enough to cover the span about twice, not merely to fit in it.
-    expect(stats.eraMonths / TREND_MONTHS).toBeGreaterThanOrEqual(1.5);
+    expect(stats.eraMonths / PACE_MONTHS).toBeGreaterThanOrEqual(1.5);
   });
 
-  it("resolves a range that a 24-month window flattens away", () => {
+  it("keeps the rating window narrow enough to resolve the era too", () => {
+    // Expressed in months, since that is the unit the era is in. A 40-watch
+    // window covers a few months at the span's own pace, so this line could show
+    // a dip for the same reason the pace line could.
+    const inside = stats.rating.filter(
+      (p) => p.date >= GRAD_SCHOOL.start && p.date <= GRAD_SCHOOL.end,
+    );
+    const widest = Math.max(
+      ...inside.map((p) => {
+        const start = stats.rating[stats.rating.indexOf(p) - RATING_WATCHES + 1];
+        return start ? p.time - start.time : 0;
+      }),
+    );
+    expect(widest).toBeLessThan(stats.eraMonths / 2);
+    expect(inside.length).toBe(stats.span.watches);
+  });
+
+  it("resolves a pace range that a 24-month window flattens away", () => {
     // The concrete cost of widening, asserted rather than argued.
-    const twelve = rollingSeries(rows, 12);
-    const twentyFour = rollingSeries(rows, 24);
-    const spread = (s: typeof twelve, f: (p: (typeof twelve)[number]) => number) =>
-      Math.max(...s.map(f)) - Math.min(...s.map(f));
+    const twelve = paceSeries(rows, 12);
+    const twentyFour = paceSeries(rows, 24);
+    const spread = (s: typeof twelve) =>
+      Math.max(...s.map((p) => p.filmsPerMonth)) - Math.min(...s.map((p) => p.filmsPerMonth));
 
     expect(twelve).toHaveLength(80);
     expect(twentyFour).toHaveLength(68);
-    expect(spread(twelve, (p) => p.filmsPerMonth)).toBeGreaterThan(
-      spread(twentyFour, (p) => p.filmsPerMonth),
-    );
-    expect(spread(twelve, (p) => p.meanRating ?? 0)).toBeGreaterThan(
-      spread(twentyFour, (p) => p.meanRating ?? 0),
-    );
+    expect(spread(twelve)).toBeGreaterThan(spread(twentyFour));
   });
 
-  it("gives the span its own points rather than only overlapping ones", () => {
-    const inside = stats.series.filter(
-      (p) => p.month >= monthIndex(GRAD_SCHOOL.start) && p.month <= monthIndex(GRAD_SCHOOL.end),
+  it("windows the rating by watches so the line cannot swing on volume", () => {
+    // The asymmetry between the two windows, asserted. Every point on the rating
+    // line rests on exactly the same amount of evidence; that is the property a
+    // time window would not have.
+    expect(stats.rating).toHaveLength(
+      data.watches.filter((w) => w.rating != null).length - RATING_WATCHES + 1,
     );
-    expect(inside).toHaveLength(stats.eraMonths);
-    // From the window's width onward a point covers only months inside the span.
-    const wholly = inside.filter(
-      (p) => p.month - TREND_MONTHS + 1 >= monthIndex(GRAD_SCHOOL.start),
+    const flat = ratingTrend(
+      [
+        { date: "2020-01-05", rating: 100 },
+        { date: "2020-01-06", rating: 0 },
+        { date: "2024-06-01", rating: 50 },
+      ],
+      2,
     );
-    expect(wholly.length).toBeGreaterThan(0);
+    // Two points, each over two watches, regardless of the four-year gap between
+    // the second and the third.
+    expect(flat.map((p) => p.mean)).toEqual([50, 25]);
   });
 
-  it("divides by the window width, so an empty month is a zero and not a gap", () => {
-    const s = rollingSeries(
+  it("divides pace by the window width, so an empty month is a zero and not a gap", () => {
+    const s = paceSeries(
       [
         { date: "2020-01-05", rating: 80 },
         { date: "2020-03-05", rating: 60 },
@@ -128,7 +151,16 @@ describe("the rolling window", () => {
       3,
     );
     expect(s[0].filmsPerMonth).toBeCloseTo(2 / 3, 6);
-    expect(s[0].meanRating).toBe(70);
+  });
+
+  it("puts both lines on one x unit so a single band can serve them", () => {
+    // Fractional month index. If the two ever stopped agreeing on x, the shading
+    // would sit in a different place on each chart and the comparison the section
+    // asks the reader to make would be invalid.
+    expect(timeAt("2023-08-01")).toBeCloseTo(monthIndex("2023-08"), 6);
+    expect(timeAt("2023-08-16")).toBeGreaterThan(timeAt("2023-08-01"));
+    expect(timeAt("2023-09-01")).toBeCloseTo(monthIndex("2023-08") + 1, 6);
+    for (const p of stats.pace) expect(p.time).toBe(p.month);
   });
 });
 
@@ -151,13 +183,31 @@ describe("what the lines do at the edges of the span", () => {
     expect((stats.opens.meanRating - trough.mean) / (peak - trough.mean)).toBeGreaterThan(0.7);
   });
 
-  it("finds the volume line moving inside the span, so the copy may not call it flat", () => {
-    // The honest half. The rating line is flat across the span; the volume line
-    // is not, and a section describing both as flat would be wrong about one.
-    const swing =
-      stats.spanVolumeRange.high.filmsPerMonth - stats.spanVolumeRange.low.filmsPerMonth;
+  it("finds the pace line moving inside the span, so the copy may not call it flat", () => {
+    // The honest half. Neither line is actually still inside the span, and a
+    // section describing them as flat would be wrong about both.
+    const swing = stats.spanPaceRange.high.filmsPerMonth - stats.spanPaceRange.low.filmsPerMonth;
     expect(swing).toBeGreaterThan(1);
-    expect(stats.spanVolumeRange.high.filmsPerMonth).toBeGreaterThan(stats.opens.filmsPerMonth);
+    expect(stats.spanPaceRange.high.filmsPerMonth).toBeGreaterThan(stats.opens.filmsPerMonth);
+  });
+
+  /**
+   * The claim the whole section rests on, and the reason it is a RANK.
+   *
+   * A 40-watch window wanders visibly everywhere, so "the rating line is flat
+   * across the span" would be an eyeball claim that the chart contradicts. What
+   * is checkable is that it ends where it started and does so more completely
+   * than most comparable stretches, which is what the copy says instead.
+   */
+  it("ranks the span among the stillest stretches by net movement", () => {
+    expect(stats.ratingStretch.comparable).toBeGreaterThan(30);
+    expect(stats.ratingStretch.netDelta).toBeLessThan(1.5);
+    // Top decile of stillness. Anything above 25 and the copy's "quieter than"
+    // sentence is overselling a middling stretch.
+    expect(stats.ratingStretch.netPercentile).toBeLessThan(25);
+    // And the swing inside is NOT unusual, which is why the copy claims the net
+    // and not the shape.
+    expect(stats.ratingStretch.swing).toBeGreaterThan(5);
   });
 });
 
@@ -239,10 +289,15 @@ describe("what the section is required to print", () => {
     }
   });
 
-  it("states the window reasoning where the reader can see it", () => {
+  it("states both window choices where the reader can see them", () => {
     const text = textOf();
-    expect(text).toContain("Twelve months and not twenty-four");
-    expect(text).toContain(`The span is ${stats.eraMonths} months`);
+    // The pace window's justification, including the number that would break it.
+    expect(text).toContain("Two windows, because the two measures need different ones");
+    expect(text).toContain(`the span is ${stats.eraMonths} months`);
+    expect(text).toContain("twenty-four month window would be wider");
+    // And the rating window's, which is a different argument entirely.
+    expect(text).toContain(`${RATING_WATCHES} watch window`);
+    expect(text).toContain("swing on how much I watched rather than on how I rated it");
   });
 
   /**
@@ -253,7 +308,12 @@ describe("what the section is required to print", () => {
     const text = textOf();
     expect(text).toContain("The trend walks straight through it");
     expect(text).toContain("A chart cannot establish an absence");
-    expect(text).toContain("Make of it what you like");
+    // The closing line, which the owner asked to keep. It says what the section
+    // is not evidence of without claiming to have ruled anything out.
+    expect(text).toContain("It is not evidence that school did it");
+    // And the rank is labelled as a rank. Overlapping stretches are not
+    // independent samples, so the percentile may not be dressed up as a test.
+    expect(text).toContain("rank among overlapping stretches rather than a test");
     // The banned construction, in either half. "Not significant" is not a
     // finding, and a chart cannot establish absence, so it misuses the word twice.
     expect(text).not.toMatch(/not significant/i);

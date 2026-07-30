@@ -193,8 +193,9 @@ export function Lab({ data }: { data: Dataset }) {
             </h2>
             <p className="mt-1 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
               I was in school from August 2023 to May 2025. Two rolling lines over the whole log,
-              volume and rating, sharing one time axis with the span shaded on both. The question
-              is what either line does when it reaches the shading.
+              rating and volume, on one time axis with the span shaded on both. Neither line does
+              anything at the shading, which is the finding and also the reason it needs the rest
+              of the section.
             </p>
           </div>
 
@@ -207,11 +208,11 @@ export function Lab({ data }: { data: Dataset }) {
 
           <p className="mt-3 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
             <span className="font-bold">Why it is here and not on the main page:</span> the
-            answer is a null one, and a null result needs its method shown before it means
-            anything. Most of the words below are spent on which window was used and on what the
-            charts cannot establish, which is the right ratio for a claim of this kind and a bad
-            fit for a page a stranger skims. It also carries the correction to a figure an earlier
-            draft of this page got wrong.
+            section spends more words refusing the causal reading than stating the finding, which
+            is the right ratio and a bad fit for a page a stranger skims. A null result needs its
+            method shown before it means anything, so most of what follows is about which window
+            each line uses and what the charts cannot establish. It also carries the correction to
+            a figure an earlier draft of this page got wrong.
           </p>
         </section>
       </div>

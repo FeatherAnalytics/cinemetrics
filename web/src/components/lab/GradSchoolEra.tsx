@@ -6,11 +6,11 @@ import { useWidth } from "@/lib/useWidth";
 import { fmt1 } from "@/lib/format";
 import {
   GRAD_SCHOOL,
-  monthIndex,
   monthLabel,
-  TREND_MONTHS,
+  PACE_MONTHS,
+  RATING_WATCHES,
+  timeAt,
   type EraStats,
-  type RollingPoint,
 } from "@/lib/gradSchool";
 
 /**
@@ -25,6 +25,12 @@ import {
  * That is not only less code: a reader comparing two charts has to be able to
  * trust that the shading sits in the same place on both, and the cheapest way to
  * earn that is for there to be exactly one copy of the geometry.
+ *
+ * The two lines are windowed DIFFERENTLY, which is why they come in as separate
+ * series rather than as two fields of one point. See `PACE_MONTHS` and
+ * `RATING_WATCHES`: a rate over time needs a window of time, and a mean rating
+ * needs a window that does not move with how much I watched. They share the x
+ * axis and nothing else.
  *
  * Individual ratings are deliberately not plotted behind the rating line. On a 0
  * to 100 axis 795 dots flatten it to nearly straight, and the shape of that line
@@ -55,8 +61,8 @@ function niceDomain(values: number[], step: number): [number, number] {
 }
 
 type Geometry = {
-  /** Month index to pixel. */
-  x: (month: number) => number;
+  /** Fractional month index to pixel. */
+  x: (time: number) => number;
   bandX0: number;
   bandX1: number;
   plotW: number;
@@ -64,7 +70,7 @@ type Geometry = {
 };
 
 /**
- * One rolling line under the shared band.
+ * One line under the shared band.
  *
  * Takes the geometry rather than building it, which is what keeps the two panels
  * honest about sitting on one axis. Only the lower panel draws year labels: two
@@ -73,10 +79,8 @@ type Geometry = {
 function RollingChart({
   title,
   caption,
-  series,
-  value,
+  points,
   domain,
-  decimals,
   geo,
   tokens,
   bandLabel = false,
@@ -84,10 +88,8 @@ function RollingChart({
 }: {
   title: string;
   caption: string;
-  series: RollingPoint[];
-  value: (p: RollingPoint) => number | null;
+  points: { time: number; value: number }[];
   domain: [number, number];
-  decimals: number;
   geo: Geometry;
   tokens: Tokens;
   bandLabel?: boolean;
@@ -98,13 +100,8 @@ function RollingChart({
   const y = (v: number) => MT + (1 - (v - lo) / (hi - lo)) * plotH;
   const bandTop = MT - (bandLabel ? LABEL_H : 0);
 
-  const d = series
-    .map((p) => {
-      const v = value(p);
-      return v == null ? null : `${geo.x(p.month).toFixed(1)},${y(v).toFixed(1)}`;
-    })
-    .filter((s): s is string => s != null)
-    .map((s, i) => `${i === 0 ? "M" : "L"}${s}`)
+  const d = points
+    .map((p, i) => `${i === 0 ? "M" : "L"}${geo.x(p.time).toFixed(1)},${y(p.value).toFixed(1)}`)
     .join("");
 
   return (
@@ -164,7 +161,7 @@ function RollingChart({
               fill={tokens.ink.muted}
               className="tabular-nums"
             >
-              {v.toFixed(decimals)}
+              {v}
             </text>
           </g>
         ))}
@@ -201,10 +198,14 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
   const [ref, w] = useWidth(720, 320);
 
   const geo = useMemo<Geometry>(() => {
-    const first = stats.series[0].month;
-    const last = stats.series[stats.series.length - 1].month;
+    // Across BOTH series, so neither line is clipped and the two agree on x. The
+    // rating line starts earlier than the pace line, because 40 watches accumulate
+    // before 12 months do.
+    const times = [...stats.pace.map((p) => p.time), ...stats.rating.map((p) => p.time)];
+    const first = Math.min(...times);
+    const last = Math.max(...times);
     const plotW = Math.max(1, w - ML - MR);
-    const x = (m: number) => ML + ((m - first) / Math.max(1, last - first)) * plotW;
+    const x = (t: number) => ML + ((t - first) / Math.max(1, last - first)) * plotW;
     const years: { year: number; px: number }[] = [];
     for (let yr = Math.ceil(first / 12); yr * 12 <= last; yr++) {
       years.push({ year: yr, px: x(yr * 12) });
@@ -212,64 +213,65 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
     return {
       x,
       plotW,
-      bandX0: x(monthIndex(GRAD_SCHOOL.start)),
-      bandX1: x(monthIndex(GRAD_SCHOOL.end)),
+      bandX0: x(timeAt(GRAD_SCHOOL.start)),
+      bandX1: x(timeAt(GRAD_SCHOOL.end)),
       years,
     };
-  }, [stats.series, w]);
+  }, [stats.pace, stats.rating, w]);
 
-  const volumeDomain = niceDomain(
-    stats.series.map((p) => p.filmsPerMonth),
-    2,
-  );
-  const ratingDomain = niceDomain(
-    stats.series.map((p) => p.meanRating).filter((r): r is number => r != null),
-    5,
-  );
+  const ratingPoints = stats.rating.map((p) => ({ time: p.time, value: p.mean }));
+  const pacePoints = stats.pace.map((p) => ({ time: p.time, value: p.filmsPerMonth }));
 
   const [early, , span, after] = stats.neighbors;
-  const { opens, closes, vsBefore, spanVolumeRange } = stats;
+  const { opens, closes, vsBefore, spanPaceRange, ratingStretch } = stats;
   // Looked up rather than indexed. The sentence below names the year the climb
-  // started from, and hardcoding a position in the list would keep asserting it
+  // started from, and a hardcoded position in the list would keep asserting it
   // after a worse year arrived.
   const trough = stats.yearlyMeans.reduce((a, b) => (b.mean < a.mean ? b : a));
+  const calmerThan = Math.round(100 - ratingStretch.netPercentile);
 
   return (
     <div>
       <div ref={ref} style={{ maxWidth: "100%" }}>
         <RollingChart
-          title="Films per month"
-          caption={`Trailing ${TREND_MONTHS} months, plotted at the month the window closes.`}
-          series={stats.series}
-          value={(p) => p.filmsPerMonth}
-          domain={volumeDomain}
-          decimals={0}
+          title="Mean rating"
+          caption={`Trailing ${RATING_WATCHES} watches, plotted at the watch the window closes on.`}
+          points={ratingPoints}
+          domain={niceDomain(
+            ratingPoints.map((p) => p.value),
+            5,
+          )}
           geo={geo}
           tokens={tokens}
           bandLabel
         />
         <RollingChart
-          title="Mean rating"
-          caption="Same window and the same axis, so the shading falls in the same place on both."
-          series={stats.series}
-          value={(p) => p.meanRating}
-          domain={ratingDomain}
-          decimals={0}
+          title="Films per month"
+          caption={`Trailing ${PACE_MONTHS} months. Different window, same axis, so the shading falls in the same place.`}
+          points={pacePoints}
+          domain={niceDomain(
+            pacePoints.map((p) => p.value),
+            2,
+          )}
           geo={geo}
           tokens={tokens}
           axis
         />
       </div>
 
-      {/* Why the window is what it is, told to the reader and not only to the next
-          developer. It is the reason a flat line means anything here, so leaving
-          the argument in a code comment alone would hide it from the people who
-          need it to trust the chart. */}
+      {/* Why each window is what it is, told to the reader and not only to the
+          next developer. These are the reason a quiet line means anything here,
+          so leaving the argument in a code comment alone would hide it from the
+          people who need it to trust the charts. */}
       <p className="mt-3 max-w-2xl text-[11px]" style={{ color: tokens.ink.muted }}>
-        Twelve months and not twenty-four. The span is {stats.eraMonths} months, so a twenty-four
-        month window would be wider than the thing it has to resolve and would come out smooth
-        across the shading whatever the viewing did. Twelve covers the span about twice, so a real
-        dip inside it would show.
+        Two windows, because the two measures need different ones. Films per month is a rate over
+        time, so it takes a {PACE_MONTHS} month window; the span is {stats.eraMonths} months, and a
+        twenty-four month window would be wider than the thing it has to resolve and would come out
+        smooth across the shading whatever the viewing did. The rating takes a {RATING_WATCHES}{" "}
+        watch window instead, because a fixed stretch of days holds four watches in one month and
+        twelve in another, so a time-windowed rating would swing on how much I watched rather than
+        on how I rated it. Inside the span {RATING_WATCHES} watches covers three to seven months, so
+        that line could show a dip too.
       </p>
 
       <p className="mt-5 max-w-2xl text-sm font-bold" style={{ color: tokens.ink.primary }}>
@@ -277,21 +279,26 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
       </p>
 
       <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-        The rating line enters the span at {fmt1(opens.meanRating)} and leaves it at{" "}
-        {fmt1(closes.meanRating)}. Neither edge produces a step, and the climb that got it up there
-        is finished before the shading starts: it runs from {fmt1(trough.mean)} in {trough.year} to{" "}
-        {fmt1(opens.meanRating)} by {monthLabel(GRAD_SCHOOL.start)}.
+        {/* One decimal on both, not `fmt1`, which drops it on a whole number and
+            would print "77.3 and 78" as though the two were measured differently. */}
+        The rating line enters the span at {opens.meanRating.toFixed(1)} and leaves it at{" "}
+        {closes.meanRating.toFixed(1)}. It wanders in between, because {RATING_WATCHES} watches is a
+        narrow window and it wanders everywhere else in the log too. What is unusual is where it
+        ends up: across the span it travels {fmt1(ratingStretch.netDelta)} points net, quieter than{" "}
+        {calmerThan}% of the {ratingStretch.comparable} stretches of the same length in the log. The
+        climb that got it to {Math.round(opens.meanRating)} is finished before the shading starts,
+        running up from {fmt1(trough.mean)} in {trough.year}.
       </p>
 
       <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-        The volume line is not flat inside the span and it would be wrong to call it so. It falls
-        to {fmt1(spanVolumeRange.low.filmsPerMonth)} films a month by{" "}
-        {monthLabel(spanVolumeRange.low.key)} and recovers to{" "}
-        {fmt1(spanVolumeRange.high.filmsPerMonth)} by {monthLabel(spanVolumeRange.high.key)},
-        finishing higher than it began. What it does not do is break at either edge. The fall from
-        the early years is over before the span opens, and the steepest decline anywhere in the log
-        comes after it closes rather than during it: {fmt1(after.per30)} watches per 30 days in the
-        twelve months after, against {fmt1(span.per30)} inside.
+        The pace line is not flat inside the span and it would be wrong to call it so. It falls to{" "}
+        {fmt1(spanPaceRange.low.filmsPerMonth)} films a month by{" "}
+        {monthLabel(spanPaceRange.low.key)} and recovers to{" "}
+        {fmt1(spanPaceRange.high.filmsPerMonth)} by {monthLabel(spanPaceRange.high.key)}, finishing
+        higher than it began. What it does not do is break at either edge. The fall from the early
+        years is over before the span opens, and the steepest decline anywhere in the log comes
+        after it closes rather than during it: {fmt1(after.per30)} watches per 30 days in the twelve
+        months after, against {fmt1(span.per30)} inside.
       </p>
 
       {/* The honest comparison, and the reason this section does not quote the
@@ -341,16 +348,19 @@ export function GradSchoolEra({ stats }: { stats: EraStats }) {
           {vsBefore.volumeIsNoise
             ? "the viewing rate is indistinguishable from the year before it"
             : "the viewing rate now differs from the year before it, so this sentence needs rewriting"}
-          . An earlier draft of this section reported the span rating 5.0 points above everything
-          outside it. That was real arithmetic and a bad comparison: {early.watches} of the{" "}
-          {stats.outsideWatches} watches outside the span sit in the early years at a mean of{" "}
-          {fmt1(early.meanRating)}, so the figure was mostly measuring the distance from 2019.
+          . The percentile above is a rank among overlapping stretches rather than a test, so it
+          says the span was calm, not that its calm was surprising.
         </p>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-          What the charts do support is narrower and still worth having. Across {stats.eraMonths}{" "}
-          months that had every reason to interrupt the habit, on a window narrow enough to have
-          caught it, neither line does anything it was not already doing. So: this is when I was in
-          school, and this is where the lines went. Make of it what you like.
+          An earlier draft of this section reported the span rating 5.0 points above everything
+          outside it. That was real arithmetic and a bad comparison: {early.watches} of the{" "}
+          {stats.outsideWatches} watches outside the span sit in the early years at a mean of{" "}
+          {fmt1(early.meanRating)}, so the figure was mostly measuring the distance from 2019. Set
+          against the years on either side, it goes away.
+        </p>
+        <p className="mt-2 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
+          So: this is when I was in school, and this is where the lines went. It is not evidence
+          that school did it.
         </p>
       </div>
     </div>

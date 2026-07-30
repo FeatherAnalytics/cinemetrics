@@ -25,27 +25,64 @@ import type { Dataset } from "./types";
 export const GRAD_SCHOOL = { start: "2023-08-01", end: "2025-05-31" } as const;
 
 /**
- * Width of the rolling window, in months. TWELVE, AND THE REASON IS LOAD-BEARING.
+ * Window for the PACE line, in months. Twelve, and the reason is load-bearing.
  *
- * The span is 22 months. A 24-month window is WIDER THAN THE THING IT HAS TO
- * RESOLVE: every window overlapping the span would also carry months from outside
- * it, so the line would be smooth across the span by construction, and its
- * flatness would be a property of the method rather than a fact about the
- * viewing. Flatness a method could not have contradicted is not evidence of
- * anything.
+ * Films per month is a rate over time, so its window has to be a span of time.
+ * There is no watch-count version of it: a fixed number of watches covers however
+ * long it covers, which is the quantity the line is trying to report.
  *
- * Twelve spans the era roughly twice, so a real dip inside it would show. That is
- * the entire basis for reading anything into the line not dipping.
+ * TWELVE AND NOT TWENTY-FOUR. The span is 22 months, so a 24-month window is
+ * WIDER THAN THE THING IT HAS TO RESOLVE: every window touching the span would
+ * also carry months from outside it, the line would come out smooth there by
+ * construction, and flatness a method could not have contradicted is not evidence
+ * of anything. Twelve covers the span about twice, so a real dip inside it would
+ * show.
  *
  * DO NOT WIDEN THIS TO SMOOTH THE LINE. It would destroy the finding rather than
- * tidy it. `keeps the window narrower than the era` in the tests fails if this
- * ever reaches the length of the span.
+ * tidy it. `keeps the pace window narrower than the era` fails if it ever reaches
+ * the length of the span.
  */
-export const TREND_MONTHS = 12;
+export const PACE_MONTHS = 12;
+
+/**
+ * Window for the RATING line, in WATCHES rather than in time.
+ *
+ * The asymmetry with `PACE_MONTHS` is deliberate and is the whole reason these
+ * two lines are computed differently. The pace is not constant: a fixed span of
+ * days holds four watches in one month and twelve in another, so a time-windowed
+ * mean rating would swing on HOW MUCH I watched rather than on how I rated it,
+ * which is precisely the confusion this section exists to avoid. Forty watches is
+ * the same amount of evidence at every point on the line.
+ *
+ * It also resolves the era comfortably. Inside the span a forty-watch window
+ * covers between three and seven months, well under the 22 the span runs, so this
+ * line could show a dip for the same reason the pace line could.
+ *
+ * The cost is that the line is noisier than a time-smoothed one would be, and it
+ * should be: that movement is real, and flattening it by widening the window
+ * would be hiding data rather than reducing noise.
+ */
+export const RATING_WATCHES = 40;
 
 /** Months since year zero, so two "YYYY-MM" strings compare and subtract. */
 export function monthIndex(iso: string): number {
   return Number(iso.slice(0, 4)) * 12 + Number(iso.slice(5, 7)) - 1;
+}
+
+/**
+ * A date as a FRACTIONAL month index, which is the x unit both lines share.
+ *
+ * The pace line is indexed by whole months and the rating line by the date of a
+ * watch, so neither one's natural x works for the other. Putting both on
+ * fractional months is what lets one scale, and therefore one band, serve the two
+ * charts: a reader comparing them has to be able to trust that the shading falls
+ * in the same place, and the cheapest way to earn that is for there to be exactly
+ * one copy of the geometry.
+ */
+export function timeAt(iso: string): number {
+  const d = new Date(iso + "T00:00:00Z");
+  const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  return monthIndex(iso) + (d.getUTCDate() - 1) / daysInMonth;
 }
 
 /** The inverse of `monthIndex`, back to "YYYY-MM". */
@@ -53,15 +90,24 @@ function monthKey(m: number): string {
   return `${String(Math.floor(m / 12)).padStart(4, "0")}-${String((m % 12) + 1).padStart(2, "0")}`;
 }
 
-/** One point on both rolling lines: the window ENDING at this month. */
-export type RollingPoint = {
+/** One point on the pace line: the `PACE_MONTHS` window ending at this month. */
+export type PacePoint = {
+  /** Fractional month index, the x unit shared with the rating line. */
+  time: number;
   /** Month index of the window's last month. */
   month: number;
   /** "2023-08". */
   key: string;
   filmsPerMonth: number;
-  /** Null only if a whole window held no rated watch, which this log never does. */
-  meanRating: number | null;
+};
+
+/** One point on the rating line: the `RATING_WATCHES` window ending at this watch. */
+export type RatingPoint = {
+  /** Fractional month index, the x unit shared with the pace line. */
+  time: number;
+  /** Date of the window's last watch. */
+  date: string;
+  mean: number;
 };
 
 /** A stretch of the calendar summarized on both measures. */
@@ -96,11 +142,35 @@ export type Contrast = {
   volumeIsNoise: boolean;
 };
 
-/** What the two rolling lines read at one edge of the span. */
+/** What the two lines read at one edge of the span, or at one point of interest. */
 export type Edge = {
+  /** "2023-08" for a pace reading, a full date for a rating one. */
   key: string;
   filmsPerMonth: number;
   meanRating: number;
+};
+
+/**
+ * How much the rating line moves across the span, RANKED against every other
+ * stretch of the same length in the log.
+ *
+ * The rank is the point. A forty-watch window is narrow enough that the line
+ * visibly wanders everywhere, so "it is flat across the span" would be an eyeball
+ * claim and a weak one. What is checkable is whether it wanders LESS there than it
+ * does elsewhere, and by how much, so the section quotes the percentile rather
+ * than asserting the shape.
+ */
+export type Stretch = {
+  /** Highest minus lowest inside the span. */
+  swing: number;
+  /** Absolute difference between the value entering and the value leaving. */
+  netDelta: number;
+  /** Where `swing` falls among all same-length stretches, 0 to 100. Lower is calmer. */
+  swingPercentile: number;
+  /** Where `netDelta` falls among all same-length stretches, 0 to 100. */
+  netPercentile: number;
+  /** How many same-length stretches the two percentiles are computed against. */
+  comparable: number;
 };
 
 export type EraStats = {
@@ -130,13 +200,17 @@ export type EraStats = {
   /** The span against the year before it, and against the year after. */
   vsBefore: Contrast;
   vsAfter: Contrast;
-  /** Both rolling lines, one entry per month a window can close on. */
-  series: RollingPoint[];
+  /** Films per month, one entry per month a `PACE_MONTHS` window can close on. */
+  pace: PacePoint[];
+  /** Mean rating, one entry per watch a `RATING_WATCHES` window can close on. */
+  rating: RatingPoint[];
   /** What each line reads as the span opens and as it closes. */
   opens: Edge;
   closes: Edge;
-  /** The lowest and highest the volume line goes strictly inside the span. */
-  spanVolumeRange: { low: Edge; high: Edge };
+  /** The lowest and highest the pace line goes inside the span. */
+  spanPaceRange: { low: Edge; high: Edge };
+  /** How still the rating line is across the span, against every comparable stretch. */
+  ratingStretch: Stretch;
   /** Mean rating per calendar year, in order. The clearest look at the climb. */
   yearlyMeans: { year: number; n: number; mean: number }[];
 };
@@ -216,7 +290,7 @@ function contrast(span: Window, other: Window, label: string): Contrast {
 }
 
 /**
- * Both rolling lines over the whole log, at the given window width in months.
+ * The pace line over the whole log, at the given window width in months.
  *
  * Exported so a test can run it at other widths and show what widening costs.
  *
@@ -225,46 +299,126 @@ function contrast(span: Window, other: Window, label: string): Contrast {
  * inside the span still carry months from before it: the window is wholly inside
  * the span only from its twelfth month on.
  */
-export function rollingSeries(
+export function paceSeries(
   rows: { date: string; rating: number | null }[],
   width: number,
-): RollingPoint[] {
+): PacePoint[] {
   if (rows.length === 0) return [];
-  const byMonth = new Map<number, { date: string; rating: number | null }[]>();
+  const byMonth = new Map<number, number>();
   for (const r of rows) {
     const m = monthIndex(r.date);
-    byMonth.set(m, [...(byMonth.get(m) ?? []), r]);
+    byMonth.set(m, (byMonth.get(m) ?? 0) + 1);
   }
   const first = monthIndex(rows[0].date);
   const last = monthIndex(rows[rows.length - 1].date);
 
-  const out: RollingPoint[] = [];
+  const out: PacePoint[] = [];
   for (let end = first + width - 1; end <= last; end++) {
-    const win: { date: string; rating: number | null }[] = [];
-    for (let m = end - width + 1; m <= end; m++) win.push(...(byMonth.get(m) ?? []));
-    const rated = win.map((r) => r.rating).filter((r): r is number => r != null);
+    let n = 0;
+    for (let m = end - width + 1; m <= end; m++) n += byMonth.get(m) ?? 0;
     out.push({
+      time: end,
       month: end,
       key: monthKey(end),
       // Divided by the window width, not by the number of months that held a
       // watch: a month with nothing in it is a real zero, not a gap.
-      filmsPerMonth: win.length / width,
-      meanRating: rated.length === 0 ? null : mean(rated),
+      filmsPerMonth: n / width,
     });
   }
   return out;
 }
 
-const asEdge = (p: RollingPoint): Edge => ({
-  key: p.key,
-  filmsPerMonth: p.filmsPerMonth,
-  meanRating: p.meanRating ?? 0,
-});
+/**
+ * The rating line over the whole log, at the given window width in WATCHES.
+ *
+ * Starts at the `width`th rated watch rather than the first. A trailing mean over
+ * three watches is not the same statistic as one over forty, and drawing both on
+ * one line would put the noisiest part of it at the left edge, exactly where a
+ * reader reads off the line's starting level.
+ */
+export function ratingTrend(
+  rows: { date: string; rating: number | null }[],
+  width: number,
+): RatingPoint[] {
+  const rated = rows.filter((r): r is { date: string; rating: number } => r.rating != null);
+  const out: RatingPoint[] = [];
+  for (let i = width - 1; i < rated.length; i++) {
+    const win = rated.slice(i - width + 1, i + 1);
+    out.push({
+      time: timeAt(rated[i].date),
+      date: rated[i].date,
+      mean: mean(win.map((r) => r.rating)),
+    });
+  }
+  return out;
+}
 
-/** The series point at a given month, or the nearest earlier one. */
-function readAt(series: RollingPoint[], key: string): Edge {
-  const m = monthIndex(key);
-  return asEdge([...series].reverse().find((p) => p.month <= m) ?? series[0]);
+/**
+ * How still a line is over one stretch, ranked against every stretch of the same
+ * length elsewhere in the series.
+ *
+ * The comparison stretches step a month at a time and overlap heavily, so these
+ * are not independent samples and the percentile is a descriptive rank rather
+ * than a p-value. That is all the copy claims of it: the era is calmer than most
+ * comparable stretches, not significantly calmer.
+ */
+function rankStretch(
+  points: { time: number; mean: number }[],
+  from: number,
+  to: number,
+): Stretch {
+  const width = to - from;
+  const measure = (a: number, b: number) => {
+    const seg = points.filter((p) => p.time >= a && p.time <= b);
+    if (seg.length < 6) return null;
+    const vals = seg.map((p) => p.mean);
+    return {
+      swing: Math.max(...vals) - Math.min(...vals),
+      netDelta: Math.abs(seg[seg.length - 1].mean - seg[0].mean),
+    };
+  };
+  const here = measure(from, to) ?? { swing: 0, netDelta: 0 };
+
+  const all: { swing: number; netDelta: number }[] = [];
+  const last = points[points.length - 1].time;
+  for (let a = points[0].time; a + width <= last; a += 1) {
+    const m = measure(a, a + width);
+    if (m) all.push(m);
+  }
+  const pct = (v: number, pick: (m: { swing: number; netDelta: number }) => number) =>
+    all.length === 0 ? 0 : (all.filter((m) => pick(m) < v).length / all.length) * 100;
+
+  return {
+    swing: here.swing,
+    netDelta: here.netDelta,
+    swingPercentile: pct(here.swing, (m) => m.swing),
+    netPercentile: pct(here.netDelta, (m) => m.netDelta),
+    comparable: all.length,
+  };
+}
+
+/** The last point of a series at or before a given time. */
+function lastAtOrBefore<T extends { time: number }>(series: T[], t: number): T {
+  let hit = series[0];
+  for (const p of series) {
+    if (p.time > t) break;
+    hit = p;
+  }
+  return hit;
+}
+
+/**
+ * What both lines read at one moment.
+ *
+ * The two are sampled separately because they are indexed differently: the pace
+ * line has a point per month and the rating line a point per watch, so "the value
+ * as the span opens" is a different lookup on each.
+ */
+function readAt(pace: PacePoint[], rating: RatingPoint[], date: string): Edge {
+  const t = timeAt(date);
+  const p = lastAtOrBefore(pace, t);
+  const r = lastAtOrBefore(rating, t);
+  return { key: p.key, filmsPerMonth: p.filmsPerMonth, meanRating: r.mean };
 }
 
 export function computeEraStats(data: Dataset): EraStats {
@@ -296,12 +450,18 @@ export function computeEraStats(data: Dataset): EraStats {
     .sort((a, b) => a[0] - b[0])
     .map(([year, rs]) => ({ year, n: rs.length, mean: mean(rs) }));
 
-  const series = rollingSeries(rows, TREND_MONTHS);
+  const pace = paceSeries(rows, PACE_MONTHS);
+  const rating = ratingTrend(rows, RATING_WATCHES);
 
-  const inside = series.filter(
+  const insidePace = pace.filter(
     (p) => p.month >= monthIndex(GRAD_SCHOOL.start) && p.month <= monthIndex(GRAD_SCHOOL.end),
   );
-  const byVolume = [...inside].sort((a, b) => a.filmsPerMonth - b.filmsPerMonth);
+  const byPace = [...insidePace].sort((a, b) => a.filmsPerMonth - b.filmsPerMonth);
+  const paceEdge = (p: PacePoint): Edge => ({
+    key: p.key,
+    filmsPerMonth: p.filmsPerMonth,
+    meanRating: 0,
+  });
 
   return {
     logStart,
@@ -312,13 +472,19 @@ export function computeEraStats(data: Dataset): EraStats {
     outsideWatches: rows.length - span.watches,
     vsBefore: contrast(span, before, before.label),
     vsAfter: contrast(span, after, after.label),
-    series,
-    opens: readAt(series, GRAD_SCHOOL.start),
-    closes: readAt(series, GRAD_SCHOOL.end),
-    spanVolumeRange: {
-      low: asEdge(byVolume[0]),
-      high: asEdge(byVolume[byVolume.length - 1]),
+    pace,
+    rating,
+    opens: readAt(pace, rating, GRAD_SCHOOL.start),
+    closes: readAt(pace, rating, GRAD_SCHOOL.end),
+    spanPaceRange: {
+      low: paceEdge(byPace[0]),
+      high: paceEdge(byPace[byPace.length - 1]),
     },
+    ratingStretch: rankStretch(
+      rating,
+      timeAt(GRAD_SCHOOL.start),
+      timeAt(GRAD_SCHOOL.end),
+    ),
     yearlyMeans,
   };
 }
