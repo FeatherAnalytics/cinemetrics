@@ -8,7 +8,6 @@ import { computeEraStats } from "@/lib/gradSchool";
 import { GradSchoolEra } from "./GradSchoolEra";
 import { TravelComparison } from "./TravelComparison";
 import { TravelCallout } from "./TravelCallout";
-import { TravelMarkerLab } from "./TravelMarkerLab";
 
 /**
  * The unlisted surface behind `/lab`: a permanent home for work that has not
@@ -94,15 +93,15 @@ export function Lab({ data }: { data: Dataset }) {
         </h1>
         <p className="mt-3 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
           Work that has not earned a place on the main page. Some of it is a finding still
-          choosing how to be drawn, some of it is an open question about a mark, and some of it
-          is a number that wants more data behind it before it means much. Sections leave when
-          they are decided, promoted or deleted. Nothing links here and nothing will.
+          choosing how to be drawn, and some of it is a number that wants more data behind it
+          before it means much. Sections leave when they are decided, promoted or deleted.
+          Nothing links here and nothing will.
         </p>
       </header>
 
       {/* The claim, and the non-claim, stated once so neither travel panel has to
           carry the whole caveat on its own. Scoped to those two in the heading,
-          because sections 3 and 4 are not about flying and a bare "the finding"
+          because section 3 is not about flying and a bare "the finding"
           at the top of the page would read as governing them too. */}
       <div
         className="mb-12 border-t border-b py-4"
@@ -177,55 +176,6 @@ export function Lab({ data }: { data: Dataset }) {
           </section>
         ))}
 
-        {/* Not a third presentation of the travel finding, so it is rendered here
-            rather than added to `prototypes`: its question is which MARK a flown
-            watch should take, and "against it" is the wrong footer for a
-            comparison that existed to be inconclusive until the owner picked.
-
-            The owner has now picked, in 1c6424a: `planePath` draws the top-down
-            silhouette and the swim lane flies it. By its own terms this section
-            has expired and should be deleted, which is what its component's doc
-            comment says a decision aid is for. Left standing only because the
-            call to remove it belongs to whoever owns the mark, not to this file.
-            The copy below is corrected to say what actually ships, since a
-            section arguing about a choice already made must at least not
-            misreport which way it went. */}
-        <section id="markers">
-          <div className="mb-4">
-            <h2 className="font-display text-xl font-bold" style={{ color: tokens.ink.primary }}>
-              <span
-                className="font-mono text-sm tabular-nums"
-                style={{ color: tokens.ink.muted }}
-              >
-                3.
-              </span>{" "}
-              Travel marker comparison
-            </h2>
-            <p className="mt-1 max-w-2xl text-sm" style={{ color: tokens.ink.secondary }}>
-              Whether a plane silhouette could replace the dart. Three candidates at three sizes
-              and all three leg angles, then the same three in a real field of dots. Decided: the
-              top-down silhouette is what the swim lane now flies, so this section is a record of
-              how the choice was made rather than an open question.
-            </p>
-          </div>
-
-          <div
-            className="rounded-sm p-5"
-            style={{ background: tokens.surface.card, border: `1px solid ${tokens.ink.grid}` }}
-          >
-            <TravelMarkerLab data={data} />
-          </div>
-
-          <p className="mt-3 max-w-2xl text-xs" style={{ color: tokens.ink.muted }}>
-            <span className="font-bold">What to look for:</span> not which shape is prettiest in
-            isolation, but what 21 marks of that shape do to a field of {stats.ordinary.watches}{" "}
-            dots. A silhouette that only resolves at r 7 has lost, because r 5 is what ships. The
-            weight figures under the grid are measured rather than judged by eye, and they
-            contradict the usual complaint: at r 5 every candidate covers less ink than the dot it
-            replaces.
-          </p>
-        </section>
-
         {/* Also not a travel section, and not a presentation question either. It
             is here because the honest answer is a null one, which is the third
             kind of thing this page exists to hold: too thin to headline the main
@@ -237,7 +187,7 @@ export function Lab({ data }: { data: Dataset }) {
                 className="font-mono text-sm tabular-nums"
                 style={{ color: tokens.ink.muted }}
               >
-                4.
+                3.
               </span>{" "}
               The grad school years
             </h2>

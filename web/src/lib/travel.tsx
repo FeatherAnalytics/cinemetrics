@@ -81,21 +81,28 @@ const LEG_ANGLE: Record<TravelLeg, number> = {
  * settled. Fill areas at r 5, against the 38.5 square pixels of the r 3.5 dot an
  * ordinary watch draws:
  *
- *     dart          22.1 px2   0.57x a dot
- *     this shape    26.9 px2   0.70x a dot
+ *     dart           22.1 px2   0.57x a dot
+ *     this shape     26.9 px2   0.70x a dot
+ *     side profile   25.1 px2   0.65x a dot
  *
- * Both are LIGHTER than the dot they replace. A flight is salient because it is
- * wider (about 10 px across against the dot's 7) and never fades below 0.9 opacity
- * where a dot averages 0.79, not because it carries more ink. So the 20 points here
- * cost almost nothing, while raising `r` would cost real weight: at r 7 this shape
- * reaches 1.37x a dot and starts to shout. Change the outline freely. Do not raise
- * the default without measuring again.
+ * All three are LIGHTER than the dot they replace. A flight is salient because it
+ * is wider (about 10 px across against the dot's 7) and never fades below 0.9
+ * opacity where a dot averages 0.79, not because it carries more ink. So the 20
+ * points here cost almost nothing, while raising `r` would cost real weight: at r 7
+ * this shape reaches 1.37x a dot and starts to shout. Change the outline freely. Do
+ * not raise the default without measuring again.
  *
- * A SIDE PROFILE WAS TRIED AND REJECTED. Fin above, wing below, 14 points. Its fin
- * and wing are each about 0.5r, which is 2.5 px at r 5, and they do not separate
- * from the fuselage; it read as a lumpy wedge. Being asymmetric it also fought the
- * +35 return rotation instead of reinforcing it. This shape is mirror-symmetric
- * about its own axis, so the leg angle only ever tilts it.
+ * Those pixel figures are NOMINAL. The swim lane draws into a viewBox, so at its
+ * usual width a mark at r 5 lands nearer r 6.5 on screen and the dot grows with it.
+ * Nothing above depends on that: every figure here is a ratio against the dot, and
+ * the two scale together.
+ *
+ * A SIDE PROFILE WAS TRIED AND REJECTED, and not on weight, which is why its
+ * 0.65x above did not save it. Fin above, wing below, 14 points. Its fin and wing
+ * are each about 0.5r, which is 2.5 px at r 5, and they do not separate from the
+ * fuselage; it read as a lumpy wedge. Being asymmetric it also fought the +35
+ * return rotation instead of reinforcing it. This shape is mirror-symmetric about
+ * its own axis, so the leg angle only ever tilts it.
  *
  * Every tip is kept inside 1.01r. `r` is nose to center and not a bounding radius
  * (the old dart's wingtips sat at 1.022r), but callers lay marks out on `r`, so a
