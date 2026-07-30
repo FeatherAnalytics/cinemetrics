@@ -6,6 +6,7 @@ import { primaryGenre } from "@/lib/palette";
 import { useTheme } from "@/lib/theme";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { isSolstice, SunMarker } from "@/lib/solstice";
+import { travelLeg, PlaneMarker } from "@/lib/travel";
 import { isFav } from "@/lib/fourFavs";
 import { heartDim } from "@/lib/heartLens";
 import { favColor, StarMarker } from "@/lib/favMarker";
@@ -159,9 +160,23 @@ export function SwimLaneChart() {
             </g>
           );
         }
+        // A watch flown rather than sat through takes a plane. Faded and lifted
+        // exactly like the sun, so a filtered-out flight recedes with the ghosts.
+        const leg = travelLeg(p.w);
+        if (leg) {
+          const op = p.op < 0.3 ? 0.35 : Math.max(p.op, 0.9);
+          return (
+            <g key={i} opacity={op} style={{ cursor: "pointer" }} {...handlers}>
+              <PlaneMarker x={p.x} y={p.y} leg={leg} color={tokens.ink.primary} />
+            </g>
+          );
+        }
         // A profile favorite takes a star instead of a dot, in its genre color.
-        // Checked AFTER the solstice sun: that marks one specific watch and this
-        // marks a film, so the more specific mark keeps the position.
+        // Checked AFTER the solstice sun and the plane: those mark one watch and
+        // one day, and this marks a film wherever it appears, so the more specific
+        // mark keeps the position. The one case where it bites is The Nice Guys on
+        // 2023-10-10, which loses its star: the point of a travel day is that the
+        // WHOLE day was flown, and one starred dot in the cluster breaks that read.
         if (isFav(p.w.tmdb_id)) {
           return (
             <g key={i} opacity={p.op} style={{ cursor: "pointer" }} {...handlers}>
@@ -388,6 +403,9 @@ export function SwimLaneChart() {
             {hover.w.rating != null ? ` · ${Math.round(hover.w.rating)}` : ""}
             {hover.w.rewatch ? " · rewatch" : ""}
             {isSolstice(hover.w) ? " · summer solstice ☀" : ""}
+            {/* The leg is already in the angle of the glyph; the tooltip only has
+                to say what the glyph MEANS, which nothing else on the page does. */}
+            {travelLeg(hover.w) ? " · watched in the air ✈" : ""}
           </div>
         </div>
       )}

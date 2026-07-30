@@ -11,6 +11,7 @@ import {
 } from "../stories";
 import { FOUR_FAVS } from "../fourFavs";
 import { filmHearts } from "../likedChart";
+import { TRAVEL_DAYS } from "../travel";
 import type { Dataset, EnrichedWatch, Film } from "../types";
 
 function makeFilm(overrides: Partial<Film> = {}): Film {
@@ -459,6 +460,18 @@ describe("storyTeaser against the real dataset", () => {
     );
     expect(result.teaser).not.toContain(String(newest));
     expect(result.teaser).not.toContain(String(artifact));
+  });
+
+  it("tells the double-feature reader that the peak day was flown", () => {
+    // The note is conditional on the peak actually being a travel day, so this
+    // asserts the condition holds for the shipped log as well as the wording.
+    const result = results.find((r) => r.id === "binges")!.result;
+    const peakDate = result.headline.match(/on (.+)$/)![1];
+    const iso = new Date(peakDate + " UTC").toISOString().slice(0, 10);
+    expect(TRAVEL_DAYS[iso], `${iso} is the peak day and is not recorded as a flight`).toBe(
+      "depart",
+    );
+    expect(result.notes?.spiral).toContain("an outbound flight");
   });
 
   it("quotes no figure the story's own annotations do not carry", () => {

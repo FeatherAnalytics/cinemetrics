@@ -4,6 +4,7 @@ import type { Film, EnrichedWatch, WatchlistFilm } from "./types";
 import { genreBars, watchlistSummary } from "./watchlistChart";
 import { primaryGenre, type GenreKey } from "./palette";
 import { watchKey } from "./brush";
+import { travelLeg, type TravelLeg } from "./travel";
 import { ALPHA, anova, chicagoParts, hasKnownRewatchState, mean } from "./statsChart";
 import {
   CROSSOVER_STARS,
@@ -500,6 +501,17 @@ function computeBinges(films: Film[], watches: EnrichedWatch[]): StoryResult {
   const selection = new Set<string>();
   for (const [, ws] of bingeDays) for (const w of ws) selection.add(watchKey(w));
 
+  // Whether the peak day was a flight is LOOKED UP, not written down. The peak
+  // moves with the data, and a sentence that hardcoded the answer would go on
+  // claiming it about whichever day took over. Asked of one of the day's own
+  // watches, since `travelLeg` reads only the date.
+  const peakLeg = travelLeg(peak[1][0]);
+  const LEG_PROSE: Record<TravelLeg, string> = {
+    depart: "an outbound flight",
+    return: "the flight home",
+    level: "a flight between two stops of one trip",
+  };
+
   return {
     headline: `${bingeDays.length} double-feature days, peaking at ${peak[1].length} films on ${prettyDate(peak[0])}`,
     // Same two counts as the headline, minus the date: the date is the part a
@@ -508,7 +520,11 @@ function computeBinges(films: Film[], watches: EnrichedWatch[]): StoryResult {
     chip: "Double features",
     selection,
     notes: {
-      spiral: "Every highlighted dot shares its date with at least one other film. Stacked pairs and towers are single sittings.",
+      spiral:
+        "Every highlighted dot shares its date with at least one other film. Stacked pairs and towers are single sittings." +
+        (peakLeg
+          ? ` The planes are days spent in the air, which is where a good few of these clusters come from: the peak day was ${LEG_PROSE[peakLeg]}.`
+          : ""),
       stripes: "Binge days land as back-to-back stripes with no gap: the barcode's densest clusters.",
     },
   };
