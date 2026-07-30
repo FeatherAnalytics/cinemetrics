@@ -25,6 +25,9 @@ models:
           TMDB poster image path, e.g. "/abc123.jpg". NULL when TMDB serves no
           poster. Rendered by prefixing the CDN host and a size segment; the
           size is the renderer's choice, so it is deliberately not stored here.
+          The curated choice from stg_poster_overrides where there is one, the
+          enrichment seed's value otherwise — so this is the single source of
+          truth for a film's art and no renderer needs a helper of its own.
       - name: poster_slice
         description: >
           20 RGB stops sampled down the film's poster, packed as 120 hex

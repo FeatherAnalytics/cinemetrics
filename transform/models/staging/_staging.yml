@@ -79,3 +79,20 @@ models:
         description: >
           120 hex characters — 20 stops of six. NULL when the film has no
           poster art to sample.
+
+  - name: stg_poster_overrides
+    description: >
+      Hand-curated poster art for the films where TMDB's default pick is not the
+      preferred one. Still TMDB paths, so the project's existing API terms and
+      attribution cover them. dim_film.poster_path coalesces these over the
+      enrichment seed, which makes the mart the single source of truth: no
+      renderer has to know an override exists.
+    columns:
+      - name: tmdb_id
+        description: TMDB id. Primary key.
+        tests: [unique, not_null]
+      - name: poster_path
+        description: >
+          TMDB poster image path, e.g. "/abc123.jpg" — the chosen alternate, not
+          the default the enrichment seed recorded.
+        tests: [not_null]

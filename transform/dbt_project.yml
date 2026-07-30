@@ -76,3 +76,8 @@ seeds:
       +column_types:
         tmdb_id: bigint
         slice: varchar
+    poster_overrides:
+      +schema: enrichment
+      +column_types:
+        tmdb_id: bigint
+        poster_path: varchar
