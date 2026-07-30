@@ -48,9 +48,24 @@ export function hairline(color: string, pct: number): string {
   return `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 }
 
-const Ctx = createContext<{ theme: Theme; tokens: Tokens; toggle: () => void }>({
+/**
+ * The token set the toggle would switch TO, alongside the one in force.
+ *
+ * A control that previews its destination needs the other theme's values, and
+ * `tokens` by definition only holds the active ones. Derived here from the same
+ * `theme` in the same render, so it flips with it; a consumer reaching into
+ * `palette.ts` for the far side would be reading a module constant that never
+ * changes when the theme does.
+ */
+const Ctx = createContext<{
+  theme: Theme;
+  tokens: Tokens;
+  nextTokens: Tokens;
+  toggle: () => void;
+}>({
   theme: "light",
   tokens: LIGHT_TOKENS,
+  nextTokens: DARK_TOKENS,
   toggle: () => {},
 });
 
@@ -84,8 +99,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const dark = theme === "dark";
   return (
-    <Ctx.Provider value={{ theme, tokens: theme === "dark" ? DARK_TOKENS : LIGHT_TOKENS, toggle }}>
+    <Ctx.Provider
+      value={{
+        theme,
+        tokens: dark ? DARK_TOKENS : LIGHT_TOKENS,
+        nextTokens: dark ? LIGHT_TOKENS : DARK_TOKENS,
+        toggle,
+      }}
+    >
       {children}
     </Ctx.Provider>
   );
