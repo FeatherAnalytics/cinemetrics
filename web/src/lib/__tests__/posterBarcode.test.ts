@@ -80,7 +80,7 @@ describe("tipLeft", () => {
   });
 
   it("clamps at the left end instead of hanging off the page", () => {
-    // The first stripe. Centred, this box would start 126px left of the figure.
+    // The first stripe. Centered, this box would start 126px left of the figure.
     expect(tipLeft(0, DESKTOP)).toBe(TIP_PAD);
     expect(tipLeft(60, DESKTOP)).toBe(TIP_PAD);
   });

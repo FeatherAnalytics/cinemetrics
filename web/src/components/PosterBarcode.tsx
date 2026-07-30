@@ -22,7 +22,7 @@ const TIP_PAD = 4;
 
 // 72px wide, so 108 tall at the 2:3 a poster always is. The old 38px was sized
 // to fit a caption strip and showed a smudge; 72 is roughly the point where the
-// art, the title treatment and a face become recognisable. It also keeps the
+// art, the title treatment and a face become recognizable. It also keeps the
 // whole tooltip under the barcode's own 132px height, so the readout stays
 // smaller than the hero it describes.
 const POSTER_W = 72;
@@ -31,7 +31,7 @@ const POSTER_W = 72;
  * The tooltip's left edge, in pixels from the figure's left, for a pointer at
  * `x` over a figure `figW` wide.
  *
- * The barcode spans the full card, so a box merely centred on the pointer hangs
+ * The barcode spans the full card, so a box merely centered on the pointer hangs
  * off the page at both ends: the first stripe would put half the tooltip left of
  * zero and the last would push it past the right edge. Clamping the left edge
  * into [pad, figW - TIP_W - pad] keeps it on screen and lets it slide along the
