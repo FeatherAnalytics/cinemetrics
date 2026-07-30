@@ -3,34 +3,16 @@
 import { useMemo, useState } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
 import { primaryGenre } from "@/lib/palette";
-import { useTheme } from "@/lib/theme";
+import { useTheme, type Tokens } from "@/lib/theme";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { isSolstice, SunMarker } from "@/lib/solstice";
 import { trunc } from "@/lib/format";
-import { useAnimatedValues } from "@/lib/useAnimatedValues";
+import { DotRow, LABEL, ROWH, W, xAt, yAt } from "@/lib/dotRow";
 import type { EnrichedWatch, Film } from "@/lib/types";
 import { likedOnly } from "@/lib/heartLens";
 
-const W = 900;
-const LABEL = 150;
-const RIGHT = 64; // room for the "first → last" labels
 const TOP = 24;
-const ROWH = 20;
 const HEADER_H = 26;
-const PAD = 3; // vertical padding inside each row band
-
-// Pure, so the row component can memoise on the numbers that feed it rather
-// than on a closure the parent rebuilds every render.
-function yAt(rating: number | null, rowTop: number, lo: number, hi: number): number {
-  const top = rowTop + PAD;
-  const bot = rowTop + ROWH - PAD;
-  if (rating == null) return (top + bot) / 2;
-  return bot - ((rating - lo) / (hi - lo || 1)) * (bot - top);
-}
-
-function xAt(t: number, x0: number, x1: number): number {
-  return LABEL + ((t - x0) / (x1 - x0 || 1)) * (W - LABEL - RIGHT);
-}
 
 type Row = {
   tmdb_id: number;
@@ -51,17 +33,11 @@ type Band = { id: string; label: string; rows: Row[]; headerY: number; startY: n
 type Hover = { x: number; y: number; row: Row; w: EnrichedWatch } | null;
 
 /**
- * One film, its own component so it can hold its own tween.
+ * One film. Everything a row shares with the franchise chart lives in `DotRow`,
+ * including the tween; this supplies the parts that are the cadence chart's own.
  *
- * The chart as a whole cannot: a filter changes how many rows there are, and
- * `useAnimatedValues` snaps on a length change, correctly, because pairing dot
- * n of one row set with dot n of another would animate a lie. Per row the
- * pairing is real. A genre filter is a fact about FILMS, so a surviving film
- * keeps every viewing it had, while its dots move for two reasons that have
- * nothing to do with its own data: rows above it left, so its band slid up,
- * and the shared rating scale refit around whatever is still on screen.
- *
- * Module scope, so a hover does not remount every row.
+ * A row is clickable as a whole here, because every dot in it is the same film.
+ * A solstice watch replaces its dot with a sun.
  */
 function CadenceRow({
   r,
@@ -84,7 +60,7 @@ function CadenceRow({
   x0: number;
   x1: number;
   selectedId: number | null;
-  tokens: ReturnType<typeof useTheme>["tokens"];
+  tokens: Tokens;
   setSelected: (id: number) => void;
   setHover: (h: Hover) => void;
 }) {
@@ -92,49 +68,38 @@ function CadenceRow({
   const color = sel ? tokens.ui.selected : tokens.genre[primaryGenre(r.film)];
   const dim = selectedId != null && !sel;
 
-  // x is the date and never tweens. Memoised on numbers only: the hook compares
-  // its target by identity, and the parent re-renders on every hover.
-  const xs = useMemo(() => r.watches.map((w) => xAt(w.d.getTime(), x0, x1)), [r.watches, x0, x1]);
-  const ys = useMemo(
-    () => r.watches.map((w) => yAt(w.rating, rowTop, lo, hi)),
-    [r.watches, rowTop, lo, hi],
-  );
-  const drawnY = useAnimatedValues(ys);
-
-  const poly = xs.map((x, j) => `${x},${drawnY[j]}`).join(" ");
-  const labelY = rowTop + ROWH / 2;
-
   return (
-    <g style={{ cursor: "pointer" }} onClick={() => setSelected(r.tmdb_id)}>
-      {sel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={tokens.ui.selected} fillOpacity={0.06} />}
-      <text
-        x={LABEL - 8}
-        y={labelY}
-        fill={sel ? tokens.ink.primary : tokens.ink.muted}
-        fontSize={9}
-        textAnchor="end"
-        dominantBaseline="middle"
-      >
-        {trunc(r.film?.title ?? String(r.tmdb_id))}
-      </text>
-      <polyline
-        points={poly}
-        fill="none"
-        stroke={color}
-        strokeWidth={sel ? 1.75 : 1.1}
-        strokeOpacity={dim ? 0.3 : 0.85}
-      />
-      {r.watches.map((w, j) => {
-        const enter = () => setHover({ x: xs[j], y: drawnY[j], row: r, w });
+    <DotRow
+      watches={r.watches}
+      rowTop={rowTop}
+      lo={lo}
+      hi={hi}
+      x0={x0}
+      x1={x1}
+      tokens={tokens}
+      selected={sel}
+      leader={index === 0}
+      onSelect={() => setSelected(r.tmdb_id)}
+      label={trunc(r.film?.title ?? String(r.tmdb_id))}
+      line={{ stroke: color, width: sel ? 1.75 : 1.1, opacity: dim ? 0.3 : 0.85 }}
+      rightLabel={
+        r.delta != null && r.delta !== 0 ? (
+          <>
+            {r.first} → {r.last}
+          </>
+        ) : null
+      }
+      dot={(w, j, x, y) => {
+        const enter = () => setHover({ x, y, row: r, w });
         return isSolstice(w) ? (
           <g key={j} opacity={dim ? 0.3 : 1} onMouseEnter={enter} onMouseLeave={() => setHover(null)}>
-            <SunMarker x={xs[j]} y={drawnY[j]} r={2.6} accent={tokens.accent} />
+            <SunMarker x={x} y={y} r={2.6} accent={tokens.accent} />
           </g>
         ) : (
           <circle
             key={j}
-            cx={xs[j]}
-            cy={drawnY[j]}
+            cx={x}
+            cy={y}
             r={sel ? 3.4 : 2.6}
             fill={w.rating == null ? tokens.ink.surface : color}
             fillOpacity={dim ? 0.3 : 0.9}
@@ -144,21 +109,8 @@ function CadenceRow({
             onMouseLeave={() => setHover(null)}
           />
         );
-      })}
-      {r.delta != null && r.delta !== 0 && (
-        <text
-          x={W - 4}
-          y={labelY}
-          fill={index === 0 ? tokens.ink.primary : tokens.ink.muted}
-          fontSize={9}
-          fontWeight={index === 0 ? 700 : 400}
-          textAnchor="end"
-          dominantBaseline="middle"
-        >
-          {r.first} → {r.last}
-        </text>
-      )}
-    </g>
+      }}
+    />
   );
 }
 

@@ -3,48 +3,30 @@
 import { useMemo, useState } from "react";
 import { useExplorer, filterWatches } from "@/lib/store";
 import { primaryGenre } from "@/lib/palette";
-import { hairline, useTheme } from "@/lib/theme";
+import { hairline, useTheme, type Tokens } from "@/lib/theme";
 import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/brush";
 import { trunc, fmt1 } from "@/lib/format";
-import { useAnimatedValues } from "@/lib/useAnimatedValues";
+import { DotRow, ROWH, W, xAt, yAt } from "@/lib/dotRow";
 import type { EnrichedWatch } from "@/lib/types";
 import { heartDim } from "@/lib/heartLens";
 
-const W = 900;
-const LABEL = 150;
-const RIGHT = 64; // room for the per-franchise average label
 const TOP = 24;
-const ROWH = 20;
-const PAD = 3;
 const MAIN_MIN_WATCHES = 3; // rows below this hide behind the toggle
-
-// Pure, so the row component can memoise on the numbers that feed it rather
-// than on a closure the parent rebuilds every render.
-function yAt(rating: number | null, rowTop: number, lo: number, hi: number): number {
-  const top = rowTop + PAD;
-  const bot = rowTop + ROWH - PAD;
-  if (rating == null) return (top + bot) / 2;
-  return bot - ((rating - lo) / (hi - lo || 1)) * (bot - top);
-}
-
-function xAt(t: number, x0: number, x1: number): number {
-  return LABEL + ((t - x0) / (x1 - x0 || 1)) * (W - LABEL - RIGHT);
-}
 
 type Hover = { x: number; y: number; w: EnrichedWatch } | null;
 
 /**
- * One franchise, its own component so it can hold its own tween.
+ * One franchise. Everything a row shares with the cadence chart lives in
+ * `DotRow`, including the tween; this supplies the parts that are the franchise
+ * chart's own.
  *
- * The chart as a whole cannot: a filter changes how many rows there are, and
- * `useAnimatedValues` snaps on a length change, correctly, because pairing dot
- * n of one row set with dot n of another would animate a lie. Per row the
- * pairing is real. A genre filter is a fact about FILMS, so a surviving run
- * keeps every watch it had, while its dots move for two reasons that have
- * nothing to do with its own data: the rows above it left, so its band slid up,
- * and the shared rating scale refit around whatever is still on screen.
+ * The dots carry the click rather than the row, because a run holds many films
+ * and only the one under the pointer is the film to select. That is also why a
+ * dot's size and outline read the selection per film while the band behind them
+ * reads it per row.
  *
- * Module scope, so a hover does not remount every row.
+ * The line is grid ink, not a genre colour: a run's entries can be five
+ * different genres and the dots already say which.
  */
 function FranchiseRow({
   r,
@@ -69,50 +51,36 @@ function FranchiseRow({
   x1: number;
   selectedId: number | null;
   heartLens: boolean;
-  tokens: ReturnType<typeof useTheme>["tokens"];
+  tokens: Tokens;
   setSelected: (id: number) => void;
   setHover: (h: Hover) => void;
 }) {
   const rowSel = r.watches.some((w) => w.tmdb_id === selectedId);
   const dim = selectedId != null && !rowSel;
 
-  // x is the date and never tweens. Memoised on numbers only: the hook compares
-  // its target by identity, and the parent re-renders on every hover.
-  const xs = useMemo(() => r.watches.map((w) => xAt(w.d.getTime(), x0, x1)), [r.watches, x0, x1]);
-  const ys = useMemo(
-    () => r.watches.map((w) => yAt(w.rating, rowTop, lo, hi)),
-    [r.watches, rowTop, lo, hi],
-  );
-  const drawnY = useAnimatedValues(ys);
-
-  const poly = xs.map((x, j) => `${x},${drawnY[j]}`).join(" ");
-  const labelY = rowTop + ROWH / 2;
-
   return (
-    <g>
-      {rowSel && <rect x={0} y={rowTop} width={W} height={ROWH} fill={tokens.ui.selected} fillOpacity={0.06} />}
-      <text
-        x={LABEL - 8}
-        y={labelY}
-        fill={rowSel ? tokens.ink.primary : tokens.ink.muted}
-        fontSize={9}
-        textAnchor="end"
-        dominantBaseline="middle"
-      >
-        {trunc(r.name)} · {r.filmCount}
-      </text>
-      <polyline
-        points={poly}
-        fill="none"
-        stroke={tokens.ink.grid}
-        strokeWidth={1}
-        strokeOpacity={dim ? 0.25 : 0.8}
-      />
-      {r.watches.map((w, j) => (
+    <DotRow
+      watches={r.watches}
+      rowTop={rowTop}
+      lo={lo}
+      hi={hi}
+      x0={x0}
+      x1={x1}
+      tokens={tokens}
+      selected={rowSel}
+      leader={index === 0}
+      label={
+        <>
+          {trunc(r.name)} · {r.filmCount}
+        </>
+      }
+      line={{ stroke: tokens.ink.grid, width: 1, opacity: dim ? 0.25 : 0.8 }}
+      rightLabel={r.avg != null ? <>avg {fmt1(r.avg)}</> : null}
+      dot={(w, j, x, y) => (
         <circle
           key={j}
-          cx={xs[j]}
-          cy={drawnY[j]}
+          cx={x}
+          cy={y}
           r={w.tmdb_id === selectedId ? 3.4 : 2.6}
           fill={w.rating == null ? tokens.ink.surface : tokens.genre[primaryGenre(w.film)]}
           fillOpacity={(dim ? 0.3 : 0.9) * (heartLens ? heartDim(w) : 1)}
@@ -125,25 +93,12 @@ function FranchiseRow({
           }
           strokeWidth={w.tmdb_id === selectedId ? 1.5 : w.rating == null ? 1 : 0.5}
           style={{ cursor: "pointer" }}
-          onMouseEnter={() => setHover({ x: xs[j], y: drawnY[j], w })}
+          onMouseEnter={() => setHover({ x, y, w })}
           onMouseLeave={() => setHover(null)}
           onClick={() => setSelected(w.tmdb_id)}
         />
-      ))}
-      {r.avg != null && (
-        <text
-          x={W - 4}
-          y={labelY}
-          fill={index === 0 ? tokens.ink.primary : tokens.ink.muted}
-          fontSize={9}
-          fontWeight={index === 0 ? 700 : 400}
-          textAnchor="end"
-          dominantBaseline="middle"
-        >
-          avg {fmt1(r.avg)}
-        </text>
       )}
-    </g>
+    />
   );
 }
 
