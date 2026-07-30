@@ -55,12 +55,18 @@ jobs:
           OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
       # Runs after update.py because it reads dim_film.poster_path out of the
       # DuckDB file that update.py's build produces.
-      - name: Repair any missing poster slices
+      #
+      # The second script covers the case the first cannot see: a film that
+      # already has a slice but whose art changed, which only a hand edit to
+      # poster_overrides.csv can cause. Two image fetches, and on the usual run
+      # both scripts find nothing and leave the seed byte-identical.
+      - name: Repair any missing or stale poster slices
         id: slices
         if: steps.diff.outputs.changed == 'true'
         run: |
           before=$(sha256sum transform/seeds/poster_slices.csv)
           uv run python scripts/backfill_poster_slices.py --apply
+          uv run python scripts/reslice_overridden_posters.py --apply
           after=$(sha256sum transform/seeds/poster_slices.csv)
           if [ "$before" = "$after" ]; then
             echo "repaired=false" >> "$GITHUB_OUTPUT"
