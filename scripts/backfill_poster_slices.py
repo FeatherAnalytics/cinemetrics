@@ -23,12 +23,11 @@ import duckdb
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from ingest.csvio import write_rows  # noqa: E402
-from ingest.poster_slice import slice_for_poster  # noqa: E402
+from ingest.poster_slice import SLICE_CSV_COLUMNS, slice_for_poster  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data" / "movies.duckdb"
 SEED = ROOT / "transform" / "seeds" / "poster_slices.csv"
-COLUMNS = ["tmdb_id", "slice"]
 
 
 def existing() -> dict[str, str]:
@@ -71,7 +70,12 @@ def main() -> None:
         print("dry run — pass --apply to write")
         return
 
-    write_rows(SEED, [{"tmdb_id": t, "slice": have[t]} for t in sorted(have, key=int)], COLUMNS)
+    write_rows(
+        SEED,
+        [{"tmdb_id": t, "slice": have[t]} for t in sorted(have, key=int)],
+        SLICE_CSV_COLUMNS,
+        strict=True,
+    )
     print(f"wrote {SEED.relative_to(ROOT)}")
 
 

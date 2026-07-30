@@ -16,14 +16,13 @@ sys.path.insert(0, str(ROOT))
 from ingest.csvio import append_rows  # noqa: E402
 from ingest.enrich import FILM_CSV_COLUMNS, build_enrichment_row  # noqa: E402
 from ingest.http import omdb_get, tmdb_get  # noqa: E402
-from ingest.poster_slice import slice_for_poster  # noqa: E402
+from ingest.poster_slice import SLICE_CSV_COLUMNS, slice_for_poster  # noqa: E402
 
 SEEDS = ROOT / "transform" / "seeds"
 TRANSFORM = ROOT / "transform"
 LOG_PATH = SEEDS / "film_log.csv"
 ENRICH_PATH = SEEDS / "film_enrichment.csv"
 SLICES_PATH = SEEDS / "poster_slices.csv"
-SLICE_COLUMNS = ["tmdb_id", "slice"]
 
 TMDB_KEY = os.environ.get("TMDB_API_KEY", "")
 OMDB_KEY = os.environ.get("OMDB_API_KEY", "")
@@ -118,7 +117,7 @@ def append_to_slices(rows: list[dict[str, str]]) -> None:
         if encoded:
             new.append({"tmdb_id": row["tmdb_id"], "slice": encoded})
     if new:
-        append_rows(SLICES_PATH, new, SLICE_COLUMNS)
+        append_rows(SLICES_PATH, new, SLICE_CSV_COLUMNS, strict=True)
         print(f"  appended {len(new)} poster slices")
 
 

@@ -52,3 +52,22 @@ def test_slice_for_poster_is_empty_when_there_is_no_path():
     from ingest.poster_slice import slice_for_poster
 
     assert slice_for_poster("") == ""
+
+
+def test_slice_columns_match_the_seed_header():
+    """SLICE_CSV_COLUMNS must equal the header of the file its writers write.
+
+    poster_slices.csv has two writers, and the only check that survives one of
+    them drifting is the bytes on disk.
+    """
+    import csv
+    from pathlib import Path
+
+    from ingest.poster_slice import SLICE_CSV_COLUMNS
+
+    seed = (
+        Path(__file__).resolve().parents[1] / "transform" / "seeds" / "poster_slices.csv"
+    )
+    with open(seed, encoding="utf-8", newline="") as fh:
+        header = next(csv.reader(fh))
+    assert SLICE_CSV_COLUMNS == header

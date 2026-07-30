@@ -300,21 +300,43 @@ def test_writer_columns_match_the_seed_header(seed, columns_name):
     assert getattr(enrich, columns_name) == header
 
 
-def test_no_script_hardcodes_the_enrichment_column_list():
-    """No script may spell out the enrichment column order for itself.
+@pytest.mark.parametrize(
+    ("seed", "marker", "owner"),
+    [
+        # "box_office" appears in no other context under scripts/, so a literal
+        # occurrence means the enrichment column order was written out by hand.
+        ("film_enrichment.csv", r'"box_office"', "ingest.enrich.FILM_CSV_COLUMNS"),
+        # The slice seed has only two columns, so no single column name marks a
+        # copy. The list literal itself does. A row dict spelling the same two
+        # keys is not a column list and must not match, which is why this looks
+        # for brackets rather than for "slice".
+        (
+            "poster_slices.csv",
+            r'\[\s*"tmdb_id"\s*,\s*"slice"\s*\]',
+            "ingest.poster_slice.SLICE_CSV_COLUMNS",
+        ),
+    ],
+)
+def test_no_script_hardcodes_a_seed_column_list(seed, marker, owner):
+    """No script may spell out a shared seed's column order for itself.
 
-    Five separate copies of this list existed at one point. Adding poster_path
-    to BASE_COLUMNS left every one of them stale, and the worst copy was four
-    columns behind -- enough to strip production_countries, original_language
-    and collection out of a committed seed on a single re-run.
+    Five separate copies of the enrichment list existed at one point. Adding
+    poster_path to BASE_COLUMNS left every one of them stale, and the worst copy
+    was four columns behind -- enough to strip production_countries,
+    original_language and collection out of a committed seed on a single re-run.
+    poster_slices.csv then arrived with the same arrangement: one list in
+    scripts/update.py, another in scripts/backfill_poster_slices.py.
 
-    "box_office" is the marker: it appears in no other context under scripts/,
-    so a literal occurrence means someone wrote the list out by hand again.
+    A seed with more than one writer gets exactly one column list, exported by
+    the module named in `owner`.
     """
+    import re
     from pathlib import Path
 
     scripts = Path(__file__).resolve().parents[1] / "scripts"
     offenders = sorted(
-        py.name for py in scripts.glob("*.py") if '"box_office"' in py.read_text(encoding="utf-8")
+        py.name
+        for py in scripts.glob("*.py")
+        if re.search(marker, py.read_text(encoding="utf-8"))
     )
-    assert offenders == [], f"hardcoded enrichment column list in: {offenders}"
+    assert offenders == [], f"hardcoded {seed} column list in {offenders}; import {owner}"

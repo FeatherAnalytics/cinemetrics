@@ -19,6 +19,13 @@ from ingest.http import get_bytes
 SLICE_STOPS = 20
 POSTER_CDN = "https://image.tmdb.org/t/p/w92"
 
+# The column order of transform/seeds/poster_slices.csv, owned here because the
+# seed has two writers: scripts/update.py appends a row per newly enriched film,
+# scripts/backfill_poster_slices.py rewrites the whole file. A private copy in
+# each is the arrangement that let poster_path go stale in the enrichment seeds
+# for months, since dict_writer silently drops a key no column list mentions.
+SLICE_CSV_COLUMNS = ["tmdb_id", "slice"]
+
 Stop = tuple[int, int, int]
 
 
