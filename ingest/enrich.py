@@ -31,10 +31,10 @@ FILM_CSV_COLUMNS = BASE_COLUMNS + LANG_COLLECTION_COLUMNS
 # The column order of transform/seeds/candidate_enrichment.csv, which is NOT the
 # same file schema despite being built by the same row builder.
 #
-# It predates poster_path and does not carry it, and it gained four columns from
-# one-off backfills that no writer populates. Its order is fixed by the 7,770
-# rows already committed, so it is dictated by the file rather than derived from
-# BASE_COLUMNS — deriving it is what shifted poster_path into original_language.
+# It predates poster_path and does not carry it, and it carries four columns the
+# film seed does not. Its order is fixed by the 7,770 rows already committed, so
+# it is dictated by the file rather than derived from BASE_COLUMNS — deriving it
+# is what shifted poster_path into original_language.
 #
 # A single shared list here was a real corruption bug, not a near miss:
 # test_writer_columns_match_the_seed_header pins both against the bytes on disk.
@@ -45,6 +45,10 @@ CANDIDATE_CSV_COLUMNS = [
     "original_language", "collection",
     "title", "release_date", "tmdb_rating", "tmdb_votes",
 ]
+
+# The candidate-only columns. TMDB serves all four in the detail payload the
+# candidate writers already fetch, so nothing extra is called for them.
+CANDIDATE_META_COLUMNS = ["title", "release_date", "tmdb_rating", "tmdb_votes"]
 
 
 def _tmdb_genres(tmdb: dict) -> str:
@@ -91,6 +95,7 @@ def build_enrichment_row(
     include_lang_collection: bool,
     strip_text: bool = False,
     include_poster_path: bool = True,
+    include_candidate_meta: bool = False,
 ) -> dict[str, str]:
     """Map a TMDB detail + OMDb dict to an enrichment row.
 
@@ -106,6 +111,10 @@ def build_enrichment_row(
                            False -> omit it (candidate_enrichment.csv has no
                                     such column; a stray key here would trip
                                     dict_writer's strict=True at write time).
+    include_candidate_meta  True  -> emit title/release_date/tmdb_rating/
+                                    tmdb_votes (candidate_enrichment.csv only).
+                           False -> omit them (film_enrichment.csv has no such
+                                    columns).
     """
     text = na_clean if strip_text else na_empty
     tmdb_genres = _tmdb_genres(tmdb)
@@ -162,5 +171,18 @@ def build_enrichment_row(
         else:
             row["original_language"] = tmdb.get("original_language", "")
             row["collection"] = (tmdb.get("belongs_to_collection") or {}).get("name", "")
+
+    if include_candidate_meta:
+        # Every one of these was added to the seed by a one-off backfill while
+        # the writers kept omitting it, so each new candidate landed nameless and
+        # scoreless. The detail payload already in hand answers all four.
+        row["title"] = tmdb.get("title") or tmdb.get("original_title") or ""
+        row["release_date"] = tmdb.get("release_date") or ""
+        # A film nobody has voted on reports 0.0, which is the absence of a score
+        # rather than a bad one. Blank both fields instead of recording a zero.
+        avg = tmdb.get("vote_average") or 0
+        votes = tmdb.get("vote_count") or 0
+        row["tmdb_rating"] = f"{avg:.1f}" if avg and votes else ""
+        row["tmdb_votes"] = str(votes) if votes else ""
 
     return row

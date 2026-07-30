@@ -206,7 +206,7 @@ def test_candidate_csv_columns_excludes_poster_path():
         (  # scripts/fetch_candidates.py, scripts/enrich_watchlist.py
             dict(
                 prefer_omdb=True, omdb_countries=True, include_lang_collection=True,
-                include_poster_path=False,
+                include_poster_path=False, include_candidate_meta=True,
             ),
             "CANDIDATE_CSV_COLUMNS",
         ),
@@ -269,7 +269,7 @@ def test_candidate_row_writes_under_strict_with_the_real_call_shape():
         TMDB, OMDB,
         tmdb_id="27205", imdb_id="tt1375666",
         prefer_omdb=True, omdb_countries=True, include_lang_collection=True,
-        include_poster_path=False,
+        include_poster_path=False, include_candidate_meta=True,
     )
     w = dict_writer(io.StringIO(), CANDIDATE_CSV_COLUMNS, strict=True)
     w.writerow(row)  # must not raise

@@ -111,6 +111,10 @@ def _enrich(tmdb_id: int) -> dict[str, str] | None:
         # CANDIDATE_CSV_COLUMNS omits it, and strict=True below would raise on
         # the leftover key if the shared builder still emitted it.
         include_poster_path=False,
+        # Same four candidate-only columns fetch_candidates.py fills. The two
+        # writers share one seed, so a row appended here must have the same
+        # shape as one the candidate fetcher would have written.
+        include_candidate_meta=True,
     )
 
 
