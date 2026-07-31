@@ -108,7 +108,12 @@ const REQUIRED: Record<string, string[]> = {
   "components/PosterBarcode.tsx": [
     // The caption and the canvas's accessible name, from one helper, so the
     // two cannot answer the same question differently.
-    "firstWatchYear(filtered)",
+    //
+    // `lensed` rather than `filtered`: under the heart lens the barcode draws
+    // only the hearted run, so the caption's year has to be the first HEARTED
+    // watch. Still derived — which is all this guard is protecting — and still
+    // the same expression the canvas is built from.
+    "firstWatchYear(lensed)",
     "firstWatchYear(watches)",
   ],
   "components/SwimLaneChart.tsx": ["{unrecorded.span}", "{unrecorded.n} watches there"],

@@ -11,6 +11,7 @@ import { GradSchoolEra } from "./GradSchoolEra";
 import { LabRail } from "./LabRail";
 import { TravelComparison } from "./TravelComparison";
 import { TravelCallout } from "./TravelCallout";
+import { ReleaseYearBars } from "./ReleaseYearBars";
 
 /**
  * The unlisted surface behind `/lab`: a permanent home for work that has not
@@ -91,6 +92,18 @@ export function Lab({ data }: { data: Dataset }) {
           2,
         )} is a lot has nothing but this panel's word for it.`,
       Chart: () => <TravelCallout stats={stats} />,
+    },
+    // Three readings of "what year has the best movies", all on the same
+    // continuous release-year axis and all one row per film. They are separate
+    // sections rather than one chart with a toggle because they DISAGREE, and a
+    // toggle hides a disagreement by only ever showing one side of it.
+    {
+      id: "year-mean",
+      title: "Mean rating per release year",
+      aim: "Mean of ratings per release year.",
+      caveat:
+        "Fifteen years hold one film, so their bar is that film. Mean punishes years with more ratings in the middle.",
+      Chart: () => <ReleaseYearBars data={data} stat="mean" />,
     },
   ];
 
