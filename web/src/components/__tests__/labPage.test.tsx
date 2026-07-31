@@ -94,7 +94,12 @@ describe("the lab sits in the same shell as the main page", () => {
   it("holds the sections in arrival order, comparison first and school last", () => {
     const { container } = mount();
     const ids = [...container.querySelectorAll("section[id]")].map((s) => s.id);
-    expect(ids).toEqual(["comparison", "callout", "grad-school"]);
+    expect(ids).toEqual([
+      "comparison",
+      "callout",
+      "year-mean",
+      "grad-school",
+    ]);
   });
 });
 
@@ -155,9 +160,12 @@ describe("what the trim was allowed to remove and what it was not", () => {
     expect(text).toMatch(/does not move|Unchanged/);
   });
 
-  it("keeps an Against it note on both travel panels", () => {
+  it("keeps an Against it note on every prototype panel", () => {
     const text = collapse(mount().container.textContent);
-    expect(text.match(/Against it:/g) ?? []).toHaveLength(2);
+    // Two travel panels and one release-year one. The count is asserted rather
+    // than "at least one" because the note is what makes a panel a prototype
+    // instead of a finding, and a section added without one would slip through.
+    expect(text.match(/Against it:/g) ?? []).toHaveLength(3);
     expect(text).toContain("Why it is here and not on the main page:");
     expect(text).toContain("refusing the causal reading");
   });
@@ -241,9 +249,17 @@ describe("what the trim was allowed to remove and what it was not", () => {
    * the latest number down: it is a ceiling on the page as a whole, and the
    * grad school section, which is what keeps growing, now has a closer cap of
    * its own in gradSchool.test.tsx.
+   *
+   * RAISED TO 1,200 when the three release-year prototypes landed, and the
+   * distinction the original note draws is why. 1,100 was a ceiling on a
+   * three-section page; the page is six sections now, and most of what those
+   * three added is not prose — decade labels, star labels and a hover readout
+   * are counted here as words while being the chart rather than copy about it.
+   * The prose they brought is six sentences. The cap moves when the page gains a
+   * SECTION, never to accommodate a paragraph.
    */
   it("holds the page to its word budget", () => {
     const words = collapse(mount().container.textContent).trim().split(" ").length;
-    expect(words).toBeLessThan(1100);
+    expect(words).toBeLessThan(1200);
   });
 });

@@ -23,6 +23,7 @@ import { MostRewatched, MostRewatchedBlurb } from "@/components/stats/MostRewatc
 import { MonthlyPace } from "@/components/stats/MonthlyPace";
 import { WeekdayCounts } from "@/components/stats/WeekdayCounts";
 import { RatingsByGenre } from "@/components/stats/RatingsByGenre";
+import { FlagpoleChart } from "@/components/FlagpoleChart";
 import { GenrePairing } from "@/components/stats/GenrePairing";
 import { RatingDistribution } from "@/components/stats/RatingDistribution";
 import { PosterBarcode, PosterBarcodeBlurb } from "@/components/PosterBarcode";
@@ -113,6 +114,7 @@ export const CHART_SECTIONS: ChartSection[] = [
     title: "How I rate",
     blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: <>Every rated watch, one column per half star.</>,
+    heartBlurb: <>Every watch I hearted, one column per half star.</>,
     Chart: RatingDistribution,
   },
   // --- The heart set. Only the favorites story shows these. ---
@@ -245,6 +247,33 @@ export const CHART_SECTIONS: ChartSection[] = [
     blurbClass: "mb-2 max-w-2xl text-xs",
     blurb: <>Tukey box plots, one value per film, each film in exactly one genre.</>,
     Chart: RatingsByGenre,
+  },
+  // The same question the box plots ask, cut by release year instead of genre, and
+  // with nothing collapsed: a box is five numbers, a flagpole is the distribution.
+  {
+    id: "flagpole",
+    // Every set but the watchlist, which plots films nobody has watched: this
+    // chart is built from ratings, so under that set it would draw an empty axis
+    // rather than a different view of the same question.
+    sets: ["landing", "narrative", "heart"],
+    title: "Ratings by release year",
+    blurbClass: "mb-2 max-w-2xl text-xs",
+    // The film floor is NOT stated here. It differs between the landing page and a
+    // story, so a fixed sentence would be wrong on one of them; the chart's own
+    // caption carries whichever floor is in force.
+    blurb: (
+      <>
+        A pole for each release year and a flag at each half star to visualize the
+        ratings, colored by the dominant genre of each bar.
+      </>
+    ),
+    heartBlurb: (
+      <>
+        A pole for each release year and a flag at each half star, counting only the
+        films I hearted, colored by the dominant genre of each bar.
+      </>
+    ),
+    Chart: FlagpoleChart,
   },
   {
     id: "rewatched",

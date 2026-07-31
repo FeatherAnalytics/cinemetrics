@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import { starLabel } from "@/lib/likedChart";
+import { likedOnly } from "@/lib/heartLens";
 import { primaryGenre } from "@/lib/palette";
 import { sliceStops } from "@/lib/posterSlice";
 import { posterUrl } from "@/lib/fourFavs";
@@ -85,14 +86,19 @@ export function firstWatchYear(watches: readonly { d: Date }[]): number | null {
  * say one thing while the canvas an element below it said another.
  */
 export function PosterBarcodeBlurb() {
-  const { filtered } = useExplorer();
-  const year = firstWatchYear(filtered);
+  const { filtered, heartLens } = useExplorer();
+  const lensed = heartLens ? likedOnly(filtered) : filtered;
+  const year = firstWatchYear(lensed);
   if (year == null) return null;
-  return <>Every watch since {year}, as a slice of that film&rsquo;s own poster.</>;
+  return heartLens ? (
+    <>Every watch I hearted since {year}, as a slice of that film&rsquo;s own poster.</>
+  ) : (
+    <>Every watch since {year}, as a slice of that film&rsquo;s own poster.</>
+  );
 }
 
 export function PosterBarcode() {
-  const { filtered, setSelected } = useExplorer();
+  const { filtered, setSelected, heartLens } = useExplorer();
   const { tokens } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // x and figW travel with the watch: both come off the same getBoundingClientRect
@@ -100,10 +106,14 @@ export function PosterBarcode() {
   // film rather than from a second, later measurement.
   const [hover, setHover] = useState<{ x: number; figW: number; w: EnrichedWatch } | null>(null);
 
-  const watches = useMemo(
-    () => [...filtered].sort((a, b) => a.d.getTime() - b.d.getTime()),
-    [filtered],
-  );
+  // Under the heart lens the run is the HEARTED run. Dimming the rest was the
+  // other option and it does not work here: the barcode's whole subject is the
+  // poster colour, and a 0.6 wash over two thirds of the stripes reads as a
+  // second colour scale rather than as absence.
+  const watches = useMemo(() => {
+    const lensed = heartLens ? likedOnly(filtered) : filtered;
+    return [...lensed].sort((a, b) => a.d.getTime() - b.d.getTime());
+  }, [filtered, heartLens]);
 
   // Stops are parsed once per film, not once per watch: a film watched eight
   // times would otherwise re-split the same 120 characters eight times.

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useExplorer } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import { ratingsByStarBin, starLabel, STAR_BINS } from "@/lib/likedChart";
+import { likedOnly } from "@/lib/heartLens";
 import { CategoryBars } from "./CategoryBars";
 import { accentFor, isPicked, pickWatches } from "./pick";
 
@@ -24,11 +25,23 @@ import { accentFor, isPicked, pickWatches } from "./pick";
  * on `ratingsByStarBin`.
  */
 export function RatingDistribution() {
-  const { filtered, filters, setSelection } = useExplorer();
+  const { filtered, filters, setSelection, heartLens } = useExplorer();
   const { tokens } = useTheme();
   const [hover, setHover] = useState<number | null>(null);
 
-  const groups = useMemo(() => ratingsByStarBin(filtered), [filtered]);
+  // Under the heart lens this is the shape of the HEARTED scale, not the whole
+  // one. The favorites story is about the films that got the heart, and a
+  // full-library histogram sitting above five charts that are all about the
+  // heart reads as though the story's subject were every watch.
+  //
+  // Not to be confused with `LikedByRating`, the heart set's own chart, which
+  // needs both halves: it draws the hearted SHARE of each bin, and filtering its
+  // input to the hearted would make every column 100%.
+  const lensed = useMemo(
+    () => (heartLens ? likedOnly(filtered) : filtered),
+    [heartLens, filtered],
+  );
+  const groups = useMemo(() => ratingsByStarBin(lensed), [lensed]);
   // Memoised, not built inline: `CategoryBars` tweens these and compares the
   // array by identity, and this component re-renders on every hover.
   const bars = useMemo(

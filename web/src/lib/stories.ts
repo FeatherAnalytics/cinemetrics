@@ -35,6 +35,7 @@ export type ChartId =
   | "monthly"
   | "weekday"
   | "genrebox"
+  | "flagpole"
   | "pairing"
   // The heart set. Same arrangement as the stats set: these render only while the
   // heart story is active, and the narrative eight do not.
@@ -668,9 +669,9 @@ function computeHeart(films: Film[], watches: EnrichedWatch[]): StoryResult {
       // curve, the tie and the cohorts all restated percentages the bars already
       // print, which put one finding on screen three times over.
       favposters:
-        "Curated by hand. No ordering the data can produce puts these four together.",
+        "My four favorites, in order.",
       heartpredictors:
-        "Nothing here separates from my overall rate by much, which is the result rather than a missing one.",
+        "No significant deviation in ratings.",
     },
   };
 }
