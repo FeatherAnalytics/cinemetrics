@@ -794,3 +794,5 @@ watched_date,tmdb_id,imdb_id,title,release_year,my_rating,star_rating,is_rewatch
 2026-07-02,795615,tt10738906,The Feast,2021,90.0,4.5,true,true
 2026-07-19,1368337,tt33764258,The Odyssey,2026,90.0,4.5,false,true
 2026-07-25,181886,tt2316411,Enemy,2013,70.0,3.5,false,false
+2026-07-31,872585,tt15398776,Oppenheimer,2023,90.0,4.5,true,true
+2026-07-31,1368337,tt33764258,The Odyssey,2026,90.0,4.5,true,true
