@@ -52,6 +52,27 @@ CANDIDATE_CSV_COLUMNS = [
 # candidate writers already fetch, so nothing extra is called for them.
 CANDIDATE_META_COLUMNS = ["title", "release_date", "tmdb_rating", "tmdb_votes"]
 
+# The columns only OMDb can fill. Deliberately excludes genres, runtime and
+# production_countries: build_enrichment_row falls back to TMDB for those, so
+# they are populated whether or not OMDb answered and say nothing about it.
+#
+# A row with none of these has no OMDb data at all, which is what
+# fetch_candidates.py uses to decide a candidate is not finished yet.
+OMDB_SOURCED_COLUMNS = [
+    "metascore", "rt_rating", "imdb_rating", "imdb_votes", "box_office",
+    "director", "actors", "rated",
+]
+
+
+def has_omdb_data(row: dict[str, str]) -> bool:
+    """True when a row carries anything OMDb supplied.
+
+    The inverse is the retry condition. It holds for two different rows that
+    both need another attempt: one whose OMDb call never landed, and one whose
+    TMDB record carried no imdb_id to call OMDb with in the first place.
+    """
+    return any((row.get(column) or "").strip() for column in OMDB_SOURCED_COLUMNS)
+
 
 def _tmdb_genres(tmdb: dict) -> str:
     return ", ".join(g["name"] for g in tmdb.get("genres", []))

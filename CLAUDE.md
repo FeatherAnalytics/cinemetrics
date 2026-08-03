@@ -18,6 +18,18 @@ Personal film analytics pipeline: Letterboxd watch history → dbt/DuckDB → Ne
 - **Rating scale**: 0–100 (`my_rating`). `star_rating` is 0–5; the factor is exactly 20.
 - **Seeds are append-only**: The auto-updater appends new rows; never modifies existing data.
   One-off repairs go in their own `scripts/` file with a `--apply` flag, never in `update.py`.
+  The one exception is `candidate_enrichment.csv`, which `fetch_candidates.py` rewrites in
+  place. It holds no history — every column is re-derivable from TMDB and OMDb — and a row
+  whose OMDb half never landed can only be finished by editing it. The rule still holds for
+  the row *count*: that writer adds and fills rows, never removes one.
+- **A candidate is finished when it has OMDb data, not when it has a `tmdb_id`.**
+  `fetch_candidates.py` used to dedupe on id alone, so any row written without its OMDb half
+  was never revisited — 3,041 of 10,288 rows sat with an `imdb_id` and no critic data at all.
+  Doneness is now `ingest.enrich.has_omdb_data`. Note what it deliberately excludes: `genres`,
+  `runtime` and `production_countries` fall back to TMDB, so they are populated either way and
+  prove nothing. OMDb's free tier allows 1,000 calls a day and `data/raw` is gitignored with no
+  CI cache, so every run starts cold and the allowance is the binding constraint — new
+  candidates are enriched before the retry backlog.
 - **Never use `csv.writer`/`csv.DictWriter` directly** — use `ingest.csvio.dict_writer`.
   The csv module defaults to CRLF line endings on *every* platform, while
   `.gitattributes` checks seeds out as LF. Mixing the two makes DuckDB's sniffer fail
