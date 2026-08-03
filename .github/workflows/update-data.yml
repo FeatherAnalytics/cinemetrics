@@ -39,6 +39,20 @@ jobs:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
           LETTERBOXD_USER: ${{ secrets.LETTERBOXD_USER }}
+      # Deliberately NOT gated on new watches. Nothing this script does depends on
+      # one: TMDB's popular and top-rated lists move nightly, and the committed
+      # seed holds thousands of rows still waiting for the OMDb half they never
+      # got, which only another run can fill. Behind the gate it ran on about half
+      # of nights -- update.py returns before writing anything when the RSS feed
+      # is unchanged, so `git diff` was clean and this was skipped -- and the
+      # retry backlog could not drain faster than it grew.
+      - name: Fetch candidates
+        run: uv run python scripts/fetch_candidates.py
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
+      # Reads the candidate seed as well as update.py's output, so it must run
+      # after both. This is the single gate for everything below.
       - name: Check for changes
         id: diff
         run: |
@@ -47,14 +61,30 @@ jobs:
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Fetch candidates
+      # update.py runs dbt deps, dbt build and export_web itself -- but returns
+      # before all three when there is no new watch. On a night when candidates
+      # are the only thing that moved, nothing has built the models they feed,
+      # and the scoped `--select candidate_enrichment+` that used to validate
+      # them cannot stand alone: dim_candidate reads dim_film and dim_watchlist
+      # reads stg_watchlist, neither of which that selector reaches. On a fresh
+      # database it fails with `Table with name dim_film does not exist`.
+      #
+      # So build everything. It also replaces the old scoped validation outright,
+      # since a full build runs those same unique and not_null tests and every
+      # other one besides. On a night that did have new watches this repeats
+      # what update.py already did, which is a second or so and idempotent.
+      - name: Build the models and export
         if: steps.diff.outputs.changed == 'true'
-        run: uv run python scripts/fetch_candidates.py
-        env:
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
-      # Runs after update.py because it reads dim_film.poster_path out of the
-      # DuckDB file that update.py's build produces.
+        run: |
+          cd transform
+          uv run dbt deps --profiles-dir .
+          uv run dbt build --profiles-dir .
+          cd ..
+          uv run python scripts/export_web.py
+      # Runs after the build above because it reads dim_film.poster_path out of
+      # the DuckDB file that build produces. It used to sit behind update.py for
+      # the same reason, which held only on nights update.py got as far as
+      # building.
       #
       # The second script covers the case the first cannot see: a film that
       # already has a slice but whose art changed, which only a hand edit to
@@ -97,19 +127,8 @@ jobs:
       - name: Re-export web JSON with the repaired slices
         if: steps.slices.outputs.repaired == 'true'
         run: uv run python scripts/export_web.py
-      # Validates the candidate seed that `Fetch candidates` just appended, via the
-      # unique/not_null tests on stg_candidate_enrichment and dim_candidate. Scoped
-      # to that path rather than a full build: update.py already built and tested
-      # all 35 models above, and candidates feed nothing else. A full rebuild here
-      # would also mislead, since export_web.py does not run again afterwards.
-      - name: Validate candidate seed
-        if: steps.diff.outputs.changed == 'true'
-        # `deps` stays even though update.py already ran it in this job: it is
-        # idempotent and ~1s, and its absence is what broke the 2026-07-26 and
-        # 2026-07-27 runs. Not worth re-earning that bug to save a second.
-        run: cd transform && uv run dbt deps --profiles-dir . && uv run dbt build --profiles-dir . --select candidate_enrichment+
-      # After the candidate build above, so dim_candidate is current when the
-      # candidate count is read. update.py already rebuilt the rest.
+      # After the build above, so dim_candidate is current when the candidate
+      # count is read.
       - name: Refresh doc figures
         if: steps.diff.outputs.changed == 'true'
         run: uv run python scripts/update_doc_stats.py

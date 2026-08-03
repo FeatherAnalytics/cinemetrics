@@ -5,12 +5,20 @@ Two sources:
 2. TMDB /movie/popular and /movie/top_rated (broad backfill)
 
 Deduplicates against existing film_enrichment.csv and candidate_enrichment.csv.
-Enriches new candidates via TMDB + OMDb and appends to candidate_enrichment.csv.
+Enriches new candidates via TMDB + OMDb and writes candidate_enrichment.csv.
+
+Candidates are also RE-enriched. A candidate is finished only when it carries
+data OMDb supplied, not merely because its tmdb_id appears in the seed. Rows
+that fall short are attempted again on the next run and rewritten in place, so
+a night that runs out of OMDb quota leaves work for the next one instead of
+leaving a permanently empty row behind. This is the one writer that edits
+committed rows rather than only appending; see the note in main().
 """
 
 import csv
 import os
 import sys
+import threading
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -23,8 +31,12 @@ load_dotenv()
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ingest.csvio import dict_writer  # noqa: E402
-from ingest.enrich import CANDIDATE_CSV_COLUMNS, build_enrichment_row  # noqa: E402
+from ingest.csvio import write_rows  # noqa: E402
+from ingest.enrich import (  # noqa: E402
+    CANDIDATE_CSV_COLUMNS,
+    build_enrichment_row,
+    has_omdb_data,
+)
 from ingest.http import cached_json, omdb_get, tmdb_get  # noqa: E402
 
 SEEDS = ROOT / "transform" / "seeds"
@@ -78,13 +90,57 @@ def _tmdb_get(path: str, **params) -> dict:
     return tmdb_get(path, api_key=TMDB_KEY, **params)
 
 
+# Set once OMDb rejects the credential, which on the free tier is how the
+# 1,000-call daily allowance reports being spent. Every later film that needs
+# OMDb is skipped rather than asked, because the answer cannot change before
+# the quota resets. Without this a rate-limited run spends the rest of its
+# night issuing thousands of requests that are all guaranteed to fail — and
+# CI starts with an empty cache (data/raw is gitignored), so nothing absorbs
+# them. An Event because _parallel calls this from every worker thread.
+_OMDB_DOWN = threading.Event()
+
+
 def _omdb_get(imdb_id: str) -> dict:
+    if _OMDB_DOWN.is_set():
+        return {}
     cache_file = ROOT / "data" / "raw" / "omdb" / f"{imdb_id}.json"
-    return cached_json(
-        cache_file,
-        lambda: omdb_get(imdb_id, api_key=OMDB_KEY),
-        is_valid=lambda d: bool(d),
-    )
+    try:
+        return cached_json(
+            cache_file,
+            lambda: omdb_get(imdb_id, api_key=OMDB_KEY),
+            is_valid=lambda d: bool(d),
+        )
+    except RuntimeError:
+        # ingest/http.py raises this for 401/403 and says retrying cannot fix it.
+        _OMDB_DOWN.set()
+        raise
+
+
+def _candidate_rows() -> list[dict[str, str]]:
+    """The committed candidate seed, in file order.
+
+    Order is preserved because the rewrite puts these rows back exactly where
+    they were. The seed is three appended-and-sorted runs rather than one sorted
+    file, so re-sorting it would rewrite all 10k lines and bury the handful a
+    run actually changed.
+    """
+    if not CANDIDATE_ENRICHMENT.exists():
+        return []
+    with open(CANDIDATE_ENRICHMENT, encoding="utf-8", newline="") as fh:
+        return list(csv.DictReader(fh))
+
+
+def _unfinished(rows: list[dict[str, str]]) -> dict[int, str]:
+    """tmdb_id -> the seed's imdb_id, for every row still missing OMDb data."""
+    pending: dict[int, str] = {}
+    for row in rows:
+        try:
+            tmdb_id = int(row["tmdb_id"])
+        except (ValueError, KeyError):
+            continue
+        if not has_omdb_data(row):
+            pending[tmdb_id] = (row.get("imdb_id") or "").strip()
+    return pending
 
 
 def _existing_tmdb_ids() -> set[int]:
@@ -137,7 +193,15 @@ def _fetch_list(endpoint: str, pages: int = 50) -> list[int]:
     return ids
 
 
-def _enrich_tmdb(tmdb_id: int) -> dict | None:
+def _enrich_tmdb(tmdb_id: int, *, seed_imdb_id: str = "") -> dict | None:
+    """Build a candidate row, or None when this film cannot be finished now.
+
+    ``seed_imdb_id`` is the id the seed already holds for a row being retried.
+    It lets an exhausted run bail before the TMDB call rather than after it.
+    """
+    if seed_imdb_id and _OMDB_DOWN.is_set():
+        return None
+
     cache_file = CACHE / f"detail_{tmdb_id}.json"
     # Only cache a real hit (data with an id); a failed lookup must not be cached.
     data = cached_json(
@@ -149,6 +213,12 @@ def _enrich_tmdb(tmdb_id: int) -> dict | None:
         return None
 
     imdb_id = data.get("imdb_id", "")
+    # A film OMDb could answer for, on a night it has stopped answering. Writing
+    # it now would commit a row with no critic data and — before doneness was
+    # measured by content — mark it finished forever. Leave it for tomorrow.
+    if imdb_id and _OMDB_DOWN.is_set():
+        return None
+
     omdb = _omdb_get(imdb_id) if imdb_id else {}
 
     return build_enrichment_row(
@@ -212,6 +282,8 @@ def main() -> None:
     if not OMDB_KEY:
         raise SystemExit("OMDB_API_KEY not set")
 
+    rows = _candidate_rows()
+    pending = _unfinished(rows)
     existing = _existing_tmdb_ids()
     print(f"existing films: {len(existing)}")
 
@@ -229,28 +301,67 @@ def main() -> None:
 
     new_ids = candidate_ids - existing
     print(f"candidates: {len(candidate_ids)} total, {len(new_ids)} new to enrich")
+    print(f"retrying {len(pending)} candidates with no OMDb data yet")
 
-    if not new_ids:
-        print("no new candidates to enrich")
+    if not new_ids and not pending:
+        print("no new candidates to enrich, nothing to retry")
         return
 
-    # Enrich concurrently, then write serially in sorted order so the appended
-    # rows are deterministic regardless of which thread finished first.
-    rows_by_id = _parallel(_enrich_tmdb, sorted(new_ids), "enriched")
+    # New candidates first, and in their own pass rather than one merged batch.
+    # The OMDb allowance is the scarce resource and a single ThreadPoolExecutor
+    # only approximates submission order, so a merged batch would let backlog
+    # rows take quota from films that have none at all.
+    enriched = _parallel(_enrich_tmdb, sorted(new_ids), "enriched")
 
-    write_header = not CANDIDATE_ENRICHMENT.exists()
-    enriched = 0
-    with open(CANDIDATE_ENRICHMENT, "a", newline="", encoding="utf-8") as fh:
-        writer = dict_writer(fh, CANDIDATE_CSV_COLUMNS, strict=True)
-        if write_header:
-            writer.writeheader()
-        for tid in sorted(new_ids):
-            row = rows_by_id.get(tid)
-            if row:
-                writer.writerow(row)
-                enriched += 1
+    # Whatever allowance the new candidates left over. _enrich_tmdb returns None
+    # for every row needing OMDb once the quota is gone, so this pass costs
+    # almost nothing on a night that has already spent it.
+    repaired = _parallel(
+        lambda tid: _enrich_tmdb(tid, seed_imdb_id=pending[tid]),
+        sorted(pending),
+        "re-enriched",
+    )
 
-    print(f"done: {enriched} new candidates appended to {CANDIDATE_ENRICHMENT.name}")
+    # Rewriting the seed rather than appending to it. CLAUDE.md's append-only
+    # rule protects film_log.csv, which is watch history and irreplaceable. This
+    # seed is neither: every column is re-derivable from TMDB and OMDb, and a
+    # row that never got its OMDb half can only be finished by editing it. The
+    # rule still holds for the row COUNT — nothing here removes a row, and a
+    # failed retry leaves the existing one untouched.
+    # Built the same guarded way as _unfinished, and for the same reason: an
+    # unparseable tmdb_id anywhere in 10k committed rows would otherwise raise
+    # here and take the nightly down, after the API calls had already been spent.
+    index: dict[int, int] = {}
+    for position, row in enumerate(rows):
+        try:
+            index[int(row["tmdb_id"])] = position
+        except (ValueError, KeyError):
+            continue
+
+    updated = 0
+    for tmdb_id, row in repaired.items():
+        # Only when the retry actually produced OMDb data. A rebuilt row that is
+        # still empty differs from the committed one anyway — TMDB vote counts
+        # move daily — so writing it back would put a thousand-line diff of pure
+        # churn in front of the few rows that gained something.
+        if row and has_omdb_data(row):
+            rows[index[tmdb_id]] = row
+            updated += 1
+
+    appended = [enriched[tid] for tid in sorted(new_ids) if enriched.get(tid)]
+
+    if not appended and not updated:
+        print("nothing enriched this run; seed left untouched")
+        return
+
+    write_rows(CANDIDATE_ENRICHMENT, rows + appended, CANDIDATE_CSV_COLUMNS, strict=True)
+    print(
+        f"done: {len(appended)} new candidates appended, "
+        f"{updated} existing rows filled in, in {CANDIDATE_ENRICHMENT.name}"
+    )
+    still_pending = len(pending) - updated
+    if still_pending:
+        print(f"  {still_pending} still without OMDb data; next run picks them up")
 
 
 if __name__ == "__main__":

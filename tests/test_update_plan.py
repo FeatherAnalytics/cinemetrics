@@ -183,3 +183,54 @@ def test_preserves_input_order():
     ]
     out = loggable_watches(watches, existing_enrich_ids={"52", "50"}, enriched_ids={"51"})
     assert out == watches
+
+
+# --- OMDb running out mid-run ------------------------------------------------
+
+
+def _tmdb_stub(monkeypatch) -> None:
+    def fake(path: str, **_kw):
+        if path.endswith("/external_ids"):
+            return {"imdb_id": "tt0000060"}
+        return {"id": 60, "title": "Some Film"}
+
+    monkeypatch.setattr(update_mod, "tmdb_get", fake)
+    monkeypatch.setattr(update_mod, "OMDB_KEY", "k")
+    monkeypatch.setattr(update_mod, "TMDB_KEY", "k")
+
+
+def test_a_spent_omdb_allowance_does_not_abort_the_run(monkeypatch, capsys):
+    """A 401 from OMDb used to take the whole nightly down at its first step.
+
+    ingest/http.py raises for 401/403, the call was unguarded, and nothing
+    between here and main() caught it — so one un-enrichable film stopped
+    candidates, the export, the embeddings and the deploy.
+    """
+    _tmdb_stub(monkeypatch)
+
+    def rejected(*_a, **_k):
+        raise RuntimeError("rejected the credential (401)")
+
+    monkeypatch.setattr(update_mod, "omdb_get", rejected)
+
+    assert update_mod.enrich_film("60") is None  # must not raise
+    assert "holding tmdb_id=60 back" in capsys.readouterr().out
+
+
+def test_the_held_back_watch_is_not_logged(monkeypatch):
+    """Held back, not written half-enriched: film_enrichment has no retry pass."""
+    watches = [{"tmdb_id": "60", "watched_date": "2026-01-04"}]
+    assert loggable_watches(watches, existing_enrich_ids=set(), enriched_ids=set()) == []
+
+
+def test_omdb_saying_it_has_no_record_still_enriches(monkeypatch):
+    """Response=False is an answer, not an outage — the film keeps its TMDB row."""
+    _tmdb_stub(monkeypatch)
+    monkeypatch.setattr(
+        update_mod, "omdb_get", lambda *a, **k: {"Response": "False", "Error": "not found"}
+    )
+
+    row = update_mod.enrich_film("60")
+    assert row is not None
+    assert row["imdb_id"] == "tt0000060"
+    assert row["imdb_rating"] == ""
