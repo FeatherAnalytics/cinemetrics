@@ -66,7 +66,21 @@ def enrich_film(tmdb_id: str) -> dict[str, str] | None:
     imdb_id = ext.get("imdb_id", "")
 
     # OMDb is preferred for everything it reports.
-    omdb: dict = omdb_get(imdb_id, api_key=OMDB_KEY) if imdb_id and OMDB_KEY else {}
+    try:
+        omdb: dict = omdb_get(imdb_id, api_key=OMDB_KEY) if imdb_id and OMDB_KEY else {}
+    except RuntimeError:
+        # ingest/http.py raises for 401/403, and on OMDb's free tier that is how
+        # a spent daily allowance reports itself. Unguarded, it took the whole
+        # nightly down at its first step — before candidates, export, embeddings
+        # or deploy — because one film could not be enriched.
+        #
+        # Holding the watch back is what this pipeline already does when
+        # enrichment does not complete: main() warns, skips it, and the next run
+        # sees it in the RSS feed again. The alternative, a TMDB-only row, would
+        # commit a film with no critic data and nothing to ever revisit it —
+        # film_enrichment.csv has no retry pass, unlike the candidate seed.
+        print(f"  OMDb unavailable; holding tmdb_id={tmdb_id} back for the next run.")
+        return None
     if omdb.get("Response") != "True":
         omdb = {}
 
