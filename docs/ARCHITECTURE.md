@@ -129,7 +129,7 @@ selects from it, [`export_web.py`](../scripts/export_web.py) does not export it,
 [`build_watchlist_seed.py`](../scripts/build_watchlist_seed.py) and the model is typed and tested,
 but the branch stops there — it is staged and ready rather than in use.
 
-Current scale: <!--stat:watches-->798<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->10,288<!--/stat--> recommendation candidates, <!--stat:dbt_models-->10<!--/stat--> dbt models, <!--stat:dbt_seeds-->6<!--/stat--> seeds, <!--stat:dbt_tests-->40<!--/stat--> data tests.
+Current scale: <!--stat:watches-->799<!--/stat--> watches, <!--stat:films-->676<!--/stat--> films, <!--stat:candidates-->10,588<!--/stat--> recommendation candidates, <!--stat:dbt_models-->10<!--/stat--> dbt models, <!--stat:dbt_seeds-->6<!--/stat--> seeds, <!--stat:dbt_tests-->40<!--/stat--> data tests.
 
 Those figures are generated — see [Keeping the figures honest](#keeping-the-figures-honest). The
 dashboard header and the share card derive their own counts separately at build time, from
@@ -435,13 +435,13 @@ anything in the README.
   external links, and its not-null test is a warning rather than an error. Both are declared in
   [`_marts.yml`](../transform/models/marts/_marts.yml).
 - **Ratings** are 0–100 (`my_rating`); `star_rating` is 0–5. The factor is exactly 20,
-  measured across the <!--stat:seed_rows_both-->669<!--/stat--> rows that arrived carrying both.
+  measured across the <!--stat:seed_rows_both-->670<!--/stat--> rows that arrived carrying both.
   Derived in [`stg_film_log.sql`](../transform/models/staging/stg_film_log.sql).
 - **"Rewatches" and "returns" are different numbers.**
-  <!--stat:flagged_rewatches-->209<!--/stat--> rows are flagged as rewatches, but
+  <!--stat:flagged_rewatches-->210<!--/stat--> rows are flagged as rewatches, but
   <!--stat:flagged_once-->87<!--/stat--> of those are films whose first viewing predates the
   dataset. Counting actual return visits in the data gives
-  <!--stat:returns-->122<!--/stat--> returns across
+  <!--stat:returns-->123<!--/stat--> returns across
   <!--stat:films_with_returns-->84<!--/stat--> films. Always state which one a figure means.
 - **Franchise rollups** are curated in the
   [`franchise_mapping()`](../transform/macros/franchise_mapping.sql) macro, keyed by TMDB
