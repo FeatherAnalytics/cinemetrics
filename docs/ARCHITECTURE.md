@@ -234,13 +234,17 @@ Everything is free-tier and stateless except the object store.
 
 ### Workflows
 
-**[`ci.yml`](../.github/workflows/ci.yml)** — on pull requests to `main`. Three independent
-jobs: `lint` (ruff + eslint), `data` (`dbt deps` then `dbt build`, which runs all
-<!--stat:dbt_tests-->40<!--/stat--> tests), and `web` (vitest + Next.js build).
+The three workflows are named for the call to roll: "Lights (CI)", "Camera (Update Data)",
+"Action! (Deploy)". The filenames stay literal, because that is what `gh workflow run` and
+the links below refer to.
 
-**[`deploy.yml`](../.github/workflows/deploy.yml)** — on push to `main` and on manual dispatch.
-Builds the web bundle and publishes to Pages. Concurrency group `pages`, no
-cancel-in-progress.
+**[`ci.yml`](../.github/workflows/ci.yml)** — "Lights (CI)", on pull requests to `final-cut`.
+Three independent jobs: `lint` (ruff + eslint), `data` (`dbt deps` then `dbt build`, which
+runs all <!--stat:dbt_tests-->40<!--/stat--> tests), and `web` (vitest + Next.js build).
+
+**[`deploy.yml`](../.github/workflows/deploy.yml)** — "Action! (Deploy)", on push to
+`final-cut` and on manual dispatch. Builds the web bundle and publishes to Pages. Concurrency
+group `pages`, no cancel-in-progress.
 
 It also generates the dbt documentation site. The catalog has no relations to describe until
 the seeds are built, and the DuckDB file is gitignored, so the deploy job runs `dbt deps` and
@@ -277,8 +281,8 @@ Two things about it are deliberate and easy to undo by accident:
 The card uses the Geist Regular that `next/og` bundles rather than loading the site's fonts,
 which would mean committing a font binary or fetching one mid-build.
 
-**[`update-data.yml`](../.github/workflows/update-data.yml)** — daily at 08:23 UTC, plus manual
-dispatch.
+**[`update-data.yml`](../.github/workflows/update-data.yml)** — "Camera (Update Data)", daily at
+08:23 UTC, plus manual dispatch.
 
 1. [`scripts/update.py`](../scripts/update.py): fetch Letterboxd RSS
    ([`ingest/letterboxd.py`](../ingest/letterboxd.py)), enrich any new films via TMDB
@@ -290,7 +294,7 @@ dispatch.
 4. Validate the candidate seed with `dbt build --select candidate_enrichment+`, scoped to that
    path because step 1 already built and tested everything else.
 5. Retrain embeddings and upload to R2.
-6. Commit the seeds and JSON to `main`, then dispatch `deploy.yml`.
+6. Commit the seeds and JSON to `final-cut`, then dispatch `deploy.yml`.
 
 Concurrency group `update-data`, with `cancel-in-progress: false`. Two overlapping runs would
 race on the same append and push, and cancelling a run that has already appended locally is
@@ -447,7 +451,7 @@ anything in the README.
   [`franchise_mapping()`](../transform/macros/franchise_mapping.sql) macro, keyed by TMDB
   collection, `tmdb_id`, or director.
 - Feature branches only. The single exception is the automated data commit, which pushes to
-  `main` directly.
+  `final-cut` directly.
 
 ## See also
 

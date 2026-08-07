@@ -1,8 +1,8 @@
-name: CI
+name: Lights (CI)
 
 on:
   pull_request:
-    branches: [main]
+    branches: [final-cut]
 
 jobs:
   lint:

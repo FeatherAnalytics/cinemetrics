@@ -4,7 +4,7 @@ Personal film analytics pipeline: Letterboxd watch history → dbt/DuckDB → Ne
 
 ## Git
 
-- **Branches**: Feature branches only; no direct commits to main (except automated data updates).
+- **Branches**: Feature branches only; no direct commits to `final-cut` (except automated data updates).
 
 ## Tech Stack
 

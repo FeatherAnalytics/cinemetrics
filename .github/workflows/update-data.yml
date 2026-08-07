@@ -1,11 +1,11 @@
-name: Update Data
+name: Camera (Update Data)
 
 on:
   schedule:
     - cron: '23 8 * * *'
   workflow_dispatch: {}
 
-# Seeds are append-only and the job pushes to main, so two overlapping runs
+# Seeds are append-only and the job pushes to final-cut, so two overlapping runs
 # (cron plus a manual dispatch) would race on the same append and push. Queue
 # instead of cancelling: a half-finished run has already appended locally, and
 # cancelling it mid-push is worse than letting it land.
@@ -114,7 +114,7 @@ jobs:
       # commits it, and neither happened. The repair wrote the seed after
       # update.py had already built and exported, and the only dbt call left in
       # the job selects candidate_enrichment+, which contains no poster_slices,
-      # no stg_poster_slices and no dim_film. So the seed reached main with no
+      # no stg_poster_slices and no dim_film. So the seed reached final-cut with no
       # dbt node having read it -- its unique and not_null tests never saw the
       # new rows -- and cinemetrics.json was committed beside a slice it did not
       # carry, leaving a blank stripe on the barcode until the next day's run.
