@@ -1,8 +1,8 @@
-name: Deploy
+name: Action! (Deploy)
 
 on:
   push:
-    branches: [main]
+    branches: [final-cut]
   workflow_dispatch: {}
 
 concurrency:
