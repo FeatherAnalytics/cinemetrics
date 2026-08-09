@@ -129,7 +129,7 @@ selects from it, [`export_web.py`](../scripts/export_web.py) does not export it,
 [`build_watchlist_seed.py`](../scripts/build_watchlist_seed.py) and the model is typed and tested,
 but the branch stops there — it is staged and ready rather than in use.
 
-Current scale: <!--stat:watches-->800<!--/stat--> watches, <!--stat:films-->677<!--/stat--> films, <!--stat:candidates-->16,745<!--/stat--> recommendation candidates, <!--stat:dbt_models-->10<!--/stat--> dbt models, <!--stat:dbt_seeds-->6<!--/stat--> seeds, <!--stat:dbt_tests-->40<!--/stat--> data tests.
+Current scale: <!--stat:watches-->801<!--/stat--> watches, <!--stat:films-->678<!--/stat--> films, <!--stat:candidates-->17,814<!--/stat--> recommendation candidates, <!--stat:dbt_models-->10<!--/stat--> dbt models, <!--stat:dbt_seeds-->6<!--/stat--> seeds, <!--stat:dbt_tests-->40<!--/stat--> data tests.
 
 Those figures are generated — see [Keeping the figures honest](#keeping-the-figures-honest). The
 dashboard header and the share card derive their own counts separately at build time, from
@@ -439,7 +439,7 @@ anything in the README.
   external links, and its not-null test is a warning rather than an error. Both are declared in
   [`_marts.yml`](../transform/models/marts/_marts.yml).
 - **Ratings** are 0–100 (`my_rating`); `star_rating` is 0–5. The factor is exactly 20,
-  measured across the <!--stat:seed_rows_both-->671<!--/stat--> rows that arrived carrying both.
+  measured across the <!--stat:seed_rows_both-->672<!--/stat--> rows that arrived carrying both.
   Derived in [`stg_film_log.sql`](../transform/models/staging/stg_film_log.sql).
 - **"Rewatches" and "returns" are different numbers.**
   <!--stat:flagged_rewatches-->211<!--/stat--> rows are flagged as rewatches, but
