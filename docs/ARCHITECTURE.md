@@ -129,7 +129,7 @@ selects from it, [`export_web.py`](../scripts/export_web.py) does not export it,
 [`build_watchlist_seed.py`](../scripts/build_watchlist_seed.py) and the model is typed and tested,
 but the branch stops there — it is staged and ready rather than in use.
 
-Current scale: <!--stat:watches-->801<!--/stat--> watches, <!--stat:films-->678<!--/stat--> films, <!--stat:candidates-->21,227<!--/stat--> recommendation candidates, <!--stat:dbt_models-->10<!--/stat--> dbt models, <!--stat:dbt_seeds-->6<!--/stat--> seeds, <!--stat:dbt_tests-->40<!--/stat--> data tests.
+Current scale: <!--stat:watches-->802<!--/stat--> watches, <!--stat:films-->679<!--/stat--> films, <!--stat:candidates-->21,882<!--/stat--> recommendation candidates, <!--stat:dbt_models-->10<!--/stat--> dbt models, <!--stat:dbt_seeds-->6<!--/stat--> seeds, <!--stat:dbt_tests-->40<!--/stat--> data tests.
 
 Those figures are generated — see [Keeping the figures honest](#keeping-the-figures-honest). The
 dashboard header and the share card derive their own counts separately at build time, from
@@ -180,7 +180,7 @@ recorded them. `liked` is stored as a nullable boolean, so the unknowns are NULL
 stored as `false` for those rows, which is *not* the same as "was a first viewing". Filter on
 `liked is not null` to isolate the rows that actually recorded either field. Ignoring this
 understates the affection rate by <!--stat:affection_delta-->7.5<!--/stat--> points and the
-rewatch rate by <!--stat:rewatch_delta-->5.1<!--/stat--> points.
+rewatch rate by <!--stat:rewatch_delta-->5.0<!--/stat--> points.
 
 The derivation and its reasoning live in
 [`stg_film_log.sql`](../transform/models/staging/stg_film_log.sql).
@@ -439,7 +439,7 @@ anything in the README.
   external links, and its not-null test is a warning rather than an error. Both are declared in
   [`_marts.yml`](../transform/models/marts/_marts.yml).
 - **Ratings** are 0–100 (`my_rating`); `star_rating` is 0–5. The factor is exactly 20,
-  measured across the <!--stat:seed_rows_both-->672<!--/stat--> rows that arrived carrying both.
+  measured across the <!--stat:seed_rows_both-->673<!--/stat--> rows that arrived carrying both.
   Derived in [`stg_film_log.sql`](../transform/models/staging/stg_film_log.sql).
 - **"Rewatches" and "returns" are different numbers.**
   <!--stat:flagged_rewatches-->211<!--/stat--> rows are flagged as rewatches, but
