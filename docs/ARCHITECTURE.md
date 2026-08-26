@@ -129,7 +129,7 @@ selects from it, [`export_web.py`](../scripts/export_web.py) does not export it,
 [`build_watchlist_seed.py`](../scripts/build_watchlist_seed.py) and the model is typed and tested,
 but the branch stops there — it is staged and ready rather than in use.
 
-Current scale: <!--stat:watches-->805<!--/stat--> watches, <!--stat:films-->682<!--/stat--> films, <!--stat:candidates-->28,480<!--/stat--> recommendation candidates, <!--stat:dbt_models-->10<!--/stat--> dbt models, <!--stat:dbt_seeds-->6<!--/stat--> seeds, <!--stat:dbt_tests-->40<!--/stat--> data tests.
+Current scale: <!--stat:watches-->805<!--/stat--> watches, <!--stat:films-->682<!--/stat--> films, <!--stat:candidates-->28,552<!--/stat--> recommendation candidates, <!--stat:dbt_models-->10<!--/stat--> dbt models, <!--stat:dbt_seeds-->6<!--/stat--> seeds, <!--stat:dbt_tests-->40<!--/stat--> data tests.
 
 Those figures are generated — see [Keeping the figures honest](#keeping-the-figures-honest). The
 dashboard header and the share card derive their own counts separately at build time, from
