@@ -4,14 +4,16 @@ The point is not that the arithmetic works — DuckDB can be trusted to count. T
 point is that each figure keeps counting the thing the prose claims it counts.
 More than one reading is defensible for most of them, and the docs assert one:
 
-  "206 rows are flagged as rewatches, but 87 of those are films whose first
+  "N rows are flagged as rewatches, but M of those are films whose first
    viewing predates the dataset, so they appear only once."
 
 "Appear only once" means the film has exactly one row. Counting flagged rows that
-are merely the earliest row held for their film gives 98, because a film can have
-a flagged first row and later returns too. Both are reasonable numbers; only one
-matches the sentence. Redefining the query would silently republish a different
-claim under the same words, so the relationships are pinned here instead.
+are merely the earliest row held for their film gives a larger number, because a
+film can have a flagged first row and later returns too. Both are reasonable
+numbers; only one matches the sentence. Redefining the query would silently
+republish a different claim under the same words, so the relationships between
+the figures are pinned here — the figures themselves are not, since every one of
+them moves when a film is logged.
 
 These run against the built DuckDB and skip when it is absent, so a checkout that
 has not run `make build` still gets a green suite.
@@ -97,12 +99,15 @@ def test_returns_exceed_the_films_they_belong_to(stats: dict[str, str]) -> None:
 def test_flagged_once_is_films_seen_exactly_once_not_earliest_rows(
     stats: dict[str, str],
 ) -> None:
-    """The distinction the docs turn on. 87 is "the film has one row"; the
-    earliest-row-held reading gives 98. If this ever equals the larger number,
-    the query drifted and the sentence around it became false."""
+    """The distinction the docs turn on: flagged_once counts "the film has one
+    row", not "the row is the earliest one held for its film", which is a larger
+    number because a film can have a flagged first row and later returns too.
+
+    Only the relationship is asserted. Both readings climb whenever a film is
+    logged, so pinning either to a literal fails on the next new watch rather
+    than on the drift this is meant to catch."""
     flagged_once = as_int(stats, "flagged_once")
 
-    assert flagged_once == 87
     assert flagged_once < as_int(stats, "flagged_rewatches")
     assert flagged_once < as_int(stats, "flagged_earliest_row"), (
         "flagged_once has caught up with the earliest-row-held reading; the docs "
