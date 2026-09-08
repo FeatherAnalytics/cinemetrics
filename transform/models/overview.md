@@ -7,7 +7,7 @@
 
 This is the dbt layer behind [featheranalytics.dev/cinemetrics](https://featheranalytics.dev/cinemetrics),
 a personal film analytics dashboard built from eight years of Letterboxd watch
-history: 807 viewings of 682 films.
+history: 808 viewings of 682 films.
 
 ## How to read this
 
@@ -43,12 +43,12 @@ not-null test is a warning rather than an error because coverage is incomplete b
   5.0.
 - **Ratings use two scales.** `rating_100` is 0–100 and is the authoritative one.
   `star_rating` is 0–5, derived as `rating_100 / 20` where the source did not supply it. The
-  factor of exactly 20 is measured across the 678 rows that arrived carrying
+  factor of exactly 20 is measured across the 679 rows that arrived carrying
   both values, not assumed.
-- **"Rewatches" and "returns" are different counts.** 213 rows are flagged
+- **"Rewatches" and "returns" are different counts.** 214 rows are flagged
   as rewatches, but 88 of those are films whose first viewing predates the
-  dataset, so they appear only once. Counting actual return visits gives 125 returns
-  across 86 films.
+  dataset, so they appear only once. Counting actual return visits gives 126 returns
+  across 87 films.
 - **Franchises are curated, not inferred.** The `franchise_mapping()` macro rolls TMDB
   collections up into umbrella franchises (the MCU, for instance) by collection, by
   `tmdb_id`, or by director.
