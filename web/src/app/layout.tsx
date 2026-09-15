@@ -49,6 +49,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${display.variable} ${mono.variable} h-full antialiased`}
     >
       <head>
