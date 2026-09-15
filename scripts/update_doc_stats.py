@@ -209,6 +209,13 @@ def collect_stats() -> dict[str, str]:
     if WEB_JSON.exists():
         stats["web_json_kb"] = f"{WEB_JSON.stat().st_size / 1024:.0f}"
 
+    story_json = ROOT / "web" / "public" / "data" / "story-stats.json"
+    if story_json.exists():
+        story = json.loads(story_json.read_text())
+        stats["p_month"] = story["p_month"]
+        stats["p_weekday"] = story["p_weekday"]
+        stats["p_genre"] = story["p_genre"]
+
     return stats
 
 

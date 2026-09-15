@@ -1,0 +1,35 @@
+{
+  "kruskal_genre": {
+    "H": 17.57,
+    "groups": 6,
+    "n": 584,
+    "p": 0.0
+  },
+  "kruskal_month": {
+    "H": 24.43,
+    "groups": 12,
+    "n": 584,
+    "p": 0.01
+  },
+  "kruskal_weekday": {
+    "H": 11.2,
+    "groups": 7,
+    "n": 584,
+    "p": 0.08
+  },
+  "latest_full_year": 2025,
+  "latest_watches": 64,
+  "mid_rating_share": 0.77,
+  "nov_watches": 38,
+  "oct_nov_ratio": 3.4,
+  "oct_watches": 131,
+  "p_genre": "0.00",
+  "p_month": "0.01",
+  "p_weekday": "0.08",
+  "pandemic_ratio": 4.5,
+  "pandemic_watches": 291,
+  "rewatch_first_share": 0.219,
+  "rewatch_first_year": 2020,
+  "rewatch_last_share": 0.413,
+  "rewatch_last_year": 2026
+}

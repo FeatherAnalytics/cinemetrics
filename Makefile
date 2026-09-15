@@ -11,6 +11,7 @@ dev:
 build:
 	cd transform && uv run dbt build --profiles-dir .
 	uv run python scripts/export_web.py
+	uv run python scripts/compute_story_stats.py
 	uv run python scripts/train_embeddings.py
 	cd web && npm run build
 
