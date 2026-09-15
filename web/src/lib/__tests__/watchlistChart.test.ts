@@ -30,7 +30,6 @@ function film(over: Partial<WatchlistFilm> = {}): WatchlistFilm {
     imdb_rating: null,
     imdb_votes: null,
     tmdb_rating: null,
-    tmdb_votes: null,
     ...over,
   };
 }

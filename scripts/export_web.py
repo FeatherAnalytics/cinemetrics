@@ -41,8 +41,6 @@ def main() -> None:
             list_filter(string_split(coalesce(genres, ''), ', '),   x -> x <> '') as genres,
             list_filter(string_split(coalesce(keywords, ''), ', '), x -> x <> '') as keywords,
             runtime_min                                                as runtime,
-            budget,
-            revenue,
             director,
             actors,
             metascore,
@@ -96,7 +94,6 @@ def main() -> None:
             title,
             release_year                                            as year,
             release_date                                            as released,
-            added_date                                              as added,
             watched,
             list_filter(string_split(coalesce(genres, ''), ', '),   x -> x <> '') as genres,
             list_filter(string_split(coalesce(keywords, ''), ', '), x -> x <> '') as keywords,
@@ -108,8 +105,7 @@ def main() -> None:
             director,
             imdb_rating,
             imdb_votes,
-            tmdb_rating,
-            tmdb_votes
+            tmdb_rating
         from marts.dim_watchlist
         order by added_date
         """,
@@ -119,7 +115,11 @@ def main() -> None:
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(
-        json.dumps({"films": films, "watches": watches, "watchlist": watchlist}),
+        json.dumps(
+            {"films": films, "watches": watches, "watchlist": watchlist},
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
     size_kb = OUT.stat().st_size / 1024

@@ -6,8 +6,6 @@ export type Film = {
   genres: string[];
   keywords: string[];
   runtime: number | null;
-  budget: number | null;
-  revenue: number | null;
   director: string | null;
   actors: string | null;
   metascore: number | null;
@@ -111,7 +109,6 @@ export type WatchlistFilm = {
    * coverage: OMDb answers for 34 of the 136 films on the list, TMDB for 130.
    */
   tmdb_rating: number | null;
-  tmdb_votes: number | null;
 };
 
 // `watchlist` is optional so a payload written before dim_watchlist existed —

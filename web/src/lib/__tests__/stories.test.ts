@@ -17,8 +17,8 @@ import type { Dataset, EnrichedWatch, Film } from "../types";
 function makeFilm(overrides: Partial<Film> = {}): Film {
   return {
     tmdb_id: 100, imdb_id: "tt0000001", title: "Test", year: 2020,
-    genres: ["Drama"], keywords: [], runtime: 120, budget: null,
-    revenue: null, director: null, actors: null, metascore: 75,
+    genres: ["Drama"], keywords: [], runtime: 120,
+    director: null, actors: null, metascore: 75,
     rt_rating: 80, imdb_rating: 70, imdb_votes: 50000,
     production_countries: [], rated: null, language: null, collection: null,
     poster: null,

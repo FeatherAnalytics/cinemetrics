@@ -474,7 +474,7 @@ export const CHART_SECTIONS: ChartSection[] = [
 
 function Explorer() {
   const { storyFocus, activeStory, films, yearBounds, heartLens } = useExplorer();
-  const { state: recState } = useRecommend();
+  const { state: recState, dispatch: recDispatch } = useRecommend();
   const { tokens } = useTheme();
   const [drawerOpenRaw, setDrawerOpen] = useState(false);
   const drawerOpen = drawerOpenRaw && !recState.open;
@@ -582,6 +582,7 @@ function Explorer() {
                 a link that announces itself as "period". */}
             <Link
               href="/lab"
+              prefetch={false}
               aria-label="The cutting room: charts that did not make the page"
               style={{ color: tokens.accent }}
             >
@@ -600,6 +601,14 @@ function Explorer() {
         <div className="mt-3">
           <StoryChips />
         </div>
+        <button
+          onClick={() => recDispatch({ type: "OPEN_RECOMMEND" })}
+          className="mt-2 flex items-center gap-1.5 rounded-full px-3 py-1 text-xs lg:hidden"
+          style={{ background: tokens.accent, color: tokens.ui.activeText }}
+        >
+          <span aria-hidden>🎲</span>
+          <span>Recommend films</span>
+        </button>
       </header>
 
       {/* Mobile-only trigger: opens the filter drawer. */}
