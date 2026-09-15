@@ -4,7 +4,7 @@ import csv
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-import requests
+from ingest.http import get_bytes
 
 NS = {
     "letterboxd": "https://letterboxd.com",
@@ -19,10 +19,13 @@ def fetch_new_watches(letterboxd_user: str, existing_log_path: Path) -> list[dic
     my_rating, star_rating, is_rewatch, liked.
     """
     url = f"https://letterboxd.com/{letterboxd_user}/rss/"
-    resp = requests.get(url, timeout=30)
-    resp.raise_for_status()
+    # Letterboxd resets TLS handshakes now and then; one unretried reset took
+    # down a whole nightly run, and everything downstream of it was skipped.
+    body = get_bytes(url, attempts=4, timeout=30)
+    if not body:
+        raise RuntimeError(f"Letterboxd RSS unreachable after 4 attempts: {url}")
 
-    root = ET.fromstring(resp.text)
+    root = ET.fromstring(body)
     items = root.findall(".//item")
 
     if not items:
