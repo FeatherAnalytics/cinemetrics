@@ -5,6 +5,7 @@ on:
     branches: [final-cut]
   push:
     branches: [final-cut]
+  workflow_dispatch: {}
 
 concurrency:
   group: ci-${{ github.ref }}

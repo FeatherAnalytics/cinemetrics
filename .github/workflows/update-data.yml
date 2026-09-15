@@ -162,6 +162,16 @@ jobs:
           git commit -m "data: ${watches:-0} new watches, ${cands:-0} candidate rows changed"
           git pull --rebase --autostash origin final-cut
           git push
+      # Pushes made with the default GITHUB_TOKEN do not trigger on:push
+      # workflows (GitHub suppresses them to prevent recursive runs), which
+      # is why deploy.yml is already dispatched by hand below. CI needs the
+      # same treatment so the nightly's data commit runs ruff, dbt, and
+      # vitest the same morning.
+      - name: Trigger CI
+        if: ${{ !cancelled() && steps.diff.outputs.changed == 'true' }}
+        run: gh workflow run ci.yml --ref final-cut
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Trigger deploy
         if: ${{ !cancelled() && steps.diff.outputs.changed == 'true' }}
         run: gh workflow run deploy.yml
