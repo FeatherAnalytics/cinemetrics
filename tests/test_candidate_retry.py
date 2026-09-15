@@ -43,7 +43,7 @@ def seed(path: Path, rows: list[dict[str, str]]) -> None:
 
 
 def read(path: Path) -> list[dict[str, str]]:
-    with open(path, encoding="utf-8", newline="") as fh:
+    with path.open(encoding="utf-8", newline="") as fh:
         return list(csv.DictReader(fh))
 
 
@@ -226,6 +226,41 @@ def test_enrich_tmdb_marks_series_as_not_a_film(tmp_path, monkeypatch):
     built = fc._enrich_tmdb(60)
     assert built is not None
     assert built["omdb_status"] == "not_a_film"
+
+
+def test_admission_cap_prefers_similar_over_list():
+    similar = {10, 20, 30, 40, 50}
+    list_ids = [60, 70, 80, 90, 100]
+    existing: set[int] = set()
+    import scripts.fetch_candidates as fc_mod
+    old_max = fc_mod.MAX_ADMIT
+    fc_mod.MAX_ADMIT = 3
+    try:
+        admitted = fc_mod._admit(similar, list_ids, [], existing)
+        assert len(admitted) == 3
+        assert all(src == "similar" for _, src in admitted)
+    finally:
+        fc_mod.MAX_ADMIT = old_max
+
+
+def test_reverify_marks_series_not_a_film_and_movie_ok(tmp_path, monkeypatch):
+    import scripts.fetch_candidates as fc_mod
+    monkeypatch.setattr(fc_mod, "ROOT", tmp_path)
+    cache_dir = tmp_path / "data" / "raw" / "omdb"
+    cache_dir.mkdir(parents=True)
+
+    import json
+    (cache_dir / "tt1.json").write_text(json.dumps({"Response": "True", "Type": "series"}))
+    (cache_dir / "tt2.json").write_text(json.dumps({"Response": "True", "Type": "movie"}))
+
+    rows_to_check = [
+        row(1, imdb_id="tt1", omdb_status="ok_legacy", metascore="80"),
+        row(2, imdb_id="tt2", omdb_status="ok_legacy", metascore="75"),
+    ]
+    updated = fc_mod._reverify(rows_to_check, max_calls=10)
+    assert updated == 2
+    assert rows_to_check[0]["omdb_status"] == "not_a_film"
+    assert rows_to_check[1]["omdb_status"] == "ok"
 
 
 def test_omdb_is_not_called_again_once_it_has_stopped_answering(tmp_path, monkeypatch):

@@ -43,7 +43,8 @@ def _dry_argv(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["backfill"])
 
 
-def test_slices_dry_run_downloads_no_posters(monkeypatch, tmp_path, capsys, _dry_argv):
+@pytest.mark.usefixtures("_dry_argv")
+def test_slices_dry_run_downloads_no_posters(monkeypatch, tmp_path, capsys):
     mod = _load("backfill_poster_slices")
     fetched: list[str] = []
 
@@ -71,8 +72,9 @@ def _seeded(tmp_path: Path) -> Path:
     return seed
 
 
+@pytest.mark.usefixtures("_apply_argv")
 def test_apply_with_every_slice_present_does_not_touch_the_seed(
-    monkeypatch, tmp_path, _apply_argv
+    monkeypatch, tmp_path,
 ):
     mod = _load("backfill_poster_slices")
     seed = _seeded(tmp_path)
@@ -90,8 +92,9 @@ def test_apply_with_every_slice_present_does_not_touch_the_seed(
     assert seed.stat().st_mtime_ns == stat_before.st_mtime_ns
 
 
+@pytest.mark.usefixtures("_apply_argv")
 def test_apply_whose_every_fetch_fails_does_not_touch_the_seed(
-    monkeypatch, tmp_path, _apply_argv
+    monkeypatch, tmp_path,
 ):
     """`todo` was non-empty and the mapping still ended up unchanged."""
     mod = _load("backfill_poster_slices")
@@ -113,7 +116,8 @@ def test_apply_whose_every_fetch_fails_does_not_touch_the_seed(
     assert seed.stat().st_mtime_ns == stat_before.st_mtime_ns
 
 
-def test_apply_writes_only_the_slice_it_repaired(monkeypatch, tmp_path, _apply_argv):
+@pytest.mark.usefixtures("_apply_argv")
+def test_apply_writes_only_the_slice_it_repaired(monkeypatch, tmp_path):
     mod = _load("backfill_poster_slices")
     seed = _seeded(tmp_path)
 

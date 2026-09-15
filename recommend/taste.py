@@ -98,5 +98,5 @@ def select_k(
     scores = {
         k: cross_validate_knn(vectors, ratings, k, n_splits, seed)["mae"] for k in ks
     }
-    best_k = min(scores, key=scores.get)
+    best_k = min(scores, key=scores.get)  # type: ignore[reportCallIssue]
     return best_k, scores

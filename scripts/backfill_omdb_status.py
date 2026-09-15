@@ -11,10 +11,8 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from ingest.csvio import write_rows  # noqa: E402
-from ingest.enrich import CANDIDATE_CSV_COLUMNS, has_omdb_data  # noqa: E402
+from ingest.csvio import write_rows
+from ingest.enrich import CANDIDATE_CSV_COLUMNS, has_omdb_data
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED = ROOT / "transform" / "seeds" / "candidate_enrichment.csv"
@@ -26,7 +24,7 @@ def main() -> None:
 
     apply = "--apply" in sys.argv
 
-    with open(SEED, encoding="utf-8", newline="") as fh:
+    with SEED.open(encoding="utf-8", newline="") as fh:
         rows = list(csv.DictReader(fh))
 
     counts = {"ok": 0, "no_imdb_id": 0, "not_a_film": 0, "skipped": 0}

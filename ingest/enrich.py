@@ -51,6 +51,7 @@ CANDIDATE_CSV_COLUMNS = [
     "title", "release_date", "tmdb_rating", "tmdb_votes",
     "poster_path",
     "omdb_status",
+    "source",
 ]
 
 # The candidate-only columns. TMDB serves all four in the detail payload the
@@ -71,7 +72,9 @@ OMDB_SOURCED_COLUMNS = [
 
 def is_terminal(row: dict[str, str]) -> bool:
     """True when a candidate's OMDb resolution is settled, whatever the outcome."""
-    return row.get("omdb_status", "") in {"ok", "no_imdb_id", "not_found", "not_a_film"}
+    return row.get("omdb_status", "") in {
+        "ok", "ok_legacy", "no_imdb_id", "not_found", "not_a_film",
+    }
 
 
 def has_omdb_data(row: dict[str, str]) -> bool:
@@ -97,7 +100,7 @@ def _tmdb_iso_split(tmdb: dict) -> list[str]:
     joined = ", ".join(
         c["iso_3166_1"] for c in tmdb.get("production_countries", []) if c.get("iso_3166_1")
     )
-    return joined.split(", ") if joined else []
+    return joined.split(", ") if joined else []  # type: ignore
 
 
 def _tmdb_iso_dedup(tmdb: dict) -> list[str]:

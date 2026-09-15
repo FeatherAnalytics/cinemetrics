@@ -72,6 +72,7 @@ seeds:
         box_office: bigint
         poster_path: varchar
         omdb_status: varchar
+        source: varchar
     poster_slices:
       +schema: enrichment
       +column_types:

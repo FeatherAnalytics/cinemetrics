@@ -98,14 +98,23 @@ flowchart LR
     stg_watchlist
   end
   subgraph marts[marts]
+    bridge_film_genre
+    bridge_film_person
     dim_candidate
     dim_film
     dim_watchlist
+    fct_taste_by_period
     fct_watches
   end
+  bridge_film_genre --> fct_taste_by_period
   candidate_enrichment --> stg_candidate_enrichment
+  dim_candidate --> bridge_film_genre
+  dim_film --> bridge_film_genre
+  dim_film --> bridge_film_person
   dim_film --> dim_candidate
+  dim_film --> fct_taste_by_period
   fct_watches --> dim_watchlist
+  fct_watches --> fct_taste_by_period
   film_enrichment --> stg_film_enrichment
   film_log --> stg_film_log
   poster_overrides --> stg_poster_overrides
@@ -129,7 +138,7 @@ selects from it, [`export_web.py`](../scripts/export_web.py) does not export it,
 [`build_watchlist_seed.py`](../scripts/build_watchlist_seed.py) and the model is typed and tested,
 but the branch stops there — it is staged and ready rather than in use.
 
-Current scale: <!--stat:watches-->809<!--/stat--> watches, <!--stat:films-->683<!--/stat--> films, <!--stat:candidates-->46,678<!--/stat--> recommendation candidates, <!--stat:dbt_models-->10<!--/stat--> dbt models, <!--stat:dbt_seeds-->6<!--/stat--> seeds, <!--stat:dbt_tests-->39<!--/stat--> data tests.
+Current scale: <!--stat:watches-->809<!--/stat--> watches, <!--stat:films-->683<!--/stat--> films, <!--stat:candidates-->46,678<!--/stat--> recommendation candidates, <!--stat:dbt_models-->13<!--/stat--> dbt models, <!--stat:dbt_seeds-->6<!--/stat--> seeds, <!--stat:dbt_tests-->44<!--/stat--> data tests.
 
 Those figures are generated — see [Keeping the figures honest](#keeping-the-figures-honest). The
 dashboard header and the share card derive their own counts separately at build time, from
@@ -240,7 +249,7 @@ the links below refer to.
 
 **[`ci.yml`](../.github/workflows/ci.yml)** — "Lights (CI)", on pull requests to `final-cut`.
 Three independent jobs: `lint` (ruff + eslint), `data` (`dbt deps` then `dbt build`, which
-runs all <!--stat:dbt_tests-->39<!--/stat--> tests), and `web` (vitest + Next.js build).
+runs all <!--stat:dbt_tests-->44<!--/stat--> tests), and `web` (vitest + Next.js build).
 
 **[`deploy.yml`](../.github/workflows/deploy.yml)** — "Action! (Deploy)", on push to
 `final-cut` and on manual dispatch. Builds the web bundle and publishes to Pages. Concurrency
@@ -387,14 +396,23 @@ flowchart LR
     stg_watchlist
   end
   subgraph marts[marts]
+    bridge_film_genre
+    bridge_film_person
     dim_candidate
     dim_film
     dim_watchlist
+    fct_taste_by_period
     fct_watches
   end
+  bridge_film_genre --> fct_taste_by_period
   candidate_enrichment --> stg_candidate_enrichment
+  dim_candidate --> bridge_film_genre
+  dim_film --> bridge_film_genre
+  dim_film --> bridge_film_person
   dim_film --> dim_candidate
+  dim_film --> fct_taste_by_period
   fct_watches --> dim_watchlist
+  fct_watches --> fct_taste_by_period
   film_enrichment --> stg_film_enrichment
   film_log --> stg_film_log
   poster_overrides --> stg_poster_overrides

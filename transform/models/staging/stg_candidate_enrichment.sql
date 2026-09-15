@@ -35,6 +35,7 @@ select
     -- Empty for the films TMDB serves no poster for; NULL says "no art" rather
     -- than pointing the CDN at an empty path.
     nullif(poster_path, '')          as poster_path,
-    omdb_status
+    omdb_status,
+    source
 from {{ ref('candidate_enrichment') }}
 where tmdb_id is not null

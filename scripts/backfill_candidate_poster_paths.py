@@ -27,18 +27,15 @@ Dry run by default; pass --apply to write.
 import argparse
 import csv
 import os
-import sys
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from ingest.csvio import write_rows  # noqa: E402
-from ingest.enrich import CANDIDATE_CSV_COLUMNS  # noqa: E402
-from ingest.http import cached_json, tmdb_get  # noqa: E402
+from ingest.csvio import write_rows
+from ingest.enrich import CANDIDATE_CSV_COLUMNS
+from ingest.http import cached_json, tmdb_get
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED = ROOT / "transform" / "seeds" / "candidate_enrichment.csv"
@@ -80,7 +77,7 @@ def main() -> None:
     if not key:
         raise SystemExit("TMDB_API_KEY not set. Add it to .env.")
 
-    with open(SEED, encoding="utf-8", newline="") as fh:
+    with SEED.open(encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh)
         header = list(reader.fieldnames or [])
         rows = list(reader)
@@ -113,7 +110,7 @@ def main() -> None:
                 done += 1
                 try:
                     path = future.result()
-                except Exception as err:  # noqa: BLE001 - one bad film must not stop the run
+                except Exception as err:
                     # Left empty so a later run retries it rather than recording
                     # "no art".
                     print(f"  warning: tmdb_id={row['tmdb_id']}: {err}")

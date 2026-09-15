@@ -7,7 +7,6 @@ Needs LETTERBOXD_COOKIE and LETTERBOXD_USER_AGENT in .env (see .env.example).
 The download lands under data/raw/, which is gitignored — the export contains
 reviews, comments, and profile data that must never reach a public repo.
 """
-
 import argparse
 import io
 import os
@@ -17,12 +16,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+from ingest.letterboxd_export import ExportError, fetch_export
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from ingest.letterboxd_export import ExportError, fetch_export  # noqa: E402
+load_dotenv()
 
 DEFAULT_OUT = ROOT / "data" / "raw" / "letterboxd_export"
 

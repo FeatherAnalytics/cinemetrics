@@ -21,7 +21,9 @@ def test_sample_slice_returns_one_stop_per_row():
 def test_sample_slice_of_a_solid_image_is_that_colour():
     # JPEG is lossy, so allow a small channel tolerance.
     for r, g, b in sample_slice(_solid((255, 0, 0))):
-        assert r > 240 and g < 15 and b < 15
+        assert r > 240
+        assert g < 15
+        assert b < 15
 
 
 def test_encode_slice_is_six_hex_chars_per_stop():
@@ -31,7 +33,7 @@ def test_encode_slice_is_six_hex_chars_per_stop():
 
 
 def test_encode_slice_rejects_the_wrong_number_of_stops():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="20"):
         encode_slice([(1, 2, 3)])
 
 
@@ -68,9 +70,9 @@ def test_slice_columns_match_the_seed_header():
     seed = (
         Path(__file__).resolve().parents[1] / "transform" / "seeds" / "poster_slices.csv"
     )
-    with open(seed, encoding="utf-8", newline="") as fh:
+    with seed.open(encoding="utf-8", newline="") as fh:
         header = next(csv.reader(fh))
-    assert SLICE_CSV_COLUMNS == header
+    assert header == SLICE_CSV_COLUMNS
 
 
 def test_the_committed_seed_is_in_numeric_order():
@@ -86,7 +88,7 @@ def test_the_committed_seed_is_in_numeric_order():
     seed = (
         Path(__file__).resolve().parents[1] / "transform" / "seeds" / "poster_slices.csv"
     )
-    with open(seed, encoding="utf-8", newline="") as fh:
+    with seed.open(encoding="utf-8", newline="") as fh:
         ids = [int(r["tmdb_id"]) for r in csv.DictReader(fh)]
     assert ids == sorted(ids)
     assert len(ids) == len(set(ids))

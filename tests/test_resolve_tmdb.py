@@ -154,7 +154,7 @@ class TestAmbiguity:
         assert resolve("Obscure", "1980", search=search).ambiguous
 
     @pytest.mark.parametrize(
-        "runner_votes,expect_flag",
+        ("runner_votes", "expect_flag"),
         [(1000, True), (500, True), (499, False), (10, False)],
     )
     def test_flag_threshold(self, runner_votes, expect_flag):

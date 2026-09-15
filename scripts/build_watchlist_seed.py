@@ -24,12 +24,10 @@ import sys
 import zipfile
 from pathlib import Path
 
+from ingest.csvio import dict_writer
+from ingest.resolve_tmdb import normalise
+
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from ingest.csvio import dict_writer  # noqa: E402
-from ingest.resolve_tmdb import normalise  # noqa: E402
-
 RESOLVED = ROOT / "data" / "raw" / "letterboxd_export" / "resolved.csv"
 EXCLUDED_TV = ROOT / "data" / "raw" / "letterboxd_export" / "excluded_tv.csv"
 SEED = ROOT / "transform" / "seeds" / "watchlist.csv"

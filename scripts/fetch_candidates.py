@@ -14,10 +14,8 @@ a night that runs out of OMDb quota leaves work for the next one instead of
 leaving a permanently empty row behind. This is the one writer that edits
 committed rows rather than only appending; see the note in main().
 """
-
 import csv
 import os
-import sys
 import threading
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -26,19 +24,17 @@ from typing import TypeVar
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from ingest.csvio import write_rows  # noqa: E402
-from ingest.enrich import (  # noqa: E402
+from ingest.csvio import read_id_set, write_rows
+from ingest.enrich import (
     CANDIDATE_CSV_COLUMNS,
     build_enrichment_row,
     has_omdb_data,
     is_terminal,
 )
-from ingest.http import cached_json, omdb_get, tmdb_get  # noqa: E402
+from ingest.http import cached_json, omdb_get, tmdb_get
+
+ROOT = Path(__file__).resolve().parents[1]
+load_dotenv()
 
 SEEDS = ROOT / "transform" / "seeds"
 FILM_ENRICHMENT = SEEDS / "film_enrichment.csv"
@@ -79,7 +75,7 @@ def _parallel(fn: Callable[[T], R], items: Iterable[T], label: str) -> dict[T, R
             item = futures[future]
             try:
                 results[item] = future.result()
-            except Exception as err:  # noqa: BLE001 - one bad film must not stop the run
+            except Exception as err:
                 print(f"  warning: {label} failed for {item}: {err}")
                 results[item] = None
             if done % 200 == 0:
@@ -99,12 +95,24 @@ def _tmdb_get(path: str, **params) -> dict:
 # CI starts with an empty cache (data/raw is gitignored), so nothing absorbs
 # them. An Event because _parallel calls this from every worker thread.
 _OMDB_DOWN = threading.Event()
+_omdb_call_count = 0
+_omdb_call_lock = threading.Lock()
+
+# 46k rows, +800 a night at 50 pages, 30 of 30 nightly commits touching the
+# seed, 24.6 MiB pack. Cap growth at the source rather than pruning later.
+MAX_ADMIT = 300
+LIST_PAGES = 10
 
 
 def _omdb_get(imdb_id: str) -> dict:
+    global _omdb_call_count
     if _OMDB_DOWN.is_set():
         return {}
     cache_file = ROOT / "data" / "raw" / "omdb" / f"{imdb_id}.json"
+    if cache_file.exists():
+        return cached_json(cache_file, lambda: {}, is_valid=lambda d: bool(d))
+    with _omdb_call_lock:
+        _omdb_call_count += 1
     try:
         return cached_json(
             cache_file,
@@ -112,7 +120,7 @@ def _omdb_get(imdb_id: str) -> dict:
             is_valid=lambda d: bool(d),
         )
     except RuntimeError:
-        # ingest/http.py raises this for 401/403 and says retrying cannot fix it.
+        # ingest/http.py raises for 401/403; on the free tier that means spent.
         _OMDB_DOWN.set()
         raise
 
@@ -127,7 +135,7 @@ def _candidate_rows() -> list[dict[str, str]]:
     """
     if not CANDIDATE_ENRICHMENT.exists():
         return []
-    with open(CANDIDATE_ENRICHMENT, encoding="utf-8", newline="") as fh:
+    with CANDIDATE_ENRICHMENT.open(encoding="utf-8", newline="") as fh:
         return list(csv.DictReader(fh))
 
 
@@ -147,18 +155,7 @@ def _unfinished(rows: list[dict[str, str]]) -> dict[int, str]:
 
 
 def _existing_tmdb_ids() -> set[int]:
-    ids: set[int] = set()
-    for path in [FILM_ENRICHMENT, CANDIDATE_ENRICHMENT]:
-        if not path.exists():
-            continue
-        with open(path, encoding="utf-8") as fh:
-            reader = csv.DictReader(fh)
-            for row in reader:
-                try:
-                    ids.add(int(row["tmdb_id"]))
-                except (ValueError, KeyError):
-                    pass
-    return ids
+    return read_id_set(FILM_ENRICHMENT) | read_id_set(CANDIDATE_ENRICHMENT)
 
 
 def _fetch_similar(tmdb_id: int) -> list[int]:
@@ -257,38 +254,75 @@ def _enrich_tmdb(tmdb_id: int, *, seed_imdb_id: str = "") -> dict | None:
     return row
 
 
-def _ids_from(path: Path, column: str = "tmdb_id") -> set[int]:
-    """Read a set of tmdb_ids from a CSV column, skipping unusable rows."""
-    ids: set[int] = set()
-    if not path.exists():
-        return ids
-    with open(path, encoding="utf-8") as fh:
-        for row in csv.DictReader(fh):
-            try:
-                ids.add(int(row[column]))
-            except (ValueError, KeyError, TypeError):
-                pass
-    return ids
-
-
 def _seed_ids() -> set[int]:
-    """Films whose TMDB /similar results seed the candidate pool.
-
-    Rated films alone bias the pool toward what has already been watched. The
-    watchlist and the curated lists are explicit statements of intent about films
-    NOT yet seen, so they widen the pool in the direction of actual interest.
-    Both are already resolved to tmdb_ids (scripts/resolve_export.py).
-    """
-    rated = _ids_from(FILM_ENRICHMENT)
-    watchlist = _ids_from(WATCHLIST_SEED)
-    listed = _ids_from(RESOLVED_EXPORT)
+    """Films whose TMDB /similar results seed the candidate pool."""
+    rated = read_id_set(FILM_ENRICHMENT)
+    watchlist = read_id_set(WATCHLIST_SEED)
+    listed = read_id_set(RESOLVED_EXPORT)
 
     print(f"seeds: {len(rated)} rated, {len(watchlist)} watchlist, "
           f"{len(listed)} resolved export (watchlist + lists)")
     return rated | watchlist | listed
 
 
+def _admit(
+    similar_ids: set[int],
+    popular_ids: list[int],
+    top_rated_ids: list[int],
+    existing: set[int],
+) -> list[tuple[int, str]]:
+    """Pick at most MAX_ADMIT new candidates, similar first."""
+    admitted: list[tuple[int, str]] = []
+    seen = set(existing)
+    for tid in sorted(similar_ids - seen):
+        if len(admitted) >= MAX_ADMIT:
+            break
+        admitted.append((tid, "similar"))
+        seen.add(tid)
+    tagged = [(t, "popular") for t in popular_ids] + [(t, "top_rated") for t in top_rated_ids]
+    for tid, source in tagged:
+        if len(admitted) >= MAX_ADMIT:
+            break
+        if tid not in seen:
+            admitted.append((tid, source))
+            seen.add(tid)
+    return admitted
+
+
+def _reverify(rows: list[dict[str, str]], max_calls: int) -> int:
+    """Re-ask OMDb for ok_legacy rows to check Type; returns count updated.
+
+    Counts network calls, not cache hits: a cached row is free and should be
+    cleared immediately, so the first warm-cache nights drain the backlog.
+    """
+    updated = 0
+    calls_at_start = _omdb_call_count
+    for row in rows:
+        calls_used = _omdb_call_count - calls_at_start
+        if calls_used >= max_calls or _OMDB_DOWN.is_set():
+            break
+        if (1000 - _omdb_call_count) <= 0:
+            break
+        if row.get("omdb_status") != "ok_legacy":
+            continue
+        imdb_id = (row.get("imdb_id") or "").strip()
+        if not imdb_id:
+            continue
+        omdb = _omdb_get(imdb_id)
+        if not omdb:
+            continue
+        if omdb.get("Response") == "True" and omdb.get("Type", "movie") != "movie":
+            row["omdb_status"] = "not_a_film"
+        else:
+            row["omdb_status"] = "ok"
+        updated += 1
+    return updated
+
+
 def main() -> None:
+    global _omdb_call_count
+    _omdb_call_count = 0
+
     if not TMDB_KEY:
         raise SystemExit("TMDB_API_KEY not set")
     if not OMDB_KEY:
@@ -300,76 +334,88 @@ def main() -> None:
     print(f"existing films: {len(existing)}")
 
     seed_ids = _seed_ids()
-    candidate_ids: set[int] = set()
+    similar_ids: set[int] = set()
     print(f"fetching similar films for {len(seed_ids)} seed films "
           f"({MAX_WORKERS} workers)...")
     for similar in _parallel(_fetch_similar, sorted(seed_ids), "similar").values():
         if similar:
-            candidate_ids.update(similar)
+            similar_ids.update(similar)
 
-    print("fetching popular + top-rated lists...")
-    candidate_ids.update(_fetch_list("movie/popular", pages=50))
-    candidate_ids.update(_fetch_list("movie/top_rated", pages=50))
+    print(f"fetching popular + top-rated lists (pages={LIST_PAGES})...")
+    popular_ids = _fetch_list("movie/popular", pages=LIST_PAGES)
+    top_rated_ids = _fetch_list("movie/top_rated", pages=LIST_PAGES)
 
-    new_ids = candidate_ids - existing
-    print(f"candidates: {len(candidate_ids)} total, {len(new_ids)} new to enrich")
-    print(f"retrying {len(pending)} candidates with no OMDb data yet")
+    admitted = _admit(similar_ids, popular_ids, top_rated_ids, existing)
+    new_ids = [tid for tid, _ in admitted]
+    sources = dict(admitted)
+    all_discovered = similar_ids | set(popular_ids) | set(top_rated_ids)
+    skipped = len(all_discovered - existing) - len(new_ids)
+    print(f"candidates: {len(new_ids)} admitted (max {MAX_ADMIT}), "
+          f"{skipped} skipped, {len(pending)} to retry")
 
-    if not new_ids and not pending:
-        print("no new candidates to enrich, nothing to retry")
-        return
+    appended = 0
+    retried = 0
 
-    # New candidates first, and in their own pass rather than one merged batch.
-    # The OMDb allowance is the scarce resource and a single ThreadPoolExecutor
-    # only approximates submission order, so a merged batch would let backlog
-    # rows take quota from films that have none at all.
-    enriched = _parallel(_enrich_tmdb, sorted(new_ids), "enriched")
+    # New candidates run in their own pass before the retry backlog. The OMDb
+    # allowance is scarce (1,000/day) and new films that would otherwise sit
+    # nameless for a day are higher priority than retries of rows already in the
+    # seed. A merged ThreadPoolExecutor batch only approximates submission order,
+    # so separate passes enforce the priority.
+    if new_ids or pending:
+        enriched = _parallel(_enrich_tmdb, sorted(new_ids), "enriched")
 
-    # Whatever allowance the new candidates left over. _enrich_tmdb returns None
-    # for every row needing OMDb once the quota is gone, so this pass costs
-    # almost nothing on a night that has already spent it.
-    repaired = _parallel(
-        lambda tid: _enrich_tmdb(tid, seed_imdb_id=pending[tid]),
-        sorted(pending),
-        "re-enriched",
-    )
+        repaired = _parallel(
+            lambda tid: _enrich_tmdb(tid, seed_imdb_id=pending[tid]),
+            sorted(pending),
+            "re-enriched",
+        )
 
-    # Rewriting the seed rather than appending to it. CLAUDE.md's append-only
-    # rule protects film_log.csv, which is watch history and irreplaceable. This
-    # seed is neither: every column is re-derivable from TMDB and OMDb, and a
-    # row that never got its OMDb half can only be finished by editing it. The
-    # rule still holds for the row COUNT — nothing here removes a row, and a
-    # failed retry leaves the existing one untouched.
-    # Built the same guarded way as _unfinished, and for the same reason: an
-    # unparseable tmdb_id anywhere in 10k committed rows would otherwise raise
-    # here and take the nightly down, after the API calls had already been spent.
-    index: dict[int, int] = {}
-    for position, row in enumerate(rows):
-        try:
-            index[int(row["tmdb_id"])] = position
-        except (ValueError, KeyError):
-            continue
+        # Rewriting the seed rather than appending. CLAUDE.md's append-only rule
+        # protects film_log.csv, which is watch history and irreplaceable. This
+        # seed is neither: every column is re-derivable from TMDB and OMDb, and a
+        # row that never got its OMDb half can only be finished by editing it.
+        # The rule still holds for the row COUNT — nothing here removes a row.
+        #
+        # Built the same guarded way as _unfinished: an unparseable tmdb_id
+        # anywhere in 46k committed rows would otherwise raise here and take the
+        # nightly down, after the API calls had already been spent.
+        index: dict[int, int] = {}
+        for position, row in enumerate(rows):
+            try:
+                index[int(row["tmdb_id"])] = position
+            except (ValueError, KeyError):
+                continue
 
-    updated = 0
-    for tmdb_id, row in repaired.items():
-        if row and (has_omdb_data(row) or is_terminal(row)):
-            rows[index[tmdb_id]] = row
-            updated += 1
+        # Only when the retry actually produced OMDb data or reached a terminal
+        # state. A rebuilt row that is still empty differs from the committed one
+        # anyway (TMDB vote counts move daily), so writing it back would put a
+        # thousand-line diff of pure churn in front of the rows that gained
+        # something.
+        for tmdb_id, row in repaired.items():
+            if row and (has_omdb_data(row) or is_terminal(row)):
+                rows[index[tmdb_id]] = row
+                retried += 1
 
-    appended = [enriched[tid] for tid in sorted(new_ids) if enriched.get(tid)]
+        for tid in sorted(new_ids):
+            row = enriched.get(tid)
+            if row:
+                row["source"] = sources.get(tid, "")
+                rows.append(row)
+                appended += 1
 
-    if not appended and not updated:
+    # Re-verify legacy rows with leftover OMDb budget. Counts network calls,
+    # not cache hits, so warm-cache nights drain the backlog for free.
+    leftover = max(0, min(1000 - _omdb_call_count, 500))
+    reverified = _reverify(rows, leftover)
+    if reverified:
+        print(f"re-verified {reverified} ok_legacy rows ({_omdb_call_count} OMDb calls total)")
+
+    if not appended and not retried and not reverified:
         print("nothing enriched this run; seed left untouched")
         return
 
-    write_rows(CANDIDATE_ENRICHMENT, rows + appended, CANDIDATE_CSV_COLUMNS, strict=True)
-    print(
-        f"done: {len(appended)} new candidates appended, "
-        f"{updated} existing rows filled in, in {CANDIDATE_ENRICHMENT.name}"
-    )
-    still_pending = len(pending) - updated
-    if still_pending:
-        print(f"  {still_pending} still without OMDb data; next run picks them up")
+    write_rows(CANDIDATE_ENRICHMENT, rows, CANDIDATE_CSV_COLUMNS, strict=True)  # type: ignore
+    print(f"done: {appended} new, {retried} retried, {reverified} re-verified")
 
 
 if __name__ == "__main__":

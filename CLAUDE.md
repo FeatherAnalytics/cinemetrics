@@ -24,14 +24,16 @@ Personal film analytics pipeline: Letterboxd watch history → dbt/DuckDB → Ne
   the row *count*: that writer adds and fills rows, never removes one.
 - **A candidate is finished when it has OMDb data, not when it has a `tmdb_id`.**
   `fetch_candidates.py` used to dedupe on id alone, so any row written without its OMDb half
-  was never revisited. The pool is now ~46k rows and grows nightly.
-  Doneness is now `ingest.enrich.has_omdb_data`. Note what it deliberately excludes: `genres`,
-  `runtime` and `production_countries` fall back to TMDB, so they are populated either way and
-  prove nothing. OMDb's free tier allows 1,000 calls a day and `data/raw` is gitignored with no
-  CI cache, so every run starts cold and the allowance is the binding constraint — new
-  candidates are enriched before the retry backlog.
+  was never revisited. The pool is ~46k rows; growth is capped at 300 admissions per night
+  (similar hits first, then list hits by TMDB vote count), not by pruning — the row-count
+  rule stands. Doneness is now `ingest.enrich.has_omdb_data` plus `omdb_status`. Each candidate
+  carries a `source` column (similar, popular, top_rated, legacy) tracking
+  how it entered the pool. Legacy rows with `omdb_status = ok_legacy` are re-verified with
+  leftover OMDb budget each night (up to 500 calls); each becomes `ok` or `not_a_film`. The
+  warm actions/cache from the nightly means cached rows cost no API call.
 - **Candidates are films only.** TV shows that leak in through TMDB's movie endpoints
-  (where the `imdb_id` points at a series) should be excluded by OMDb's `Type` field, not
+  (where the `imdb_id` points at a series) are excluded by OMDb's `Type` field — their
+  `omdb_status` is set to `not_a_film` and `dim_candidate` filters them out. Do not exclude
   by `rated` or genre — TV-rated films (Netflix originals, etc.) are films.
 - **Never use `csv.writer`/`csv.DictWriter` directly** — use `ingest.csvio.dict_writer`.
   The csv module defaults to CRLF line endings on *every* platform, while

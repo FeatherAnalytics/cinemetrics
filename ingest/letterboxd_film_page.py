@@ -83,14 +83,14 @@ def parse_film_page(html: str) -> FilmPageIds:
     content_type: str | None = None
     anchor = soup.find("a", attrs={"data-track-action": "TMDB"})
     if anchor and anchor.get("href"):
-        match = TMDB_PATH.search(anchor["href"])
+        match = TMDB_PATH.search(anchor["href"])  # type: ignore[reportCallIssue]
         if match:
             content_type, tmdb_id = match.group(1), int(match.group(2))
 
     imdb_id = ""
     anchor = soup.find("a", attrs={"data-track-action": "IMDb"})
     if anchor and anchor.get("href"):
-        match = IMDB_PATH.search(anchor["href"])
+        match = IMDB_PATH.search(anchor["href"])  # type: ignore[reportCallIssue]
         if match:
             imdb_id = match.group(1)
 

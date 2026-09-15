@@ -14,7 +14,6 @@ step, and a wrong tmdb_id is undetectable once it reaches a mart.
 Usage:
     uv run python scripts/resolve_export.py <export.zip> [--limit N]
 """
-
 import argparse
 import csv
 import io
@@ -26,23 +25,21 @@ import zipfile
 from collections import Counter
 from pathlib import Path
 
+import requests
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-load_dotenv(ROOT / ".env")
-
-import requests  # noqa: E402
-
-from ingest.csvio import dict_writer  # noqa: E402
-from ingest.http import tmdb_get  # noqa: E402
-from ingest.letterboxd_film_page import (  # noqa: E402
+from ingest.csvio import dict_writer
+from ingest.http import tmdb_get
+from ingest.letterboxd_film_page import (
     FilmPageBlocked,
     FilmPageError,
     FilmPageIds,
     fetch_film_ids,
 )
-from ingest.resolve_tmdb import Resolution, normalise, resolve  # noqa: E402
+from ingest.resolve_tmdb import Resolution, normalise, resolve
+
+ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(ROOT / ".env")
 
 SEEDS = ROOT / "transform" / "seeds"
 OUT_DIR = ROOT / "data" / "raw" / "letterboxd_export"
@@ -60,7 +57,7 @@ def _cached(endpoint: str, title: str, year: str | None, year_param: str) -> lis
     params = {"query": title}
     if year:
         params[year_param] = year
-    results = tmdb_get(endpoint, api_key=TMDB_KEY, **params).get("results", [])
+    results = tmdb_get(endpoint, api_key=TMDB_KEY, **params).get("results", [])  # type: ignore
     cache_file.parent.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(json.dumps(results), encoding="utf-8")
     return results

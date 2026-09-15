@@ -87,7 +87,7 @@ def collect_stats() -> dict[str, str]:
     con = duckdb.connect(str(DB), read_only=True)
 
     def scalar(sql: str) -> float:
-        return con.execute(sql).fetchone()[0]
+        return con.execute(sql).fetchone()[0]  # type: ignore
 
     # Grain: one row per viewing, one row per film, one row per unwatched candidate.
     watches = int(scalar("select count(*) from marts.fct_watches"))
@@ -209,6 +209,16 @@ def collect_stats() -> dict[str, str]:
     if WEB_JSON.exists():
         stats["web_json_kb"] = f"{WEB_JSON.stat().st_size / 1024:.0f}"
 
+    story_json = ROOT / "web" / "public" / "data" / "story-stats.json"
+    if story_json.exists():
+        story = json.loads(story_json.read_text())
+        def _fmt_p(v: float) -> str:
+            return "<0.01" if v < 0.01 else f"{v:.2f}"
+
+        stats["p_month"] = _fmt_p(story["p_month"])
+        stats["p_weekday"] = _fmt_p(story["p_weekday"])
+        stats["p_genre"] = _fmt_p(story["p_genre"])
+
     return stats
 
 
@@ -250,8 +260,7 @@ def build_lineage() -> str:
     ordered += sorted(s for s in by_schema if s not in SCHEMA_ORDER)
     for schema in ordered:
         lines.append(f"  subgraph {schema}[{schema}]")
-        for name in sorted(by_schema[schema]):
-            lines.append(f"    {name}")
+        lines.extend(f"    {name}" for name in sorted(by_schema[schema]))
         lines.append("  end")
     for parent, child in sorted(edges):
         lines.append(f"  {parent} --> {child}")

@@ -15,14 +15,11 @@ Dry run by default; pass --apply to write.
 """
 
 import argparse
-import sys
 from pathlib import Path
 
 import duckdb
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from ingest.poster_slice import read_slice_seed, slice_for_poster, write_slice_seed  # noqa: E402
+from ingest.poster_slice import read_slice_seed, slice_for_poster, write_slice_seed
 
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data" / "movies.duckdb"
@@ -63,7 +60,7 @@ def main() -> None:
     for i, (tmdb_id, path) in enumerate(todo, 1):
         try:
             have[tmdb_id] = slice_for_poster(path)
-        except Exception as e:  # noqa: BLE001 - one bad poster must not lose the rest
+        except Exception as e:
             misses += 1
             print(f"  skip tmdb_id={tmdb_id}: {e}")
         if i % 100 == 0:

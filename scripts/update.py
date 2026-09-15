@@ -1,5 +1,4 @@
 """Full auto-update: RSS -> enrich new films -> dbt deps + build -> export JSON."""
-
 import csv
 import os
 import subprocess
@@ -8,15 +7,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+from ingest.csvio import append_rows, read_id_set
+from ingest.enrich import FILM_CSV_COLUMNS, build_enrichment_row
+from ingest.http import omdb_get, tmdb_get
+from ingest.poster_slice import read_slice_seed, slice_for_poster, write_slice_seed
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from ingest.csvio import append_rows  # noqa: E402
-from ingest.enrich import FILM_CSV_COLUMNS, build_enrichment_row  # noqa: E402
-from ingest.http import omdb_get, tmdb_get  # noqa: E402
-from ingest.poster_slice import read_slice_seed, slice_for_poster, write_slice_seed  # noqa: E402
+load_dotenv()
 
 SEEDS = ROOT / "transform" / "seeds"
 TRANSFORM = ROOT / "transform"
@@ -44,13 +41,7 @@ LOG_COLUMNS = [
 
 
 def _existing_enrichment_tmdb_ids() -> set[str]:
-    ids: set[str] = set()
-    with open(ENRICH_PATH, encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            tid = row.get("tmdb_id", "").strip()
-            if tid:
-                ids.add(tid)
-    return ids
+    return {str(i) for i in read_id_set(ENRICH_PATH)}
 
 
 def enrich_film(tmdb_id: str) -> dict[str, str] | None:
@@ -136,7 +127,7 @@ def insert_into_slices(rows: list[dict[str, str]]) -> None:
     for row in rows:
         try:
             encoded = slice_for_poster(row.get("poster_path", ""))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             print(f"  WARNING: poster slice failed for tmdb_id={row['tmdb_id']}: {e}")
             continue
         if encoded:
@@ -147,7 +138,7 @@ def insert_into_slices(rows: list[dict[str, str]]) -> None:
         slices = read_slice_seed(SLICES_PATH)
         slices.update(new)
         write_slice_seed(SLICES_PATH, slices)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"  WARNING: poster slice write failed for {len(new)} films: {e}")
         return
     print(f"  wrote {len(new)} poster slices")
@@ -163,8 +154,6 @@ def main() -> None:
     if not TMDB_KEY:
         raise SystemExit("TMDB_API_KEY not set in .env")
 
-    # Import here to avoid circular issues at module level
-    sys.path.insert(0, str(ROOT))
     from ingest.letterboxd import fetch_new_watches
 
     print(f"Fetching RSS for {LETTERBOXD_USER} ...")
@@ -209,7 +198,7 @@ def main() -> None:
 
     # Ensure all watches have imdb_id from enrichment
     enrich_imdb: dict[str, str] = {}
-    with open(ENRICH_PATH, encoding="utf-8") as f:
+    with ENRICH_PATH.open(encoding="utf-8") as f:
         for row in csv.DictReader(f):
             enrich_imdb[row.get("tmdb_id", "")] = row.get("imdb_id", "")
     for w in watches_to_log:

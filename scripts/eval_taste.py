@@ -11,9 +11,7 @@ grows to see whether content signal emerges.
 
 Usage: uv run python scripts/eval_taste.py
 """
-
 import json
-import sys
 from pathlib import Path
 
 import duckdb
@@ -21,13 +19,9 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold, cross_val_predict
 
-# Running a script by path puts scripts/ on sys.path, not the repo root, so the
-# `recommend` package is not importable without this. Same bootstrap as
-# train_embeddings.py; without it the Usage line above fails immediately.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from recommend.taste import DEFAULT_KS, cross_validate_knn, select_k
 
-from recommend import ROOT  # noqa: E402
-from recommend.taste import DEFAULT_KS, cross_validate_knn, select_k  # noqa: E402
+ROOT = Path(__file__).resolve().parents[1]
 
 DB = ROOT / "data" / "movies.duckdb"
 
@@ -98,7 +92,7 @@ def main() -> None:
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
     crit_preds = cross_val_predict(LinearRegression(), crit, y, cv=kf)
     print(f"critics-only OLS          MAE={np.mean(np.abs(crit_preds - y)):5.2f}   "
-          f"R^2={_r2(y, crit_preds):6.3f}")
+          f"R^2={_r2(y, crit_preds):6.3f}")  # type: ignore
 
     best_k, _ = select_k(X, y, ks=DEFAULT_KS, n_splits=5, seed=42)
     res = cross_validate_knn(X, y, k=best_k, n_splits=5, seed=42)

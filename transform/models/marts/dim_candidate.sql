@@ -24,7 +24,8 @@ select
     rated,
     original_language,
     collection,
-    poster_path
+    poster_path,
+    source
 from {{ ref('stg_candidate_enrichment') }} c
 where not exists (
     select 1 from {{ ref('dim_film') }} f where f.tmdb_id = c.tmdb_id

@@ -66,7 +66,7 @@ class TestCrossValidate:
         assert res["k"] == 5
 
     def test_raises_on_fewer_than_two_samples(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="at least 2"):
             cross_validate_knn(np.zeros((1, 3)), np.array([50.0]), k=1)
 
 

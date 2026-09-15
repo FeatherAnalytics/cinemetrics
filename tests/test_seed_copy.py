@@ -56,7 +56,7 @@ def copy_options() -> str:
 @pytest.fixture
 def seed_csv(tmp_path: Path) -> Path:
     path = tmp_path / "seed.csv"
-    with open(path, "w", encoding="utf-8", newline="") as fh:
+    with path.open("w", encoding="utf-8", newline="") as fh:
         writer = dict_writer(fh, COLUMNS)
         writer.writeheader()
         writer.writerows(
@@ -99,7 +99,7 @@ def test_quoted_title_survives_the_seed_copy(seed_csv, con):
 
 def test_the_row_is_past_the_chunk_the_sniffer_reads(seed_csv):
     """Guards the fixture itself: shrink FILLER_ROWS and the bug stops reproducing."""
-    with open(seed_csv, encoding="utf-8", newline="") as fh:
+    with seed_csv.open(encoding="utf-8", newline="") as fh:
         rows = list(csv.reader(fh))
 
     quoted_at = next(i for i, row in enumerate(rows) if row[0] == "1190623")
