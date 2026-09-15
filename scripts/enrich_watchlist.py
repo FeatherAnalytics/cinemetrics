@@ -17,7 +17,6 @@ Usage:
     uv run python scripts/enrich_watchlist.py           # preview what's missing
     uv run python scripts/enrich_watchlist.py --apply   # fetch and append
 """
-
 import argparse
 import csv
 import os
@@ -27,14 +26,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+from ingest.csvio import dict_writer
+from ingest.enrich import CANDIDATE_CSV_COLUMNS, build_enrichment_row
+from ingest.http import cached_json, omdb_get, tmdb_get
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from ingest.csvio import dict_writer  # noqa: E402
-from ingest.enrich import CANDIDATE_CSV_COLUMNS, build_enrichment_row  # noqa: E402
-from ingest.http import cached_json, omdb_get, tmdb_get  # noqa: E402
+load_dotenv()
 
 SEEDS = ROOT / "transform" / "seeds"
 FILM_ENRICHMENT = SEEDS / "film_enrichment.csv"

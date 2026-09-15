@@ -33,11 +33,9 @@ import zipfile
 from collections import Counter
 from pathlib import Path
 
+from ingest.csvio import dict_writer
+
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from ingest.csvio import dict_writer  # noqa: E402
-
 LOG_PATH = ROOT / "transform" / "seeds" / "film_log.csv"
 
 # First watch logged on Letterboxd. Rows before this predate the platform, so the

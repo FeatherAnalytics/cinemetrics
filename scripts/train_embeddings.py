@@ -6,7 +6,6 @@ vocabulary as the rated films.
 
 Skips training if source data hasn't changed (hash check).
 """
-
 import hashlib
 import json
 import sys
@@ -14,15 +13,11 @@ from pathlib import Path
 
 import duckdb
 
-# Running a script by path puts scripts/ on sys.path, not the repo root, so the
-# first-party packages are invisible without this. Matches the guard every other
-# script in this directory already uses.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from recommend.encode import FeatureEncoder
+from recommend.model import build_embeddings_export
 
-from recommend import ROOT, SEEDS_DIR  # noqa: E402
-from recommend.encode import FeatureEncoder  # noqa: E402
-from recommend.model import build_embeddings_export  # noqa: E402
-
+ROOT = Path(__file__).resolve().parents[1]
+SEEDS_DIR = ROOT / "transform" / "seeds"
 DB = ROOT / "data" / "movies.duckdb"
 OUT_DIR = ROOT / "data" / "ml"
 LAST_TRAIN = OUT_DIR / ".last_train"

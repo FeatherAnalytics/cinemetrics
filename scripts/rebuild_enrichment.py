@@ -11,15 +11,12 @@ Sources (all read from cache; run the recon/update flow first to populate):
 import csv
 import glob
 import json
-import sys
 from pathlib import Path
 
+from ingest.csvio import write_rows
+from ingest.enrich import FILM_CSV_COLUMNS, build_enrichment_row
+
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from ingest.csvio import write_rows  # noqa: E402
-from ingest.enrich import FILM_CSV_COLUMNS, build_enrichment_row  # noqa: E402
-
 OMDB = ROOT / "data" / "raw" / "omdb"
 TMDB = ROOT / "data" / "raw" / "tmdb"
 LOG = ROOT / "transform" / "seeds" / "film_log.csv"

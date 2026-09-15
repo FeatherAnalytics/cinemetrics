@@ -18,7 +18,6 @@ Usage:
     uv run python scripts/backfill_candidate_titles.py           # preview
     uv run python scripts/backfill_candidate_titles.py --apply   # rewrite seed
 """
-
 import argparse
 import csv
 import json
@@ -29,13 +28,11 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+from ingest.csvio import dict_writer
+from ingest.http import cached_json, tmdb_get
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from ingest.csvio import dict_writer  # noqa: E402
-from ingest.http import cached_json, tmdb_get  # noqa: E402
+load_dotenv()
 
 SEED = ROOT / "transform" / "seeds" / "candidate_enrichment.csv"
 CACHE = ROOT / "data" / "raw" / "tmdb_candidates"

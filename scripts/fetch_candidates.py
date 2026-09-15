@@ -14,10 +14,8 @@ a night that runs out of OMDb quota leaves work for the next one instead of
 leaving a permanently empty row behind. This is the one writer that edits
 committed rows rather than only appending; see the note in main().
 """
-
 import csv
 import os
-import sys
 import threading
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -26,19 +24,17 @@ from typing import TypeVar
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from ingest.csvio import write_rows  # noqa: E402
-from ingest.enrich import (  # noqa: E402
+from ingest.csvio import write_rows
+from ingest.enrich import (
     CANDIDATE_CSV_COLUMNS,
     build_enrichment_row,
     has_omdb_data,
     is_terminal,
 )
-from ingest.http import cached_json, omdb_get, tmdb_get  # noqa: E402
+from ingest.http import cached_json, omdb_get, tmdb_get
+
+ROOT = Path(__file__).resolve().parents[1]
+load_dotenv()
 
 SEEDS = ROOT / "transform" / "seeds"
 FILM_ENRICHMENT = SEEDS / "film_enrichment.csv"

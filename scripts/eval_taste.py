@@ -11,9 +11,7 @@ grows to see whether content signal emerges.
 
 Usage: uv run python scripts/eval_taste.py
 """
-
 import json
-import sys
 from pathlib import Path
 
 import duckdb
@@ -21,13 +19,9 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold, cross_val_predict
 
-# Running a script by path puts scripts/ on sys.path, not the repo root, so the
-# `recommend` package is not importable without this. Same bootstrap as
-# train_embeddings.py; without it the Usage line above fails immediately.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from recommend.taste import DEFAULT_KS, cross_validate_knn, select_k
 
-from recommend import ROOT  # noqa: E402
-from recommend.taste import DEFAULT_KS, cross_validate_knn, select_k  # noqa: E402
+ROOT = Path(__file__).resolve().parents[1]
 
 DB = ROOT / "data" / "movies.duckdb"
 

@@ -15,14 +15,11 @@ Dry run by default; pass --apply to write.
 """
 
 import argparse
-import sys
 from pathlib import Path
 
 import duckdb
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from ingest.poster_slice import read_slice_seed, slice_for_poster, write_slice_seed  # noqa: E402
+from ingest.poster_slice import read_slice_seed, slice_for_poster, write_slice_seed
 
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data" / "movies.duckdb"

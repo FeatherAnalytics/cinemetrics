@@ -1,5 +1,4 @@
 """Full auto-update: RSS -> enrich new films -> dbt deps + build -> export JSON."""
-
 import csv
 import os
 import subprocess
@@ -8,15 +7,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+from ingest.csvio import append_rows
+from ingest.enrich import FILM_CSV_COLUMNS, build_enrichment_row
+from ingest.http import omdb_get, tmdb_get
+from ingest.poster_slice import read_slice_seed, slice_for_poster, write_slice_seed
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from ingest.csvio import append_rows  # noqa: E402
-from ingest.enrich import FILM_CSV_COLUMNS, build_enrichment_row  # noqa: E402
-from ingest.http import omdb_get, tmdb_get  # noqa: E402
-from ingest.poster_slice import read_slice_seed, slice_for_poster, write_slice_seed  # noqa: E402
+load_dotenv()
 
 SEEDS = ROOT / "transform" / "seeds"
 TRANSFORM = ROOT / "transform"
@@ -163,8 +160,6 @@ def main() -> None:
     if not TMDB_KEY:
         raise SystemExit("TMDB_API_KEY not set in .env")
 
-    # Import here to avoid circular issues at module level
-    sys.path.insert(0, str(ROOT))
     from ingest.letterboxd import fetch_new_watches
 
     print(f"Fetching RSS for {LETTERBOXD_USER} ...")

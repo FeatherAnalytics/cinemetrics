@@ -27,18 +27,15 @@ Dry run by default; pass --apply to write.
 import argparse
 import csv
 import os
-import sys
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from ingest.csvio import write_rows  # noqa: E402
-from ingest.enrich import CANDIDATE_CSV_COLUMNS  # noqa: E402
-from ingest.http import cached_json, tmdb_get  # noqa: E402
+from ingest.csvio import write_rows
+from ingest.enrich import CANDIDATE_CSV_COLUMNS
+from ingest.http import cached_json, tmdb_get
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED = ROOT / "transform" / "seeds" / "candidate_enrichment.csv"

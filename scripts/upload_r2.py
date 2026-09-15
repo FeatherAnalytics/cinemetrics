@@ -15,9 +15,9 @@ from pathlib import Path
 import boto3
 from dotenv import load_dotenv
 
+ROOT = Path(__file__).resolve().parents[1]
 load_dotenv()
 
-ROOT = Path(__file__).resolve().parents[1]
 ML_DIR = ROOT / "data" / "ml"
 
 FILES = ["embeddings-v2.json"]
