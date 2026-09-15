@@ -84,7 +84,7 @@ def build_v3_binary(
     parts: list[bytes] = []
     for i, tid in enumerate(ids):
         if is_sparse:
-            row = matrix.getrow(i)
+            row = matrix.getrow(i)  # type: ignore[union-attr]
             order = np.argsort(row.indices)
             indices = row.indices[order]
             values = row.data[order]

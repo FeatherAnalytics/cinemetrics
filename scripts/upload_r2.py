@@ -20,7 +20,7 @@ load_dotenv()
 
 ML_DIR = ROOT / "data" / "ml"
 
-FILES = ["embeddings-v2.json"]
+FILES = ["embeddings-v2.json", "embeddings-v3.bin", "features-v3.json", "metadata-v3.json"]
 
 
 def main() -> None:

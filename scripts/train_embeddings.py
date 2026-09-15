@@ -14,7 +14,7 @@ from pathlib import Path
 import duckdb
 
 from recommend.encode import FeatureEncoder
-from recommend.model import build_embeddings_export
+from recommend.model import build_embeddings_export, build_v3_binary, build_v3_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
 SEEDS_DIR = ROOT / "transform" / "seeds"
@@ -112,18 +112,33 @@ def main(force: bool = False) -> None:
     export = build_embeddings_export(matrix, ids, all_films)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    # v2 = sparse format. The old dense embeddings.json stays in the R2 bucket
-    # so previously deployed builds keep working.
-    emb_path = OUT_DIR / "embeddings-v2.json"
 
-    emb_path.write_text(json.dumps(export), encoding="utf-8")
+    # v2: kept for one release so stale browser caches still resolve.
+    emb_v2 = OUT_DIR / "embeddings-v2.json"
+    emb_v2.write_text(json.dumps(export), encoding="utf-8")
+
+    # v3: binary-packed vectors, separate metadata and feature names.
+    v3_bin = OUT_DIR / "embeddings-v3.bin"
+    v3_bin.write_bytes(build_v3_binary(matrix, ids))
+
+    ndims = matrix.shape[1]  # type: ignore[index]
+    v3_features = OUT_DIR / "features-v3.json"
+    v3_features.write_text(
+        json.dumps({"dims": int(ndims), "names": encoder.feature_names()}, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    v3_meta = OUT_DIR / "metadata-v3.json"
+    v3_meta.write_text(json.dumps(build_v3_metadata(all_films)), encoding="utf-8")
 
     data_hash = _data_hash()
     LAST_TRAIN.write_text(data_hash, encoding="utf-8")
     _write_version(data_hash)
 
-    emb_kb = emb_path.stat().st_size / 1024
-    print(f"wrote {emb_path.name} ({emb_kb:.0f} KB)")
+    v2_kb = emb_v2.stat().st_size / 1024
+    v3_kb = v3_bin.stat().st_size / 1024
+    meta_kb = v3_meta.stat().st_size / 1024
+    print(f"wrote v2 ({v2_kb:.0f} KB), v3 bin ({v3_kb:.0f} KB) + meta ({meta_kb:.0f} KB)")
     print(f"embeddings: {matrix.shape[1]} dimensions, {len(ids)} films")  # type: ignore
 
 
