@@ -3,6 +3,12 @@ name: Lights (CI)
 on:
   pull_request:
     branches: [final-cut]
+  push:
+    branches: [final-cut]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
