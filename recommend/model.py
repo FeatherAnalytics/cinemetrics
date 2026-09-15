@@ -67,3 +67,55 @@ def build_embeddings_export(
             "poster": _clean(f.get("poster_path")) or None,
         }
     return {"dims": int(matrix.shape[1]), "vectors": vectors, "metadata": metadata}  # type: ignore
+
+
+def build_v3_binary(
+    matrix: sp.csr_matrix | np.ndarray,
+    ids: list[int],
+) -> bytes:
+    """Pack sparse vectors into a compact binary format.
+
+    For each film: uint32 tmdb_id, uint16 nnz, then nnz x uint16 index and
+    nnz x float16 value, all little-endian.
+    """
+    import struct
+
+    is_sparse = sp.issparse(matrix)
+    parts: list[bytes] = []
+    for i, tid in enumerate(ids):
+        if is_sparse:
+            row = matrix.getrow(i)
+            order = np.argsort(row.indices)
+            indices = row.indices[order]
+            values = row.data[order]
+        else:
+            dense = matrix[i]
+            nz = np.nonzero(dense)[0]
+            indices = nz
+            values = dense[nz]
+        nnz = len(indices)
+        parts.append(struct.pack("<IH", tid, nnz))
+        parts.append(struct.pack(f"<{nnz}H", *indices.astype(np.uint16)))
+        parts.append(np.array(values, dtype=np.float16).tobytes())
+    return b"".join(parts)
+
+
+def build_v3_metadata(films: list[dict]) -> dict[int, dict]:
+    """Metadata per film for v3, without keywords and actors."""
+    metadata: dict[int, dict] = {}
+    for f in films:
+        metadata[f["tmdb_id"]] = {
+            "title": _clean(f.get("title")) or "",
+            "year": _clean(f.get("year") or f.get("release_year")),
+            "genres": _clean(f.get("genres")) or "",
+            "runtime": _clean(f.get("runtime") or f.get("runtime_min")),
+            "rated": _clean(f.get("rated")) or "",
+            "language": _clean(f.get("language") or f.get("original_language")) or "",
+            "production_countries": _clean(f.get("production_countries")) or "",
+            "metascore": _clean(f.get("metascore")),
+            "rt_rating": _clean(f.get("rt_rating")),
+            "imdb_rating": _clean(f.get("imdb_rating")),
+            "imdb_id": _clean(f.get("imdb_id")) or "",
+            "poster": _clean(f.get("poster_path")) or None,
+        }
+    return metadata

@@ -100,6 +100,70 @@ models:
           How this candidate entered the pool: similar, popular, top_rated,
           or legacy (pre-provenance rows).
 
+  - name: bridge_film_genre
+    description: >
+      One row per (tmdb_id, genre), splitting the comma-separated genres from
+      dim_film and dim_candidate into individual rows for join-based analysis.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [tmdb_id, genre]
+    columns:
+      - name: tmdb_id
+        description: TMDB film identifier.
+      - name: genre
+        description: A single genre name (e.g. "Drama", "Sci-Fi").
+      - name: is_candidate
+        description: True for candidates, false for watched films.
+
+  - name: bridge_film_person
+    description: >
+      One row per (tmdb_id, person, role) from watched films only. Candidates
+      are excluded because OMDb's top-four actor list would dominate.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [tmdb_id, person, role]
+    columns:
+      - name: tmdb_id
+        description: TMDB film identifier.
+      - name: person
+        description: Person name as credited.
+      - name: role
+        description: "'director' or 'actor'."
+
+  - name: fct_taste_by_period
+    description: >
+      One row per calendar quarter: aggregate taste metrics over time for
+      tracking drift in viewing habits, ratings, and genre preferences.
+    columns:
+      - name: period
+        description: Calendar quarter, e.g. "2020-Q1".
+        tests: [unique, not_null]
+      - name: watches
+        description: Total watch events in the quarter.
+        tests: [not_null]
+      - name: films
+        description: Distinct films watched in the quarter.
+      - name: mean_rating_100
+        description: Mean rating on the 0–100 scale.
+      - name: rewatch_share
+        description: >
+          Share of watches that were rewatches, using is_rewatch_effective over
+          the answerable denominator (liked is not null or is_return).
+      - name: liked_share
+        description: Share of watches that were liked, over rows that recorded liked.
+      - name: critic_delta
+        description: Mean of (rating_100 − metascore) where both are present.
+      - name: horror_share
+        description: Share of watches carrying the Horror genre.
+      - name: thriller_share
+        description: Share of watches carrying the Thriller genre.
+      - name: drama_share
+        description: Share of watches carrying the Drama genre.
+      - name: comedy_share
+        description: Share of watches carrying the Comedy genre.
+      - name: adventure_share
+        description: Share of watches carrying the Adventure genre.
+
   - name: dim_watchlist
     description: >
       One row per film on the Letterboxd watchlist, with the date it was added and

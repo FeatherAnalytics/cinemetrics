@@ -33,7 +33,8 @@ Each layer is its own schema, so the **Database** tab groups them the way the pi
   staging model per seed, no joins.
 - **Marts** (schema `marts`, tables) — `dim_film` (one row per film), `fct_watches` (one row per
   watch event), `dim_candidate` (one row per unwatched candidate, mutually exclusive with
-  `dim_film`).
+  `dim_film`), `bridge_film_genre` and `bridge_film_person` (genre and person bridges for
+  join-based analysis), `fct_taste_by_period` (quarterly taste drift).
 
 `tmdb_id` is the primary key throughout. `imdb_id` is kept for external linking, and its
 not-null test is a warning rather than an error because coverage is incomplete by design.
