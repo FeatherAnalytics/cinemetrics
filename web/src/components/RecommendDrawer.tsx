@@ -169,12 +169,16 @@ export function RecommendDrawer() {
 
   useEffect(() => {
     if (!state.open) return;
+    const opener = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") dispatch({ type: "CLOSE" });
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      opener?.focus();
+    };
   }, [state.open, dispatch]);
 
   // Recommendations depend on every dashboard filter EXCEPT the brush selection,

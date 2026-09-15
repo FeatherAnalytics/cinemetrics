@@ -482,6 +482,16 @@ function Explorer() {
   const [startYear, endYear] = yearBounds;
   const years = endYear - startYear + 1;
 
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.startsWith("#chart-")) return;
+    const el = document.getElementById(hash.slice(1));
+    if (!el) return;
+    el.classList.add("deep-link-highlight");
+    const tid = setTimeout(() => el.classList.remove("deep-link-highlight"), 2000);
+    return () => clearTimeout(tid);
+  }, []);
+
   // Desktop filter sidebar collapses to a thin rail while a story is active:
   // the story drives the filters, so the rail is idle, and the charts use the
   // full width for the story's highlights. Restores when the story clears; the

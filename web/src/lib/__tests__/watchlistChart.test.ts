@@ -19,7 +19,6 @@ function film(over: Partial<WatchlistFilm> = {}): WatchlistFilm {
     title: "A Film",
     year: 2000,
     released: "2000-01-01",
-    added: "2024-01-01",
     watched: false,
     genres: [],
     keywords: [],

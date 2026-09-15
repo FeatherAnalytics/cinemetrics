@@ -390,7 +390,9 @@ export function FilterBar() {
         <span className="font-mono text-xs">
           {watchlistMode
             ? `${filteredWatchlist.length} / ${watchlist.length} films`
-            : `${filtered.length} / ${all.length} watches`}
+            : filtered.length < all.length
+              ? `${filtered.length} / ${all.length} watches`
+              : `${all.length} watches`}
         </span>
         <button
           onClick={reset}

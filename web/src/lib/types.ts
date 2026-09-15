@@ -86,7 +86,6 @@ export type WatchlistFilm = {
    * to January 1 rather than dropping them.
    */
   released: string | null;
-  added: string; // ISO date the film was added to the list
   /**
    * True when the film has also been watched. Letterboxd does not clear a film
    * from the watchlist when it is logged, and the reader only sometimes does it

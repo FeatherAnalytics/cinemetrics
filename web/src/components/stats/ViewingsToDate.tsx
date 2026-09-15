@@ -215,7 +215,7 @@ export function ViewingsToDate() {
           );
         })}
 
-        {labels.map((l) => {
+        {W >= 500 && labels.map((l) => {
           const on = isPicked(l.watches, filters.selection);
           const color = on ? accent : tint(l.year);
           const barLen = (l.shown / legMax) * LEG_BAR_W;
@@ -235,9 +235,6 @@ export function ViewingsToDate() {
               <text x={legX} y={l.y} fontSize={9} fontWeight={700} fill={color}>
                 {l.year}
               </text>
-              {/* The mini bar is the same object as this year's line, in the
-                  same recency tint, so the table and the plot cannot disagree
-                  about which year is which. */}
               <rect
                 x={legX + LEG_YEAR_W}
                 y={l.y - 7}
@@ -253,9 +250,6 @@ export function ViewingsToDate() {
                 fontSize={9}
                 fontWeight={700}
                 fill={color}
-                // A year that has run out of data is holding its final value
-                // rather than still counting, so it reads at lower contrast: the
-                // number is real but it is not a same-date comparison any more.
                 fillOpacity={l.partial ? 0.5 : 1}
               >
                 {l.shown}
@@ -264,6 +258,19 @@ export function ViewingsToDate() {
           );
         })}
       </svg>
+      {W < 500 && (
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-[10px]">
+          {labels.map((l) => (
+            <button
+              key={l.year}
+              onClick={() => pickWatches(l.watches, filters.selection, setSelection)}
+              style={{ color: isPicked(l.watches, filters.selection) ? accent : tint(l.year) }}
+            >
+              {l.year} · {l.shown}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
