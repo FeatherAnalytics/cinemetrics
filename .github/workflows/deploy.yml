@@ -78,6 +78,7 @@ jobs:
     steps:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           title="Deploy failed: $(date -u +%F)"
           existing=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number')
