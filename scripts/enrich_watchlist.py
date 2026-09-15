@@ -26,7 +26,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from ingest.csvio import dict_writer
+from ingest.csvio import dict_writer, read_id_set
 from ingest.enrich import CANDIDATE_CSV_COLUMNS, build_enrichment_row
 from ingest.http import cached_json, omdb_get, tmdb_get
 
@@ -44,18 +44,7 @@ OMDB_KEY = os.environ.get("OMDB_API_KEY")
 MAX_WORKERS = int(os.environ.get("TMDB_MAX_WORKERS", "8"))
 
 
-def _ids(path: Path) -> set[int]:
-    """tmdb_ids present in a seed, skipping rows whose id will not parse."""
-    out: set[int] = set()
-    if not path.exists():
-        return out
-    with path.open(encoding="utf-8") as fh:
-        for row in csv.DictReader(fh):
-            try:
-                out.add(int(row["tmdb_id"]))
-            except (ValueError, KeyError, TypeError):
-                pass
-    return out
+_ids = read_id_set
 
 
 def _watchlist_rows() -> list[dict[str, str]]:

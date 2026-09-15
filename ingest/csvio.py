@@ -50,6 +50,20 @@ def dict_writer(fh: TextIO, columns: list[str], *, strict: bool = False) -> csv.
     )
 
 
+def read_id_set(path: Path, column: str = "tmdb_id") -> set[int]:
+    """Integer ids from one CSV column, skipping rows whose value will not parse."""
+    if not path.exists():
+        return set()
+    with open(path, encoding="utf-8", newline="") as fh:
+        ids: set[int] = set()
+        for row in csv.DictReader(fh):
+            try:
+                ids.add(int(row[column]))
+            except (KeyError, ValueError):
+                continue
+        return ids
+
+
 def _replace_atomically(path: Path, write_body: Callable[[TextIO], None]) -> None:
     """Write to a temp file next to ``path``, then ``os.replace`` it into place.
 

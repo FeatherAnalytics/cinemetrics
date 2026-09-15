@@ -9,7 +9,7 @@ import csv
 
 import pytest
 
-from ingest.csvio import LINE_TERMINATOR, append_rows, dict_writer, write_rows
+from ingest.csvio import LINE_TERMINATOR, append_rows, dict_writer, read_id_set, write_rows
 
 COLS = ["tmdb_id", "imdb_id", "title"]
 
@@ -177,3 +177,9 @@ class TestWriteRows:
 
         assert path.read_text(encoding="utf-8") == original
         assert [p.name for p in tmp_path.iterdir()] == ["film_enrichment.csv"]
+
+
+def test_read_id_set_skips_bad_rows(tmp_path):
+    csv_file = tmp_path / "test.csv"
+    csv_file.write_text("tmdb_id,title\n1,A\nbad,B\n3,C\n", encoding="utf-8")
+    assert read_id_set(csv_file) == {1, 3}

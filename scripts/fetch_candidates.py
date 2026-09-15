@@ -24,7 +24,7 @@ from typing import TypeVar
 
 from dotenv import load_dotenv
 
-from ingest.csvio import write_rows
+from ingest.csvio import read_id_set, write_rows
 from ingest.enrich import (
     CANDIDATE_CSV_COLUMNS,
     build_enrichment_row,
@@ -143,18 +143,7 @@ def _unfinished(rows: list[dict[str, str]]) -> dict[int, str]:
 
 
 def _existing_tmdb_ids() -> set[int]:
-    ids: set[int] = set()
-    for path in [FILM_ENRICHMENT, CANDIDATE_ENRICHMENT]:
-        if not path.exists():
-            continue
-        with open(path, encoding="utf-8") as fh:
-            reader = csv.DictReader(fh)
-            for row in reader:
-                try:
-                    ids.add(int(row["tmdb_id"]))
-                except (ValueError, KeyError):
-                    pass
-    return ids
+    return read_id_set(FILM_ENRICHMENT) | read_id_set(CANDIDATE_ENRICHMENT)
 
 
 def _fetch_similar(tmdb_id: int) -> list[int]:
@@ -253,31 +242,11 @@ def _enrich_tmdb(tmdb_id: int, *, seed_imdb_id: str = "") -> dict | None:
     return row
 
 
-def _ids_from(path: Path, column: str = "tmdb_id") -> set[int]:
-    """Read a set of tmdb_ids from a CSV column, skipping unusable rows."""
-    ids: set[int] = set()
-    if not path.exists():
-        return ids
-    with open(path, encoding="utf-8") as fh:
-        for row in csv.DictReader(fh):
-            try:
-                ids.add(int(row[column]))
-            except (ValueError, KeyError, TypeError):
-                pass
-    return ids
-
-
 def _seed_ids() -> set[int]:
-    """Films whose TMDB /similar results seed the candidate pool.
-
-    Rated films alone bias the pool toward what has already been watched. The
-    watchlist and the curated lists are explicit statements of intent about films
-    NOT yet seen, so they widen the pool in the direction of actual interest.
-    Both are already resolved to tmdb_ids (scripts/resolve_export.py).
-    """
-    rated = _ids_from(FILM_ENRICHMENT)
-    watchlist = _ids_from(WATCHLIST_SEED)
-    listed = _ids_from(RESOLVED_EXPORT)
+    """Films whose TMDB /similar results seed the candidate pool."""
+    rated = read_id_set(FILM_ENRICHMENT)
+    watchlist = read_id_set(WATCHLIST_SEED)
+    listed = read_id_set(RESOLVED_EXPORT)
 
     print(f"seeds: {len(rated)} rated, {len(watchlist)} watchlist, "
           f"{len(listed)} resolved export (watchlist + lists)")

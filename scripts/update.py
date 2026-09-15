@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from ingest.csvio import append_rows
+from ingest.csvio import append_rows, read_id_set
 from ingest.enrich import FILM_CSV_COLUMNS, build_enrichment_row
 from ingest.http import omdb_get, tmdb_get
 from ingest.poster_slice import read_slice_seed, slice_for_poster, write_slice_seed
@@ -41,13 +41,7 @@ LOG_COLUMNS = [
 
 
 def _existing_enrichment_tmdb_ids() -> set[str]:
-    ids: set[str] = set()
-    with open(ENRICH_PATH, encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            tid = row.get("tmdb_id", "").strip()
-            if tid:
-                ids.add(tid)
-    return ids
+    return {str(i) for i in read_id_set(ENRICH_PATH)}
 
 
 def enrich_film(tmdb_id: str) -> dict[str, str] | None:
