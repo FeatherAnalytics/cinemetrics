@@ -21,6 +21,8 @@ import {
 import { FilmCard } from "./FilmCard";
 import { hairline, useTheme } from "@/lib/theme";
 
+import embeddingsVersion from "../../public/data/embeddings-version.json";
+
 const R2_URL = process.env.NEXT_PUBLIC_R2_URL || "";
 
 function matchesDashboardFilters(meta: CandidateMetadata, dashFilters: Filters): boolean {
@@ -58,8 +60,10 @@ function hasDashboardFilters(f: Filters): boolean {
   );
 }
 
-function weightedSample(pool: Recommendation[], n: number): Recommendation[] {
-  const remaining = [...pool];
+export function weightedSample(pool: Recommendation[], n: number): Recommendation[] {
+  const sorted = [...pool].sort((a, b) => b.score - a.score);
+  const topSlice = sorted.slice(0, Math.max(n * 5, 50));
+  const remaining = [...topSlice];
   const picked: Recommendation[] = [];
   while (picked.length < n && remaining.length > 0) {
     const weights = remaining.map((r) => Math.max(r.score, 0.01));
@@ -85,7 +89,7 @@ async function fetchRecs(
   dashFilters: Filters,
 ): Promise<{ recs: Recommendation[]; reasons: Record<number, Reason[]>; boostCount: number }> {
   if (!R2_URL) return { recs: [], reasons: {}, boostCount: 0 };
-  const { data } = await loadEmbeddings(R2_URL, String(watches.length));
+  const { data } = await loadEmbeddings(R2_URL, embeddingsVersion.version);
   const TARGET = 10;
   let finalRecs: Recommendation[] = [];
   let boostCount = 0;
