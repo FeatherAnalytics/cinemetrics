@@ -43,8 +43,7 @@ def main() -> None:
     for name in FILES:
         path = ML_DIR / name
         if not path.exists():
-            print(f"skipping {name} (not found)")
-            continue
+            raise SystemExit(f"{path} missing; run train_embeddings.py first")
         raw = path.read_bytes()
         # mtime=0 keeps the gzip header deterministic, so an unchanged artifact
         # produces identical bytes rather than a spurious diff each run.
