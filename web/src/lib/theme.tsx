@@ -88,7 +88,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => setTheme(preferred()), []);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    if (document.documentElement.dataset.theme !== theme) {
+      document.documentElement.dataset.theme = theme;
+    }
   }, [theme]);
 
   const toggle = () => {
