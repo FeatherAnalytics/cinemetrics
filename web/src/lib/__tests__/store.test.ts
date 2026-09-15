@@ -13,8 +13,6 @@ function makeFilm(overrides: Partial<Film> = {}): Film {
     genres: ["Drama"],
     keywords: [],
     runtime: 120,
-    budget: null,
-    revenue: null,
     director: "Jane Director",
     actors: "Alice Actor, Bob Actor",
     metascore: 75,

@@ -68,6 +68,17 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.deep-link-highlight {
+  outline: 2px solid var(--foreground);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
 /* Dual-handle range slider: two native inputs overlaid on one track.
    24px tall so each thumb clears the WCAG minimum touch-target size. */
 .range-dual {

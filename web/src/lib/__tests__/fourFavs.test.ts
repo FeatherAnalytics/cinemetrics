@@ -18,8 +18,6 @@ function film(over: Partial<Film> = {}): Film {
     genres: ["Drama"],
     keywords: [],
     runtime: 100,
-    budget: null,
-    revenue: null,
     director: "A Director",
     actors: null,
     metascore: null,

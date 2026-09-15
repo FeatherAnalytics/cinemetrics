@@ -28,8 +28,9 @@ function SearchInput({
         value={filters[field]}
         onChange={(e) => setText(field, e.target.value)}
         placeholder={placeholder}
+        aria-label={placeholder}
         list={listId}
-        className="w-full rounded-md border px-2.5 py-1 text-sm outline-none focus:border-[color:var(--fb-accent)]"
+        className="w-full rounded-md border px-2.5 py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus:border-[color:var(--fb-accent)]"
         style={
           {
             borderColor: hairline(tokens.ink.primary, 20),
@@ -192,14 +193,11 @@ export function FilterBar() {
       <FieldGroup label="discover">
         <button
           onClick={() => recDispatch({ type: "OPEN_RECOMMEND" })}
-          className="flex w-fit items-center gap-1.5 rounded-full border px-3 py-1 transition hover:bg-[color:var(--fb-hover)]"
-          style={
-            {
-              borderColor: hairline(tokens.ink.primary, 20),
-              color: tokens.ink.secondary,
-              "--fb-hover": hairline(tokens.ink.primary, 4),
-            } as React.CSSProperties
-          }
+          className="flex w-fit items-center gap-1.5 rounded-full px-3 py-1 transition"
+          style={{
+            background: tokens.accent,
+            color: tokens.ui.activeText,
+          }}
         >
           <span aria-hidden>🎲</span>
           <span>Recommend films</span>
@@ -269,6 +267,7 @@ export function FilterBar() {
               <button
                 key={g}
                 onClick={() => toggleGenre(g)}
+                aria-pressed={active}
                 className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition"
                 style={{
                   borderColor: hairline(tokens.ink.primary, 18),
@@ -391,7 +390,9 @@ export function FilterBar() {
         <span className="font-mono text-xs">
           {watchlistMode
             ? `${filteredWatchlist.length} / ${watchlist.length} films`
-            : `${filtered.length} / ${all.length} watches`}
+            : filtered.length < all.length
+              ? `${filtered.length} / ${all.length} watches`
+              : `${all.length} watches`}
         </span>
         <button
           onClick={reset}

@@ -106,6 +106,12 @@ export function PosterBarcode() {
   // film rather than from a second, later measurement.
   const [hover, setHover] = useState<{ x: number; figW: number; w: EnrichedWatch } | null>(null);
 
+  useEffect(() => {
+    const dismiss = () => setHover(null);
+    window.addEventListener("scroll", dismiss, { passive: true });
+    return () => window.removeEventListener("scroll", dismiss);
+  }, []);
+
   // Under the heart lens the run is the HEARTED run. Dimming the rest was the
   // other option and it does not work here: the barcode's whole subject is the
   // poster colour, and a 0.6 wash over two thirds of the stripes reads as a
@@ -226,6 +232,7 @@ export function PosterBarcode() {
                optimizer is unavailable and would need `unoptimized` anyway. */
             // eslint-disable-next-line @next/next/no-img-element
             <img
+              key={hover?.w.tmdb_id}
               src={poster}
               alt=""
               style={{

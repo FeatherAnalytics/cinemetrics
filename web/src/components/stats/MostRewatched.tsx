@@ -175,6 +175,14 @@ export function MostRewatched() {
         >
           MY RATING
         </text>
+        {[0, 50, 100].map((v) => {
+          const rx = RATING_ORIGIN - ratingLen(v);
+          return (
+            <text key={`rt-${v}`} x={rx} y={17} fontSize={8} fill={tokens.ink.grid} textAnchor="middle">
+              {v}
+            </text>
+          );
+        })}
 
         {rows.map((f, i) => {
           const y = 20 + i * (BAR_H + GAP);
