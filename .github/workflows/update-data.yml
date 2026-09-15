@@ -160,7 +160,7 @@ jobs:
           watches=$(git diff --cached --numstat -- transform/seeds/film_log.csv | awk '{print $1+0}')
           cands=$(git diff --cached --numstat -- transform/seeds/candidate_enrichment.csv | awk '{print $1+0}')
           git commit -m "data: ${watches:-0} new watches, ${cands:-0} candidate rows changed"
-          git pull --rebase origin final-cut
+          git pull --rebase --autostash origin final-cut
           git push
       - name: Trigger deploy
         if: ${{ !cancelled() && steps.diff.outputs.changed == 'true' }}

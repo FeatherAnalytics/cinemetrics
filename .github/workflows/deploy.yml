@@ -70,9 +70,13 @@ jobs:
     steps:
       - id: deploy
         uses: actions/deploy-pages@v5
-      - name: Open an issue on failure
-        if: failure()
-        env:
+
+  alert:
+    needs: [build, deploy]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           title="Deploy failed: $(date -u +%F)"
