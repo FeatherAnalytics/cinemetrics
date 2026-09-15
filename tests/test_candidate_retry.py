@@ -80,6 +80,18 @@ def test_unfinished_reports_the_seeds_imdb_id(tmp_path):
     assert fc._unfinished(rows) == {20: "tt20", 30: ""}
 
 
+def test_unfinished_skips_terminal_rows():
+    rows = [
+        row(1, omdb_status=""),
+        row(2, omdb_status="no_imdb_id"),
+        row(3, omdb_status="ok", metascore="80"),
+        row(4, omdb_status="not_found"),
+        row(5, omdb_status="not_a_film"),
+    ]
+    pending = fc._unfinished(rows)
+    assert set(pending.keys()) == {1}
+
+
 # --- the retry itself --------------------------------------------------------
 
 
@@ -194,6 +206,26 @@ def test_a_film_omdb_cannot_answer_for_is_still_written(tmp_path, monkeypatch):
     built = fc._enrich_tmdb(50)
     assert built is not None
     assert built["title"] == "No IMDb"
+    assert built["omdb_status"] == "no_imdb_id"
+
+
+def test_enrich_tmdb_marks_series_as_not_a_film(tmp_path, monkeypatch):
+    monkeypatch.setattr(fc, "CACHE", tmp_path / "cache")
+    monkeypatch.setattr(
+        fc, "_tmdb_get",
+        lambda *a, **k: {
+            "id": 60, "title": "A Show", "imdb_id": "tt60",
+            "genres": [], "keywords": {"keywords": []},
+        },
+    )
+    monkeypatch.setattr(
+        fc, "_omdb_get",
+        lambda imdb_id: {"Response": "True", "Type": "series", "Title": "A Show"},
+    )
+
+    built = fc._enrich_tmdb(60)
+    assert built is not None
+    assert built["omdb_status"] == "not_a_film"
 
 
 def test_omdb_is_not_called_again_once_it_has_stopped_answering(tmp_path, monkeypatch):

@@ -39,6 +39,10 @@ FILM_CSV_COLUMNS = BASE_COLUMNS + LANG_COLLECTION_COLUMNS
 #
 # A single shared list here was a real corruption bug, not a near miss:
 # test_writer_columns_match_the_seed_header pins both against the bytes on disk.
+# omdb_status: retry doneness used to be inferred from data presence, which
+# cannot distinguish "not yet asked" from "asked and nothing came back". The
+# column makes the answer explicit so the nightly stops re-asking ~9k rows
+# whose outcome cannot change.
 CANDIDATE_CSV_COLUMNS = [
     "tmdb_id", "imdb_id", "genres", "keywords", "runtime", "budget", "revenue",
     "metascore", "rt_rating", "imdb_rating", "imdb_votes", "box_office",
@@ -46,6 +50,7 @@ CANDIDATE_CSV_COLUMNS = [
     "original_language", "collection",
     "title", "release_date", "tmdb_rating", "tmdb_votes",
     "poster_path",
+    "omdb_status",
 ]
 
 # The candidate-only columns. TMDB serves all four in the detail payload the
@@ -62,6 +67,11 @@ OMDB_SOURCED_COLUMNS = [
     "metascore", "rt_rating", "imdb_rating", "imdb_votes", "box_office",
     "director", "actors", "rated",
 ]
+
+
+def is_terminal(row: dict[str, str]) -> bool:
+    """True when a candidate's OMDb resolution is settled, whatever the outcome."""
+    return row.get("omdb_status", "") in {"ok", "no_imdb_id", "not_found", "not_a_film"}
 
 
 def has_omdb_data(row: dict[str, str]) -> bool:
