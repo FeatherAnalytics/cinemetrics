@@ -127,7 +127,7 @@ def insert_into_slices(rows: list[dict[str, str]]) -> None:
     for row in rows:
         try:
             encoded = slice_for_poster(row.get("poster_path", ""))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             print(f"  WARNING: poster slice failed for tmdb_id={row['tmdb_id']}: {e}")
             continue
         if encoded:
@@ -138,7 +138,7 @@ def insert_into_slices(rows: list[dict[str, str]]) -> None:
         slices = read_slice_seed(SLICES_PATH)
         slices.update(new)
         write_slice_seed(SLICES_PATH, slices)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"  WARNING: poster slice write failed for {len(new)} films: {e}")
         return
     print(f"  wrote {len(new)} poster slices")
@@ -198,7 +198,7 @@ def main() -> None:
 
     # Ensure all watches have imdb_id from enrichment
     enrich_imdb: dict[str, str] = {}
-    with open(ENRICH_PATH, encoding="utf-8") as f:
+    with ENRICH_PATH.open(encoding="utf-8") as f:
         for row in csv.DictReader(f):
             enrich_imdb[row.get("tmdb_id", "")] = row.get("imdb_id", "")
     for w in watches_to_log:

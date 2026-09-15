@@ -27,6 +27,7 @@ jobs:
           prune-cache: true
       - run: uv sync
       - run: uv run ruff check .
+      - run: uv run pyright
       - uses: actions/setup-node@v7
         with:
           node-version: 22

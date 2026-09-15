@@ -155,7 +155,7 @@ def main() -> int:
             tid = futures[future]
             try:
                 results[tid] = future.result()
-            except Exception as err:  # noqa: BLE001 - one bad film must not stop the batch
+            except Exception as err:
                 print(f"  warning: enrich failed for {tid}: {err}")
                 results[tid] = None
 

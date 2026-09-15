@@ -97,7 +97,7 @@ def _tmdb_iso_split(tmdb: dict) -> list[str]:
     joined = ", ".join(
         c["iso_3166_1"] for c in tmdb.get("production_countries", []) if c.get("iso_3166_1")
     )
-    return joined.split(", ") if joined else []
+    return joined.split(", ") if joined else []  # type: ignore
 
 
 def _tmdb_iso_dedup(tmdb: dict) -> list[str]:

@@ -77,7 +77,7 @@ def main() -> None:
     if not key:
         raise SystemExit("TMDB_API_KEY not set. Add it to .env.")
 
-    with open(SEED, encoding="utf-8", newline="") as fh:
+    with SEED.open(encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh)
         header = list(reader.fieldnames or [])
         rows = list(reader)
@@ -110,7 +110,7 @@ def main() -> None:
                 done += 1
                 try:
                     path = future.result()
-                except Exception as err:  # noqa: BLE001 - one bad film must not stop the run
+                except Exception as err:
                     # Left empty so a later run retries it rather than recording
                     # "no art".
                     print(f"  warning: tmdb_id={row['tmdb_id']}: {err}")

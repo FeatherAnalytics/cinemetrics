@@ -1,8 +1,10 @@
 """Parse Letterboxd RSS feed for new watch entries."""
 
 import csv
-import xml.etree.ElementTree as ET
 from pathlib import Path
+from xml.etree.ElementTree import Element
+
+import defusedxml.ElementTree as ET
 
 from ingest.http import get_bytes
 
@@ -35,7 +37,7 @@ def fetch_new_watches(letterboxd_user: str, existing_log_path: Path) -> list[dic
     # Build set of existing (tmdb_id, watched_date) pairs
     existing: set[tuple[str, str]] = set()
     if existing_log_path.exists():
-        with open(existing_log_path, encoding="utf-8") as f:
+        with existing_log_path.open(encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 tid = row.get("tmdb_id", "")
                 wd = row.get("watched_date", "")
@@ -62,13 +64,12 @@ def fetch_new_watches(letterboxd_user: str, existing_log_path: Path) -> list[dic
         if (tmdb_id, watched_date) in existing:
             continue
 
-        has_rating = rating_el is not None and rating_el.text
-        rating_raw = float(rating_el.text.strip()) if has_rating else 0
+        rating_text = (rating_el.text or "").strip() if rating_el is not None else ""
+        rating_raw = float(rating_text) if rating_text else 0
         my_rating = rating_raw * 20 if rating_raw else ""
         star_rating = rating_raw if rating_raw else ""
 
-        has_rewatch = rewatch_el is not None and rewatch_el.text
-        rewatch_text = rewatch_el.text.strip() if has_rewatch else "No"
+        rewatch_text = (rewatch_el.text or "").strip() if rewatch_el is not None else "No"
         is_rewatch = "true" if rewatch_text == "Yes" else "false"
 
         # letterboxd:memberLike is the heart. It is stored per row because the
@@ -91,7 +92,7 @@ def fetch_new_watches(letterboxd_user: str, existing_log_path: Path) -> list[dic
         else:
             liked = "true" if like_el.text.strip() == "Yes" else "false"
 
-        def _text(el: ET.Element | None) -> str:
+        def _text(el: Element | None) -> str:
             return el.text.strip() if el is not None and el.text else ""
 
         watches.append(

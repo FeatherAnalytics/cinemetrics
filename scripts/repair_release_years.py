@@ -139,7 +139,7 @@ def main() -> int:
 
     tmp = LOG_PATH.with_suffix(".csv.tmp")
     with tmp.open("w", encoding="utf-8", newline="") as fh:
-        writer = dict_writer(fh, columns)
+        writer = dict_writer(fh, columns)  # type: ignore
         writer.writeheader()
         writer.writerows(log_rows)
     tmp.replace(LOG_PATH)

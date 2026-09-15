@@ -130,7 +130,7 @@ def test_new_candidate_row_writes_under_the_seeds_real_header(cache_dir, monkeyp
     row = fc._enrich_tmdb(444)
 
     seed = Path(__file__).resolve().parents[1] / "transform" / "seeds" / "candidate_enrichment.csv"
-    with open(seed, encoding="utf-8", newline="") as fh:
+    with seed.open(encoding="utf-8", newline="") as fh:
         header = next(csv.reader(fh))
 
     out = io.StringIO()

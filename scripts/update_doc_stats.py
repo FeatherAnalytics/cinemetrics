@@ -87,7 +87,7 @@ def collect_stats() -> dict[str, str]:
     con = duckdb.connect(str(DB), read_only=True)
 
     def scalar(sql: str) -> float:
-        return con.execute(sql).fetchone()[0]
+        return con.execute(sql).fetchone()[0]  # type: ignore
 
     # Grain: one row per viewing, one row per film, one row per unwatched candidate.
     watches = int(scalar("select count(*) from marts.fct_watches"))
@@ -250,8 +250,7 @@ def build_lineage() -> str:
     ordered += sorted(s for s in by_schema if s not in SCHEMA_ORDER)
     for schema in ordered:
         lines.append(f"  subgraph {schema}[{schema}]")
-        for name in sorted(by_schema[schema]):
-            lines.append(f"    {name}")
+        lines.extend(f"    {name}" for name in sorted(by_schema[schema]))
         lines.append("  end")
     for parent, child in sorted(edges):
         lines.append(f"  {parent} --> {child}")

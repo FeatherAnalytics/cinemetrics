@@ -38,8 +38,8 @@ Stop = tuple[int, int, int]
 def sample_slice(image_bytes: bytes) -> list[Stop]:
     """Reduce a poster to SLICE_STOPS RGB stops, top to bottom."""
     im = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    col = im.resize((1, SLICE_STOPS), Image.LANCZOS)
-    return [col.getpixel((0, y)) for y in range(SLICE_STOPS)]
+    col = im.resize((1, SLICE_STOPS), Image.LANCZOS)  # type: ignore
+    return [col.getpixel((0, y)) for y in range(SLICE_STOPS)]  # type: ignore
 
 
 def encode_slice(stops: list[Stop]) -> str:
@@ -67,7 +67,7 @@ def read_slice_seed(path: Path) -> dict[str, str]:
     """The slice seed as {tmdb_id: slice}, empty when the file does not exist."""
     if not path.exists():
         return {}
-    with open(path, encoding="utf-8", newline="") as fh:
+    with path.open(encoding="utf-8", newline="") as fh:
         return {r["tmdb_id"]: r["slice"] for r in csv.DictReader(fh)}
 
 

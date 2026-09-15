@@ -60,7 +60,7 @@ class FeatureEncoder:
             raise RuntimeError("Call fit_transform first")
         kw_texts = [_safe_str(f.get("keywords")) for f in films]
         kw_matrix = self._keyword_tfidf.transform(kw_texts)
-        return self._build_matrix(films, kw_matrix)
+        return self._build_matrix(films, kw_matrix)  # type: ignore[arg-type]
 
     def _build_matrix(self, films: list[dict], kw_matrix: sp.spmatrix) -> sp.csr_matrix:
         w = FEATURE_WEIGHTS
@@ -90,12 +90,12 @@ class FeatureEncoder:
         parts.append(sp.csr_matrix(critic * w["critic_scores"]))
 
         combined = sp.hstack(parts, format="csr")
-        return normalize(combined, norm="l2")
+        return normalize(combined, norm="l2")  # type: ignore[return-value]
 
     @staticmethod
     def _compute_critic_means(films: list[dict]) -> dict[str, float]:
-        sums: dict[str, float] = {k: 0.0 for k in _CRITIC_SCALES}
-        counts: dict[str, int] = {k: 0 for k in _CRITIC_SCALES}
+        sums: dict[str, float] = dict.fromkeys(_CRITIC_SCALES, 0.0)
+        counts: dict[str, int] = dict.fromkeys(_CRITIC_SCALES, 0)
         for f in films:
             for key, scale in _CRITIC_SCALES.items():
                 v = f.get(key)

@@ -200,21 +200,21 @@ def test_candidate_csv_columns_has_poster_path_before_omdb_status():
     ("kwargs", "columns_name"),
     [
         (  # scripts/update.py
-            dict(prefer_omdb=True, omdb_countries=True, include_lang_collection=True),
+            {"prefer_omdb": True, "omdb_countries": True, "include_lang_collection": True},
             "FILM_CSV_COLUMNS",
         ),
         (  # scripts/fetch_candidates.py, scripts/enrich_watchlist.py
-            dict(
-                prefer_omdb=True, omdb_countries=True, include_lang_collection=True,
-                include_candidate_meta=True,
-            ),
+            {
+                "prefer_omdb": True, "omdb_countries": True, "include_lang_collection": True,
+                "include_candidate_meta": True,
+            },
             "CANDIDATE_CSV_COLUMNS",
         ),
         (  # scripts/rebuild_enrichment.py
-            dict(
-                prefer_omdb=True, omdb_countries=True, include_lang_collection=True,
-                strip_text=True,
-            ),
+            {
+                "prefer_omdb": True, "omdb_countries": True, "include_lang_collection": True,
+                "strip_text": True,
+            },
             "FILM_CSV_COLUMNS",
         ),
     ],
@@ -251,7 +251,7 @@ def test_strict_writer_rejects_a_key_no_column_accepts():
     from ingest.csvio import dict_writer
 
     w = dict_writer(io.StringIO(), ["a"], strict=True)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unexpected"):
         w.writerow({"a": "1", "unexpected": "2"})
 
 
@@ -299,7 +299,7 @@ def test_writer_columns_match_the_seed_header(seed, columns_name):
     from ingest import enrich
 
     seed_path = Path(__file__).resolve().parents[1] / "transform" / "seeds" / seed
-    with open(seed_path, encoding="utf-8", newline="") as fh:
+    with seed_path.open(encoding="utf-8", newline="") as fh:
         header = next(csv.reader(fh))
     assert getattr(enrich, columns_name) == header
 

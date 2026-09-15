@@ -17,7 +17,7 @@ COLS = ["tmdb_id", "imdb_id", "title"]
 def _read(path):
     # newline="" is required by the csv module: without it the text layer performs
     # universal-newline translation and csv.reader sees rows the file does not have.
-    with open(path, encoding="utf-8", newline="") as f:
+    with path.open(encoding="utf-8", newline="") as f:
         return list(csv.reader(f))
 
 
@@ -147,7 +147,7 @@ class TestWriteRows:
 
     def test_strict_raises_on_a_key_with_no_column(self, tmp_path):
         path = tmp_path / "film_enrichment.csv"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="extra"):
             write_rows(
                 path,
                 [{"tmdb_id": "1", "imdb_id": "tt1", "title": "A", "extra": "x"}],
@@ -164,7 +164,7 @@ class TestWriteRows:
         original = "tmdb_id,imdb_id,title\n9,tt9,Old\n"
         path.write_text(original, encoding="utf-8")
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="extra"):
             write_rows(
                 path,
                 [

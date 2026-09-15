@@ -75,7 +75,7 @@ def _parallel(fn: Callable[[T], R], items: Iterable[T], label: str) -> dict[T, R
             item = futures[future]
             try:
                 results[item] = future.result()
-            except Exception as err:  # noqa: BLE001 - one bad film must not stop the run
+            except Exception as err:
                 print(f"  warning: {label} failed for {item}: {err}")
                 results[item] = None
             if done % 200 == 0:
@@ -123,7 +123,7 @@ def _candidate_rows() -> list[dict[str, str]]:
     """
     if not CANDIDATE_ENRICHMENT.exists():
         return []
-    with open(CANDIDATE_ENRICHMENT, encoding="utf-8", newline="") as fh:
+    with CANDIDATE_ENRICHMENT.open(encoding="utf-8", newline="") as fh:
         return list(csv.DictReader(fh))
 
 
@@ -327,7 +327,7 @@ def main() -> None:
         print("nothing enriched this run; seed left untouched")
         return
 
-    write_rows(CANDIDATE_ENRICHMENT, rows + appended, CANDIDATE_CSV_COLUMNS, strict=True)
+    write_rows(CANDIDATE_ENRICHMENT, rows + appended, CANDIDATE_CSV_COLUMNS, strict=True)  # type: ignore
     print(
         f"done: {len(appended)} new candidates appended, "
         f"{updated} existing rows filled in, in {CANDIDATE_ENRICHMENT.name}"

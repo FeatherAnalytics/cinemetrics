@@ -24,7 +24,6 @@ Every CSV writer in this repo must therefore go through ``dict_writer`` (or pass
 """
 
 import csv
-import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import TextIO
@@ -54,7 +53,7 @@ def read_id_set(path: Path, column: str = "tmdb_id") -> set[int]:
     """Integer ids from one CSV column, skipping rows whose value will not parse."""
     if not path.exists():
         return set()
-    with open(path, encoding="utf-8", newline="") as fh:
+    with path.open(encoding="utf-8", newline="") as fh:
         ids: set[int] = set()
         for row in csv.DictReader(fh):
             try:
@@ -74,9 +73,9 @@ def _replace_atomically(path: Path, write_body: Callable[[TextIO], None]) -> Non
     """
     tmp = path.with_name(f"{path.name}.tmp")
     try:
-        with open(tmp, "w", encoding="utf-8", newline="") as out:
+        with tmp.open("w", encoding="utf-8", newline="") as out:
             write_body(out)
-        os.replace(tmp, path)
+        tmp.replace(path)
     finally:
         if tmp.exists():
             tmp.unlink()
@@ -101,7 +100,7 @@ def append_rows(
     def write_body(out: TextIO) -> None:
         if has_content:
             # Preserve existing bytes verbatim (header + prior rows).
-            with open(path, encoding="utf-8", newline="") as src:
+            with path.open(encoding="utf-8", newline="") as src:
                 out.write(src.read())
         writer = dict_writer(out, columns, strict=strict)
         if not has_content:

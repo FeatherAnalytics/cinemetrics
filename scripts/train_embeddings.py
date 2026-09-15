@@ -41,9 +41,7 @@ def _should_train(force: bool = False) -> bool:
     if force:
         return True
     current = _data_hash()
-    if LAST_TRAIN.exists() and LAST_TRAIN.read_text().strip() == current:
-        return False
-    return True
+    return not (LAST_TRAIN.exists() and LAST_TRAIN.read_text().strip() == current)
 
 
 def _load_films(con: duckdb.DuckDBPyConnection) -> tuple[list[dict], dict[int, float]]:
@@ -126,7 +124,7 @@ def main(force: bool = False) -> None:
 
     emb_kb = emb_path.stat().st_size / 1024
     print(f"wrote {emb_path.name} ({emb_kb:.0f} KB)")
-    print(f"embeddings: {matrix.shape[1]} dimensions, {len(ids)} films")
+    print(f"embeddings: {matrix.shape[1]} dimensions, {len(ids)} films")  # type: ignore
 
 
 if __name__ == "__main__":

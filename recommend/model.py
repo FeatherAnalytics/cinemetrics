@@ -29,7 +29,7 @@ def build_embeddings_export(
     vectors: dict[int, list[list]] = {}
     for i, tid in enumerate(ids):
         if is_sparse:
-            csr_row = matrix.getrow(i)
+            csr_row = matrix.getrow(i)  # type: ignore[union-attr]
             order = np.argsort(csr_row.indices)
             nz = csr_row.indices[order]
             vals = csr_row.data[order]
@@ -66,4 +66,4 @@ def build_embeddings_export(
             # requesting an empty path.
             "poster": _clean(f.get("poster_path")) or None,
         }
-    return {"dims": int(matrix.shape[1]), "vectors": vectors, "metadata": metadata}
+    return {"dims": int(matrix.shape[1]), "vectors": vectors, "metadata": metadata}  # type: ignore

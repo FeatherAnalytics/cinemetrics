@@ -24,7 +24,7 @@ def main() -> None:
 
     apply = "--apply" in sys.argv
 
-    with open(SEED, encoding="utf-8", newline="") as fh:
+    with SEED.open(encoding="utf-8", newline="") as fh:
         rows = list(csv.DictReader(fh))
 
     counts = {"ok": 0, "no_imdb_id": 0, "not_a_film": 0, "skipped": 0}

@@ -27,6 +27,7 @@ dependencies = [
     # Sampling poster art down to the colour column the landing-page barcode
     # draws. Only used at ingest time; nothing at request time touches images.
     "pillow>=11",
+    "defusedxml>=0.7",
 ]
 
 [build-system]
@@ -46,6 +47,7 @@ pythonpath = "."
 dev = [
     "ruff>=0.6",
     "pytest>=8.0",
+    "pyright>=1.1.380",
 ]
 
 [tool.ruff]
@@ -53,4 +55,20 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+select = ["E", "F", "I", "UP", "B", "S", "SIM", "PTH", "PT", "RUF", "PERF", "C4"]
+# Film titles contain legitimate Unicode hyphens and quotes from TMDB/OMDb
+ignore = ["RUF001"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PERF401"]
+# uv subprocess calls are intentional and trusted
+"scripts/update.py" = ["S603", "S607"]
+# md5 is used for cache keys, not security
+"scripts/train_embeddings.py" = ["S324"]
+# SQL strings built from constant column names, not user input
+"scripts/update_doc_stats.py" = ["S608"]
+
+[tool.pyright]
+include = ["ingest", "recommend", "scripts"]
+typeCheckingMode = "basic"
+pythonVersion = "3.11"

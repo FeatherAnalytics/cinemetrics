@@ -9,7 +9,6 @@ Sources (all read from cache; run the recon/update flow first to populate):
 """
 
 import csv
-import glob
 import json
 from pathlib import Path
 
@@ -25,9 +24,9 @@ OUT = ROOT / "transform" / "seeds" / "film_enrichment.csv"
 
 def tmdb_by_id() -> dict[int, dict]:
     idx: dict[int, dict] = {}
-    for p in glob.glob(str(TMDB / "*.json")):
+    for p in TMDB.glob("*.json"):
         try:
-            d = json.load(open(p, encoding="utf-8"))
+            d = json.loads(p.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             continue
         if d.get("id") is not None:
@@ -39,7 +38,7 @@ def main() -> None:
     tmdb = tmdb_by_id()
 
     seen: dict[str, dict[str, str]] = {}  # tmdb_id -> row
-    with open(LOG, encoding="utf-8") as f:
+    with LOG.open(encoding="utf-8") as f:
         for w in csv.DictReader(f):
             tid = w["tmdb_id"].strip()
             imdb = w["imdb_id"].strip()

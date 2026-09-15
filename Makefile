@@ -24,6 +24,7 @@ test:
 
 lint:
 	uv run ruff check .
+	uv run pyright
 	cd web && npm run lint
 
 export:

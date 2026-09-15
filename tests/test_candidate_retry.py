@@ -43,7 +43,7 @@ def seed(path: Path, rows: list[dict[str, str]]) -> None:
 
 
 def read(path: Path) -> list[dict[str, str]]:
-    with open(path, encoding="utf-8", newline="") as fh:
+    with path.open(encoding="utf-8", newline="") as fh:
         return list(csv.DictReader(fh))
 
 

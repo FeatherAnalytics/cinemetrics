@@ -41,7 +41,7 @@ def read_overrides() -> dict[str, str]:
     """The override seed as {tmdb_id: poster_path}, empty when it does not exist."""
     if not OVERRIDES.exists():
         return {}
-    with open(OVERRIDES, encoding="utf-8", newline="") as fh:
+    with OVERRIDES.open(encoding="utf-8", newline="") as fh:
         return {r["tmdb_id"]: r["poster_path"] for r in csv.DictReader(fh)}
 
 
@@ -58,7 +58,7 @@ def main() -> None:
     for tmdb_id, path in sorted(overrides.items(), key=lambda kv: int(kv[0])):
         try:
             fresh = slice_for_poster(path)
-        except Exception as e:  # noqa: BLE001 - one bad poster must not lose the rest
+        except Exception as e:
             print(f"  skip tmdb_id={tmdb_id}: {e}")
             continue
         if not fresh:

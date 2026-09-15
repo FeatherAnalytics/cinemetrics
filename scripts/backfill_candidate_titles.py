@@ -106,7 +106,7 @@ def main() -> int:
                 tid = futures[fut]
                 try:
                     cached[tid] = fut.result()
-                except Exception as err:  # noqa: BLE001 - one bad film must not stop the batch
+                except Exception as err:
                     print(f"  warning: {tid}: {err}")
                     cached[tid] = None
                 if done % 250 == 0:

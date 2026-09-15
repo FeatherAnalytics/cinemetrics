@@ -92,7 +92,7 @@ def main() -> None:
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
     crit_preds = cross_val_predict(LinearRegression(), crit, y, cv=kf)
     print(f"critics-only OLS          MAE={np.mean(np.abs(crit_preds - y)):5.2f}   "
-          f"R^2={_r2(y, crit_preds):6.3f}")
+          f"R^2={_r2(y, crit_preds):6.3f}")  # type: ignore
 
     best_k, _ = select_k(X, y, ks=DEFAULT_KS, n_splits=5, seed=42)
     res = cross_validate_knn(X, y, k=best_k, n_splits=5, seed=42)
