@@ -378,7 +378,7 @@ space rather than as a deliberate absence. Three rules, each learned the hard wa
 
 ## Wishlist: needs export data
 
-Downloaded via `scripts/fetch_export.py`, not yet ingested. Available: watchlist (136),
+Downloaded via the Letterboxd account export, not yet ingested. Available: watchlist (136),
 likes (239), 11 lists (~600 memberships), full diary (665), `watched.csv` (585),
 `ratings.csv` (585).
 

@@ -129,7 +129,7 @@ selects from it, [`export_web.py`](../scripts/export_web.py) does not export it,
 [`build_watchlist_seed.py`](../scripts/build_watchlist_seed.py) and the model is typed and tested,
 but the branch stops there — it is staged and ready rather than in use.
 
-Current scale: <!--stat:watches-->809<!--/stat--> watches, <!--stat:films-->683<!--/stat--> films, <!--stat:candidates-->46,682<!--/stat--> recommendation candidates, <!--stat:dbt_models-->10<!--/stat--> dbt models, <!--stat:dbt_seeds-->6<!--/stat--> seeds, <!--stat:dbt_tests-->40<!--/stat--> data tests.
+Current scale: <!--stat:watches-->809<!--/stat--> watches, <!--stat:films-->683<!--/stat--> films, <!--stat:candidates-->46,682<!--/stat--> recommendation candidates, <!--stat:dbt_models-->10<!--/stat--> dbt models, <!--stat:dbt_seeds-->6<!--/stat--> seeds, <!--stat:dbt_tests-->39<!--/stat--> data tests.
 
 Those figures are generated — see [Keeping the figures honest](#keeping-the-figures-honest). The
 dashboard header and the share card derive their own counts separately at build time, from
@@ -240,7 +240,7 @@ the links below refer to.
 
 **[`ci.yml`](../.github/workflows/ci.yml)** — "Lights (CI)", on pull requests to `final-cut`.
 Three independent jobs: `lint` (ruff + eslint), `data` (`dbt deps` then `dbt build`, which
-runs all <!--stat:dbt_tests-->40<!--/stat--> tests), and `web` (vitest + Next.js build).
+runs all <!--stat:dbt_tests-->39<!--/stat--> tests), and `web` (vitest + Next.js build).
 
 **[`deploy.yml`](../.github/workflows/deploy.yml)** — "Action! (Deploy)", on push to
 `final-cut` and on manual dispatch. Builds the web bundle and publishes to Pages. Concurrency
@@ -285,9 +285,8 @@ which would mean committing a font binary or fetching one mid-build.
 08:23 UTC, plus manual dispatch.
 
 1. [`scripts/update.py`](../scripts/update.py): fetch Letterboxd RSS
-   ([`ingest/letterboxd.py`](../ingest/letterboxd.py)), enrich any new films via TMDB
-   ([`ingest/tmdb.py`](../ingest/tmdb.py)) and OMDb ([`ingest/omdb.py`](../ingest/omdb.py)),
-   append to seeds, run `dbt build`, re-export the JSON.
+   ([`ingest/letterboxd.py`](../ingest/letterboxd.py)), enrich any new films via TMDB and OMDb
+   ([`ingest/http.py`](../ingest/http.py)), append to seeds, run `dbt build`, re-export the JSON.
 2. If nothing changed, stop. Every subsequent step is gated on the diff.
 3. Fetch new recommendation candidates from TMDB
    ([`scripts/fetch_candidates.py`](../scripts/fetch_candidates.py)).

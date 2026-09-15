@@ -1,10 +1,10 @@
 """Value-coercion helpers shared across the ingest scripts.
 
 These consolidate helpers that were duplicated (with subtle variations) across
-scripts/update.py, scripts/fetch_candidates.py, scripts/rebuild_enrichment.py,
-and ingest/omdb.py. Behavior is preserved byte-for-byte per call site:
+scripts/update.py, scripts/fetch_candidates.py, and scripts/rebuild_enrichment.py.
+Behavior is preserved byte-for-byte per call site:
 
-- ``na_none``   (update.py, omdb.py): no strip, ``None`` sentinel.
+- ``na_none``   (update.py): no strip, ``None`` sentinel.
 - ``na_empty``  (fetch_candidates.py): no strip, ``""`` sentinel.
 - ``na_clean``  (rebuild_enrichment.py): str-coerce + strip, ``""`` sentinel.
 - ``int_or_empty`` / ``float_or_empty``: string outputs for CSV rows.
