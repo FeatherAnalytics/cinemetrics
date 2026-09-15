@@ -65,7 +65,7 @@ export function explainRecommendation(
       bestGenre = g;
     }
   }
-  if (bestGenre && bestBoost > 0) {
+  if (bestGenre && Math.round(bestBoost) > 0) {
     reasons.push({
       type: "genre",
       text: `I rate ${bestGenre} +${Math.round(bestBoost)} above avg`,
