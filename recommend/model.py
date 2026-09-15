@@ -1,6 +1,7 @@
 """Cosine similarity search and embedding export."""
 
 import numpy as np
+import scipy.sparse as sp
 
 
 def _clean(val: object) -> object:
@@ -13,7 +14,7 @@ def _clean(val: object) -> object:
 
 
 def build_embeddings_export(
-    matrix: np.ndarray,
+    matrix: sp.csr_matrix | np.ndarray,
     ids: list[int],
     films: list[dict],
 ) -> dict:
@@ -24,13 +25,23 @@ def build_embeddings_export(
     L2-normalized by the encoder, so client-side cosine reduces to a dot
     product over the non-zero entries.
     """
+    is_sparse = sp.issparse(matrix)
     vectors: dict[int, list[list]] = {}
     for i, tid in enumerate(ids):
-        row = matrix[i]
-        nz = np.nonzero(row)[0]
+        if is_sparse:
+            csr_row = matrix.getrow(i)
+            order = np.argsort(csr_row.indices)
+            nz = csr_row.indices[order]
+            vals = csr_row.data[order]
+        else:
+            row = matrix[i]
+            nz = np.nonzero(row)[0]
+            vals = row[nz]
+        rounded = [(int(j), round(float(v), 4)) for j, v in zip(nz, vals, strict=True)]
+        rounded = [(j, v) for j, v in rounded if v != 0.0]
         vectors[tid] = [
-            [int(j) for j in nz],
-            [round(float(row[j]), 4) for j in nz],
+            [j for j, _ in rounded],
+            [v for _, v in rounded],
         ]
     metadata = {}
     for f in films:

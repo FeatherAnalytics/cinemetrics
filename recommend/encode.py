@@ -1,6 +1,7 @@
 """Feature encoding pipeline for film embeddings."""
 
 import numpy as np
+import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import normalize
 
@@ -32,9 +33,9 @@ class FeatureEncoder:
         self._critic_means: dict[str, float] = {}
         self._fitted = False
 
-    def fit_transform(self, films: list[dict]) -> np.ndarray:
+    def fit_transform(self, films: list[dict]) -> sp.csr_matrix:
         kw_texts = [_safe_str(f.get("keywords")) for f in films]
-        kw_matrix = self._keyword_tfidf.fit_transform(kw_texts).toarray()
+        kw_matrix = self._keyword_tfidf.fit_transform(kw_texts)
 
         all_genres = sorted({g for f in films for g in _split_comma(f.get("genres"))})
         self._genre_vocab = all_genres
@@ -54,16 +55,16 @@ class FeatureEncoder:
         self._fitted = True
         return self._build_matrix(films, kw_matrix)
 
-    def transform(self, films: list[dict]) -> np.ndarray:
+    def transform(self, films: list[dict]) -> sp.csr_matrix:
         if not self._fitted:
             raise RuntimeError("Call fit_transform first")
         kw_texts = [_safe_str(f.get("keywords")) for f in films]
-        kw_matrix = self._keyword_tfidf.transform(kw_texts).toarray()
+        kw_matrix = self._keyword_tfidf.transform(kw_texts)
         return self._build_matrix(films, kw_matrix)
 
-    def _build_matrix(self, films: list[dict], kw_matrix: np.ndarray) -> np.ndarray:
+    def _build_matrix(self, films: list[dict], kw_matrix: sp.spmatrix) -> sp.csr_matrix:
         w = FEATURE_WEIGHTS
-        parts = [kw_matrix * w["keywords"]]
+        parts: list[sp.spmatrix] = [kw_matrix * w["keywords"]]
 
         genre_mat = self._multi_hot(films, "genres", self._genre_vocab)
         parts.append(genre_mat * w["genres"])
@@ -86,9 +87,9 @@ class FeatureEncoder:
                     critic[i, j] = v / _CRITIC_SCALES[key]
                 else:
                     critic[i, j] = self._critic_means.get(key, 0.0)
-        parts.append(critic * w["critic_scores"])
+        parts.append(sp.csr_matrix(critic * w["critic_scores"]))
 
-        combined = np.hstack(parts)
+        combined = sp.hstack(parts, format="csr")
         return normalize(combined, norm="l2")
 
     @staticmethod
@@ -103,16 +104,19 @@ class FeatureEncoder:
                     counts[key] += 1
         return {k: (sums[k] / counts[k] if counts[k] else 0.0) for k in sums}
 
-    def _multi_hot(self, films: list[dict], field: str, vocab: list[str]) -> np.ndarray:
-        mat = np.zeros((len(films), len(vocab)))
+    def _multi_hot(self, films: list[dict], field: str, vocab: list[str]) -> sp.csr_matrix:
         idx = {v: i for i, v in enumerate(vocab)}
+        rows, cols = [], []
         for row, f in enumerate(films):
             for val in _split_comma(f.get(field)):
                 if val in idx:
-                    mat[row, idx[val]] = 1.0
-        return mat
+                    rows.append(row)
+                    cols.append(idx[val])
+        data = np.ones(len(rows), dtype=np.float64)
+        return sp.csr_matrix((data, (rows, cols)), shape=(len(films), len(vocab)))
 
 
 def encode_films(films: list[dict], encoder: FeatureEncoder) -> dict[int, np.ndarray]:
     matrix = encoder.fit_transform(films) if not encoder._fitted else encoder.transform(films)
-    return {f["tmdb_id"]: matrix[i] for i, f in enumerate(films)}
+    dense = matrix.toarray() if sp.issparse(matrix) else matrix
+    return {f["tmdb_id"]: dense[i] for i, f in enumerate(films)}

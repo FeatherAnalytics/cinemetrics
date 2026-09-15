@@ -22,7 +22,7 @@ class TestBuildExport:
         export = build_embeddings_export(matrix, ids, FILMS)
         assert "vectors" in export
         assert "metadata" in export
-        assert export["dims"] == matrix.shape[1]
+        assert export["dims"] == int(matrix.shape[1])
         assert len(export["vectors"]) == 3
         assert all(tmdb_id in export["vectors"] for tmdb_id in [1, 2, 3])
         # Sparse [indices, values] pairs with matching lengths and no zeros.
@@ -34,6 +34,7 @@ class TestBuildExport:
     def test_sparse_roundtrip_matches_dense(self):
         enc = FeatureEncoder()
         matrix = enc.fit_transform(FILMS)
+        dense_matrix = matrix.toarray()
         ids = [f["tmdb_id"] for f in FILMS]
         export = build_embeddings_export(matrix, ids, FILMS)
         for i, tid in enumerate(ids):
@@ -41,5 +42,5 @@ class TestBuildExport:
             dense = [0.0] * export["dims"]
             for j, v in zip(indices, values, strict=True):
                 dense[j] = v
-            for j, expected in enumerate(matrix[i]):
+            for j, expected in enumerate(dense_matrix[i]):
                 assert abs(dense[j] - float(expected)) < 5e-4

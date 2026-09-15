@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.sparse as sp
 
 from recommend.encode import FeatureEncoder, encode_films
 
@@ -43,18 +44,18 @@ class TestFeatureEncoder:
     def test_fit_transform_returns_matrix(self):
         enc = FeatureEncoder()
         matrix = enc.fit_transform(FILMS)
-        assert isinstance(matrix, np.ndarray)
+        assert sp.issparse(matrix)
         assert matrix.shape[0] == 3
 
     def test_vectors_are_normalized(self):
         enc = FeatureEncoder()
-        matrix = enc.fit_transform(FILMS)
+        matrix = enc.fit_transform(FILMS).toarray()
         norms = np.linalg.norm(matrix, axis=1)
         np.testing.assert_allclose(norms, 1.0, atol=1e-6)
 
     def test_similar_films_have_higher_cosine(self):
         enc = FeatureEncoder()
-        matrix = enc.fit_transform(FILMS)
+        matrix = enc.fit_transform(FILMS).toarray()
         sim_01 = np.dot(matrix[0], matrix[1])
         sim_02 = np.dot(matrix[0], matrix[2])
         assert sim_01 > sim_02, "Sci-fi dystopia films should be more similar than sci-fi vs comedy"
@@ -75,14 +76,14 @@ class TestFeatureEncoder:
         }
         vec = enc.transform([new_film])
         assert vec.shape == (1, train_matrix.shape[1])
-        norm = np.linalg.norm(vec[0])
+        norm = np.linalg.norm(vec.toarray()[0])
         assert abs(norm - 1.0) < 1e-6
 
     def test_handles_missing_fields(self):
         sparse_film = {"tmdb_id": 50, "genres": "Drama", "keywords": ""}
         enc = FeatureEncoder()
         enc.fit_transform(FILMS)
-        vec = enc.transform([sparse_film])
+        vec = enc.transform([sparse_film]).toarray()
         assert not np.any(np.isnan(vec))
 
 
