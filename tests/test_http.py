@@ -98,6 +98,23 @@ def test_get_bytes_returns_body_on_200():
     assert out == b"\xff\xd8\xff\xe0poster-bytes"
 
 
+def test_get_bytes_retries_after_a_connection_reset(monkeypatch):
+    """One reset took down a nightly run when the RSS fetch had no retry."""
+    import requests
+
+    monkeypatch.setattr(http.time, "sleep", lambda *a, **k: None)
+    calls = []
+
+    def fetch(url, timeout=None):
+        calls.append(url)
+        if len(calls) == 1:
+            raise requests.ConnectionError("Connection reset by peer")
+        return FakeResp(200, {}, content=b"<rss/>")
+
+    assert http.get_bytes("https://letterboxd.com/u/rss/", fetch=fetch) == b"<rss/>"
+    assert len(calls) == 2
+
+
 def test_get_bytes_returns_empty_when_every_attempt_fails():
     def fetch(url, timeout=None):
         return FakeResp(404, {})
