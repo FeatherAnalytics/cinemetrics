@@ -14,7 +14,7 @@ export function StoryChips() {
   if (storyHeadlines.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Findings to explore">
+    <div className="flex gap-2 overflow-x-auto flex-nowrap snap-x md:flex-wrap md:overflow-visible" role="group" aria-label="Findings to explore">
       {storyHeadlines.map(({ id, chip, teaser }) => {
         const active = activeStory === id;
         return (
@@ -22,7 +22,7 @@ export function StoryChips() {
             key={id}
             onClick={() => setStory(active ? null : id)}
             aria-pressed={active}
-            className="group inline-flex items-center gap-1.5 rounded-2xl border px-3 py-1.5 text-left text-xs transition"
+            className="group inline-flex shrink-0 snap-start items-center gap-1.5 rounded-2xl border px-3 py-1.5 text-left text-xs transition"
             style={{
               borderColor: active
                 ? tokens.ui.active
