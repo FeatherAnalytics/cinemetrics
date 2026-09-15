@@ -40,11 +40,17 @@ class FeatureEncoder:
         all_genres = sorted({g for f in films for g in _split_comma(f.get("genres"))})
         self._genre_vocab = all_genres
 
-        all_directors = sorted({d for f in films for d in _split_comma(f.get("director"))})
-        self._director_vocab = all_directors[:50]
+        dir_counts: dict[str, int] = {}
+        for f in films:
+            for d in _split_comma(f.get("director")):
+                dir_counts[d] = dir_counts.get(d, 0) + 1
+        self._director_vocab = sorted(dir_counts, key=lambda d: (-dir_counts[d], d))[:50]
 
-        all_actors = sorted({a for f in films for a in _split_comma(f.get("actors"))})
-        self._actor_vocab = all_actors[:100]
+        act_counts: dict[str, int] = {}
+        for f in films:
+            for a in _split_comma(f.get("actors")):
+                act_counts[a] = act_counts.get(a, 0) + 1
+        self._actor_vocab = sorted(act_counts, key=lambda a: (-act_counts[a], a))[:100]
 
         all_countries = sorted(
             {c for f in films for c in _split_comma(f.get("production_countries"))}
@@ -54,6 +60,19 @@ class FeatureEncoder:
         self._critic_means = self._compute_critic_means(films)
         self._fitted = True
         return self._build_matrix(films, kw_matrix)
+
+    def feature_names(self) -> list[str]:
+        """One name per dimension, in the order _build_matrix concatenates them."""
+        if not self._fitted:
+            raise RuntimeError("Call fit_transform first")
+        names: list[str] = []
+        names.extend(f"kw:{w}" for w in self._keyword_tfidf.get_feature_names_out())
+        names.extend(f"genre:{g}" for g in self._genre_vocab)
+        names.extend(f"director:{d}" for d in self._director_vocab)
+        names.extend(f"actor:{a}" for a in self._actor_vocab)
+        names.extend(f"country:{c}" for c in self._country_vocab)
+        names.extend(f"critic:{k}" for k in _CRITIC_SCALES)
+        return names
 
     def transform(self, films: list[dict]) -> sp.csr_matrix:
         if not self._fitted:
