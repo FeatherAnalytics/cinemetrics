@@ -173,15 +173,15 @@ Only the last request matters. Implemented in `ingest/letterboxd_export.py`.
 ### Authentication
 
 - **Sign-in is gated by Cloudflare Turnstile**, so scripted login is not viable. Sign in
-  once in a browser and reuse the cookie (`scripts/set_export_cookie.py` lifts it from a
-  HAR so it never passes through a shell history or a chat transcript).
+  once in a browser and reuse the cookie (a helper used to lift it from a HAR so it never
+  passed through a shell history or a chat transcript; that helper has been removed).
 - Six cookies: `letterboxd.user`, `letterboxd.user.CURRENT`, `letterboxd.signed.in.as`,
   `com.xk72.webparts.csrf`, `cf_clearance`, `useMobileSite`.
 - **`cf_clearance` is bound to the originating IP *and* User-Agent.** A cookie minted at
   home and replayed from a CI datacenter runner is likely to be rejected: the reason the
   scheduled fetch belongs on a home-network host rather than GitHub Actions.
 - ⚠️ **Unverified:** how long the session survives. Tested once, minutes after minting.
-  Re-run `scripts/fetch_export.py` after an hour and after a day before trusting any
+  Re-run the export download after an hour and after a day before trusting any
   schedule. If it's short-lived, cookie replay is the wrong architecture and the fallback
   is a persistent browser profile that regenerates clearance itself.
 

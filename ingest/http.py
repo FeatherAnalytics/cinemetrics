@@ -1,7 +1,7 @@
 """Shared HTTP client for TMDB and OMDb, plus a cache-decision helper.
 
-Consolidates the four near-duplicate GET helpers (scripts/update.py,
-scripts/fetch_candidates.py, ingest/tmdb.py, ingest/omdb.py). The robust
+Consolidates the GET helpers used by scripts/update.py and
+scripts/fetch_candidates.py. The robust
 retry/backoff behavior — including the 429 handling that only
 scripts/fetch_candidates.py had — is applied for every caller.
 

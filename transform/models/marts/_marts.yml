@@ -38,9 +38,11 @@ models:
     description: >
       One row per watch event, from the consolidated ratings log (pre-Letterboxd
       history plus Letterboxd, with new watches appended from the Letterboxd feed).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [tmdb_id, watched_date, rating_100, is_rewatch]
     columns:
       - name: watch_id
-        tests: [unique, not_null]
       - name: tmdb_id
         description: Foreign key to dim_film.
         tests:

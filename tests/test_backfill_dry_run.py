@@ -1,26 +1,16 @@
-"""The repair scripts must not spend what they have nothing to repair.
+"""The poster-slice repair script must not spend what it has nothing to repair.
 
-Two costs, one theme. A dry run must not spend the calls it is previewing: both
-poster backfills used to run the whole fetch loop and then check --apply, so a
-preview cost 676 TMDB requests, or 676 poster downloads, for output that was
-discarded. The network is stubbed here and the assertion is that the stub is
-never reached.
-
-And an --apply run with nothing to repair must not spend a commit: the nightly
-reads poster_slices.csv's hash to decide whether a repair happened, so a run
-that changed no slice has to leave the file alone. That one is asserted against
-the bytes and the mtime, since writing identical bytes would pass a content
-check while still doing the write.
+A dry run must not download posters it is only previewing, and an --apply run
+with nothing to repair must not rewrite the seed: the nightly reads
+poster_slices.csv's hash to decide whether a repair happened, so a run that
+changed no slice has to leave the file alone. Asserted against bytes and mtime.
 """
 
-import csv
 import importlib.util
 import sys
 from pathlib import Path
 
 import pytest
-
-from ingest.csvio import write_rows
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -140,21 +130,3 @@ def test_apply_writes_only_the_slice_it_repaired(monkeypatch, tmp_path, _apply_a
     assert seed.read_bytes() == b"tmdb_id,slice\n100,aaa\n300,bbb\n900,ccc\n"
 
 
-def test_paths_dry_run_calls_no_tmdb(monkeypatch, tmp_path, capsys, _dry_argv):
-    mod = _load("backfill_poster_paths")
-    fetched: list[str] = []
-
-    seed = tmp_path / "film_enrichment.csv"
-    write_rows(seed, [{"tmdb_id": "1"}], mod.FILM_CSV_COLUMNS)
-
-    monkeypatch.setenv("TMDB_API_KEY", "test-key")
-    monkeypatch.setattr(mod, "SEED", seed)
-    monkeypatch.setattr(mod, "fetch_poster_path", lambda tid, key: fetched.append(tid) or "")
-
-    mod.main()
-
-    assert fetched == []
-    assert "1 missing poster_path" in capsys.readouterr().out
-    # The seed is untouched: still one row, still no poster_path.
-    with open(seed, encoding="utf-8", newline="") as fh:
-        assert [r["poster_path"] for r in csv.DictReader(fh)] == [""]

@@ -1,10 +1,10 @@
 """Value-coercion helpers shared across the ingest scripts.
 
 These consolidate helpers that were duplicated (with subtle variations) across
-scripts/update.py, scripts/fetch_candidates.py, scripts/rebuild_enrichment.py,
-and ingest/omdb.py. Behavior is preserved byte-for-byte per call site:
+scripts/update.py, scripts/fetch_candidates.py, and scripts/rebuild_enrichment.py.
+Behavior is preserved byte-for-byte per call site:
 
-- ``na_none``   (update.py, omdb.py): no strip, ``None`` sentinel.
+- ``na_none``   (update.py): no strip, ``None`` sentinel.
 - ``na_empty``  (fetch_candidates.py): no strip, ``""`` sentinel.
 - ``na_clean``  (rebuild_enrichment.py): str-coerce + strip, ``""`` sentinel.
 - ``int_or_empty`` / ``float_or_empty``: string outputs for CSV rows.
@@ -51,13 +51,13 @@ def float_or_empty(v: object) -> str:
 
 
 def int_or_none(v: str | None) -> int | None:
-    """Digits-only int, or None. Mirrors ingest/omdb.py:_int."""
+    """Digits-only int, or None."""
     s = na_none(v)
     return int(re.sub(r"[^0-9]", "", s)) if s and re.search(r"\d", s) else None
 
 
 def float_or_none(v: str | None) -> float | None:
-    """float(v), or None. Mirrors ingest/omdb.py:_float."""
+    """float(v), or None."""
     s = na_none(v)
     try:
         return float(s) if s else None

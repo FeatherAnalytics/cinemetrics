@@ -1,4 +1,4 @@
-.PHONY: setup dev build test lint export ingest update docs doc-stats clean
+.PHONY: setup dev build test lint export update docs doc-stats clean
 
 setup:
 	uv sync
@@ -28,11 +28,6 @@ lint:
 
 export:
 	uv run python scripts/export_web.py
-
-ingest:
-	uv run python -m ingest.tmdb
-	uv run python -m ingest.omdb
-	uv run python scripts/fetch_candidates.py
 
 update:
 	uv run python scripts/update.py
