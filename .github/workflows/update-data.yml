@@ -34,6 +34,24 @@ jobs:
         with:
           prune-cache: true
       - run: uv sync
+      # Warm the TMDB and OMDb response caches across nightly runs. Without
+      # this, every run starts cold (data/raw is gitignored) and re-spends the
+      # OMDb 1,000-call daily cap on films already answered. With the cache,
+      # Fetch candidates drops from about seven minutes to under one. The
+      # cache is about 40 MB against the 10 GB repository cache limit.
+      #
+      # key is unique per run so the post-job save always writes; restore-keys
+      # restores the most recent. Detail files and OMDb answers do not change;
+      # list pages (popular, top_rated) and similar_* are excluded so the pool
+      # still refreshes.
+      - name: Restore API cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/raw/tmdb_candidates/detail_*.json
+            data/raw/omdb
+          key: raw-${{ github.run_id }}
+          restore-keys: raw-
       - name: Run update pipeline
         run: uv run python scripts/update.py
         env:
