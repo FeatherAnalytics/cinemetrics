@@ -76,12 +76,12 @@ def main() -> None:
     all_ratings = first_with_rating["rating_100"]
     mid_share = round(float(((all_ratings >= 60) & (all_ratings <= 80)).mean()), 2)
 
-    by_month: dict[int, int] = dict(rows.groupby("watch_month").size())  # type: ignore[arg-type]
+    by_month = {int(k): int(v) for k, v in rows.groupby("watch_month").size().items()}  # type: ignore[call-overload]
     oct_watches = by_month.get(10, 0)
     nov_watches = by_month.get(11, 0)
     oct_nov_ratio = round(oct_watches / max(nov_watches, 1), 1)
 
-    by_year: dict[int, int] = dict(rows.groupby("watch_year").size())  # type: ignore[arg-type]
+    by_year = {int(k): int(v) for k, v in rows.groupby("watch_year").size().items()}  # type: ignore[call-overload]
     pandemic = by_year.get(2020, 0) + by_year.get(2021, 0)
     max_year = int(max(by_year))
     latest_full_year = max(y for y in by_year if y < max_year)
@@ -89,7 +89,7 @@ def main() -> None:
     pandemic_ratio = round(pandemic / max(latest_watches, 1), 1)
 
     answerable = rows[(rows["liked"].notna()) | (rows["is_return"])]
-    years_with_enough: dict[int, int] = dict(answerable.groupby("watch_year").size())  # type: ignore[arg-type]
+    years_with_enough = {int(k): int(v) for k, v in answerable.groupby("watch_year").size().items()}  # type: ignore[call-overload]
     valid_years = [y for y in years_with_enough if years_with_enough[y] >= 10]
     if len(valid_years) >= 2:
         first_year, last_year = min(valid_years), max(valid_years)
@@ -105,9 +105,9 @@ def main() -> None:
         "kruskal_month": month_test,
         "kruskal_weekday": weekday_test,
         "kruskal_genre": genre_test,
-        "p_month": f"{month_test['p']:.2f}",
-        "p_weekday": f"{weekday_test['p']:.2f}",
-        "p_genre": f"{genre_test['p']:.2f}",
+        "p_month": month_test["p"],
+        "p_weekday": weekday_test["p"],
+        "p_genre": genre_test["p"],
         "mid_rating_share": mid_share,
         "oct_watches": oct_watches,
         "nov_watches": nov_watches,

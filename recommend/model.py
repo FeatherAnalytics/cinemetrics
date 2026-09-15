@@ -93,6 +93,9 @@ def build_v3_binary(
             nz = np.nonzero(dense)[0]
             indices = nz
             values = dense[nz]
+        mask = values != 0
+        indices = indices[mask]
+        values = values[mask]
         nnz = len(indices)
         parts.append(struct.pack("<IH", tid, nnz))
         parts.append(struct.pack(f"<{nnz}H", *indices.astype(np.uint16)))

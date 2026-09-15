@@ -319,6 +319,8 @@ models:
         description: IMDb vote count from OMDb.
       - name: tmdb_rating
         description: TMDB audience score (0.0-10.0).
+      - name: tmdb_votes
+        description: TMDB vote count behind tmdb_rating.
       - name: production_countries
         description: Comma-separated ISO 3166-1 alpha-2 country codes.
       - name: original_language

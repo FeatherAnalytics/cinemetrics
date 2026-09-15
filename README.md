@@ -1,6 +1,6 @@
 # cinemetrics
 
-<!--stat:watches-->809<!--/stat--> viewings of <!--stat:films-->683<!--/stat--> films across <!--stat:years_word-->eight<!--/stat--> years, from a single Letterboxd account. Enriched via TMDB and OMDb, modeled with dbt in DuckDB, served as a static Next.js dashboard with an ML-powered recommendation engine. Nothing about when or what I watch predicts how I rate it (month p=<!--stat:p_month-->0.01<!--/stat-->, weekday p=<!--stat:p_weekday-->0.08<!--/stat-->, genre p=<!--stat:p_genre-->0.00<!--/stat-->). What changes is how much I watch.
+<!--stat:watches-->809<!--/stat--> viewings of <!--stat:films-->683<!--/stat--> films across <!--stat:years_word-->eight<!--/stat--> years, from a single Letterboxd account. Enriched via TMDB and OMDb, modeled with dbt in DuckDB, served as a static Next.js dashboard with an ML-powered recommendation engine.
 
 **Live:** [featheranalytics.dev/cinemetrics](https://featheranalytics.dev/cinemetrics)
 

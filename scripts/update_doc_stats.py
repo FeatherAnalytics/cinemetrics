@@ -212,9 +212,12 @@ def collect_stats() -> dict[str, str]:
     story_json = ROOT / "web" / "public" / "data" / "story-stats.json"
     if story_json.exists():
         story = json.loads(story_json.read_text())
-        stats["p_month"] = story["p_month"]
-        stats["p_weekday"] = story["p_weekday"]
-        stats["p_genre"] = story["p_genre"]
+        def _fmt_p(v: float) -> str:
+            return "<0.01" if v < 0.01 else f"{v:.2f}"
+
+        stats["p_month"] = _fmt_p(story["p_month"])
+        stats["p_weekday"] = _fmt_p(story["p_weekday"])
+        stats["p_genre"] = _fmt_p(story["p_genre"])
 
     return stats
 
