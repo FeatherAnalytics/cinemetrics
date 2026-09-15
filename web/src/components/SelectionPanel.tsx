@@ -234,7 +234,7 @@ export function SelectionPanel() {
                 ? "Film"
                 : "Watchlist"
               : heartMode
-                ? "Favourites"
+                ? "Favorites"
                 : filters.country
                 ? countryName(filters.country)
                 : "Selection"}{" "}
