@@ -86,6 +86,23 @@ class TestFeatureEncoder:
         assert not np.any(np.isnan(vec))
 
 
+    def test_missing_critic_scores_get_mean_not_zero(self):
+        films_with_gap = [
+            {"tmdb_id": 10, "genres": "Drama", "keywords": "drama",
+             "metascore": 80, "rt_rating": 90, "imdb_rating": 8.0},
+            {"tmdb_id": 11, "genres": "Drama", "keywords": "drama",
+             "metascore": 60, "rt_rating": 70, "imdb_rating": 6.0},
+            {"tmdb_id": 12, "genres": "Drama", "keywords": "drama",
+             "metascore": None, "rt_rating": None, "imdb_rating": None},
+        ]
+        enc = FeatureEncoder()
+        enc.fit_transform(films_with_gap)
+        expected_ms = (80 / 100 + 60 / 100) / 2
+        assert abs(enc._critic_means["metascore"] - expected_ms) < 1e-6
+        expected_rt = (90 / 100 + 70 / 100) / 2
+        assert abs(enc._critic_means["rt_rating"] - expected_rt) < 1e-6
+
+
 class TestEncodeFilms:
     def test_returns_dict_keyed_by_tmdb_id(self):
         enc = FeatureEncoder()

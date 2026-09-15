@@ -6,6 +6,8 @@ from sklearn.preprocessing import normalize
 
 from recommend import FEATURE_WEIGHTS
 
+_CRITIC_SCALES = {"metascore": 100.0, "rt_rating": 100.0, "imdb_rating": 10.0}
+
 
 def _safe_str(val: object) -> str:
     if val is None or (isinstance(val, float) and val != val):
@@ -27,6 +29,7 @@ class FeatureEncoder:
         self._director_vocab: list[str] = []
         self._actor_vocab: list[str] = []
         self._country_vocab: list[str] = []
+        self._critic_means: dict[str, float] = {}
         self._fitted = False
 
     def fit_transform(self, films: list[dict]) -> np.ndarray:
@@ -47,6 +50,7 @@ class FeatureEncoder:
         )
         self._country_vocab = all_countries
 
+        self._critic_means = self._compute_critic_means(films)
         self._fitted = True
         return self._build_matrix(films, kw_matrix)
 
@@ -73,18 +77,31 @@ class FeatureEncoder:
         country_mat = self._multi_hot(films, "production_countries", self._country_vocab)
         parts.append(country_mat * w["country"])
 
-        critic = np.zeros((len(films), 3))
+        critic_keys = list(_CRITIC_SCALES.keys())
+        critic = np.zeros((len(films), len(critic_keys)))
         for i, f in enumerate(films):
-            ms = f.get("metascore")
-            rt = f.get("rt_rating")
-            ir = f.get("imdb_rating")
-            critic[i, 0] = (ms / 100.0) if isinstance(ms, (int, float)) and ms == ms else 0.0
-            critic[i, 1] = (rt / 100.0) if isinstance(rt, (int, float)) and rt == rt else 0.0
-            critic[i, 2] = (ir / 10.0) if isinstance(ir, (int, float)) and ir == ir else 0.0
+            for j, key in enumerate(critic_keys):
+                v = f.get(key)
+                if isinstance(v, (int, float)) and v == v:
+                    critic[i, j] = v / _CRITIC_SCALES[key]
+                else:
+                    critic[i, j] = self._critic_means.get(key, 0.0)
         parts.append(critic * w["critic_scores"])
 
         combined = np.hstack(parts)
         return normalize(combined, norm="l2")
+
+    @staticmethod
+    def _compute_critic_means(films: list[dict]) -> dict[str, float]:
+        sums: dict[str, float] = {k: 0.0 for k in _CRITIC_SCALES}
+        counts: dict[str, int] = {k: 0 for k in _CRITIC_SCALES}
+        for f in films:
+            for key, scale in _CRITIC_SCALES.items():
+                v = f.get(key)
+                if isinstance(v, (int, float)) and v == v:
+                    sums[key] += v / scale
+                    counts[key] += 1
+        return {k: (sums[k] / counts[k] if counts[k] else 0.0) for k in sums}
 
     def _multi_hot(self, films: list[dict], field: str, vocab: list[str]) -> np.ndarray:
         mat = np.zeros((len(films), len(vocab)))
