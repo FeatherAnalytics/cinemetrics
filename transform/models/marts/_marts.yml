@@ -13,26 +13,65 @@ models:
         tests: [unique, not_null]
       - name: imdb_id
         description: IMDb id (tt#######) — kept for external linking.
-        # Letterboxd links depend on imdb_id; warn (not error) on coverage gaps.
         tests:
           - not_null:
               config:
                 severity: warn
       - name: title
+        description: Film title from the ratings log.
         tests: [not_null]
+      - name: release_year
+        description: Release year from the ratings log.
+      - name: liked
+        description: >
+          Film-level like (the heart). Three-state: true/false/NULL, where NULL
+          means unknown (pre-Letterboxd films), not "not liked". Aggregated from
+          the per-watch liked via bool_or, so one Letterboxd watch determines it.
+      - name: runtime_min
+        description: Runtime in minutes from the enrichment seed.
+      - name: genres
+        description: Comma-separated genre names, canonical spelling (Sci-Fi, not Science Fiction).
+      - name: keywords
+        description: Comma-separated TMDB keyword names.
+      - name: budget
+        description: Production budget in USD from TMDB. NULL when unknown.
+      - name: revenue
+        description: Worldwide box office revenue in USD from TMDB. NULL when unknown.
+      - name: director
+        description: Comma-separated director names from OMDb.
+      - name: actors
+        description: Comma-separated lead actors from OMDb (top four billed).
+      - name: metascore
+        description: Metacritic score (0–100) from OMDb. NULL when OMDb has none.
+      - name: rt_rating
+        description: Rotten Tomatoes score (0–100) from OMDb. NULL when OMDb has none.
+      - name: imdb_rating
+        description: IMDb user rating (0.0–10.0) from OMDb.
+      - name: imdb_votes
+        description: IMDb vote count from OMDb.
+      - name: box_office
+        description: Domestic box office in USD from OMDb. NULL when unavailable.
+      - name: production_countries
+        description: Comma-separated ISO 3166-1 alpha-2 country codes.
+      - name: rated
+        description: MPAA content rating (G/PG/PG-13/R/NC-17/Not Rated) from OMDb.
+      - name: original_language
+        description: TMDB original language as ISO 639-1 code.
       - name: poster_path
         description: >
           TMDB poster image path, e.g. "/abc123.jpg". NULL when TMDB serves no
-          poster. Rendered by prefixing the CDN host and a size segment; the
-          size is the renderer's choice, so it is deliberately not stored here.
-          The curated choice from stg_poster_overrides where there is one, the
-          enrichment seed's value otherwise — so this is the single source of
-          truth for a film's art and no renderer needs a helper of its own.
+          poster. The curated choice from stg_poster_overrides where there is one,
+          the enrichment seed's value otherwise — the single source of truth for
+          a film's art.
       - name: poster_slice
         description: >
           20 RGB stops sampled down the film's poster, packed as 120 hex
           characters. Drawn by the landing-page barcode. NULL when the film has
           no poster.
+      - name: collection
+        description: >
+          Umbrella franchise name when mapped by franchise_mapping(), raw TMDB
+          collection otherwise. The grouping the site exposes as "franchise runs".
 
   - name: fct_watches
     description: >
@@ -43,6 +82,7 @@ models:
           combination_of_columns: [tmdb_id, watched_date, rating_100, is_rewatch]
     columns:
       - name: watch_id
+        description: Row number over all watches, deterministic across rebuilds.
       - name: tmdb_id
         description: Foreign key to dim_film.
         tests:
@@ -54,7 +94,17 @@ models:
       - name: imdb_id
         description: IMDb id — kept for external linking.
       - name: watched_date
+        description: Date the film was watched.
         tests: [not_null]
+      - name: rating_100
+        description: >
+          Personal rating on the 0–100 scale. The authoritative scale;
+          star_rating is 0–5, and the factor is exactly 20, measured across
+          the rows that arrived carrying both values.
+      - name: star_rating
+        description: >
+          Personal rating on the 0–5 scale. Derived as rating_100 / 20 where
+          the source did not supply it; the raw value where it did.
       - name: is_rewatch
         description: >
           The rewatch flag exactly as the source recorded it. False for all 129
@@ -80,6 +130,14 @@ models:
           its film's first appearance, which is genuinely unknowable.
         tests:
           - not_null
+      - name: liked
+        description: >
+          Three-state: true/false/NULL. NULL means unknown (pre-Letterboxd rows),
+          not "not liked". Filter liked is not null before computing affection rate.
+      - name: film_title
+        description: Denormalized title from the ratings log, for display.
+      - name: film_year
+        description: Denormalized release year from the ratings log.
 
   - name: dim_candidate
     description: >
@@ -90,11 +148,48 @@ models:
       - name: tmdb_id
         description: TMDB film identifier — the primary candidate key.
         tests: [unique, not_null]
+      - name: imdb_id
+        description: IMDb id (tt#######) — kept for external linking.
+      - name: title
+        description: Film title from the TMDB detail payload.
+      - name: release_year
+        description: Release year derived from TMDB release_date.
+      - name: runtime_min
+        description: Runtime in minutes from the enrichment seed.
+      - name: genres
+        description: Comma-separated genre names, canonical spelling (Sci-Fi, not Science Fiction).
+      - name: keywords
+        description: Comma-separated TMDB keyword names.
+      - name: budget
+        description: Production budget in USD from TMDB. NULL when unknown.
+      - name: revenue
+        description: Worldwide box office revenue in USD from TMDB. NULL when unknown.
+      - name: director
+        description: Comma-separated director names from OMDb.
+      - name: actors
+        description: Comma-separated lead actors from OMDb (top four billed).
+      - name: metascore
+        description: Metacritic score (0–100) from OMDb. NULL when OMDb has none.
+      - name: rt_rating
+        description: Rotten Tomatoes score (0–100) from OMDb. NULL when OMDb has none.
+      - name: imdb_rating
+        description: IMDb user rating (0.0–10.0) from OMDb.
+      - name: imdb_votes
+        description: IMDb vote count from OMDb.
+      - name: box_office
+        description: Domestic box office in USD from OMDb. NULL when unavailable.
+      - name: production_countries
+        description: Comma-separated ISO 3166-1 alpha-2 country codes.
+      - name: rated
+        description: MPAA content rating from OMDb.
+      - name: original_language
+        description: TMDB original language as ISO 639-1 code.
+      - name: collection
+        description: TMDB collection name, if any.
       - name: poster_path
         description: >
           TMDB poster image path, e.g. "/abc123.jpg". NULL when TMDB serves no
-          poster. Same convention as dim_film.poster_path: the CDN host and size
-          segment are the renderer's choice and are not stored here.
+          poster. Same convention as dim_film.poster_path.
       - name: source
         description: >
           How this candidate entered the pool: similar, popular, top_rated,
@@ -144,7 +239,7 @@ models:
       - name: films
         description: Distinct films watched in the quarter.
       - name: mean_rating_100
-        description: Mean rating on the 0–100 scale.
+        description: Mean rating on the 0-100 scale.
       - name: rewatch_share
         description: >
           Share of watches that were rewatches, using is_rewatch_effective over
@@ -152,7 +247,7 @@ models:
       - name: liked_share
         description: Share of watches that were liked, over rows that recorded liked.
       - name: critic_delta
-        description: Mean of (rating_100 − metascore) where both are present.
+        description: Mean of (rating_100 - metascore) where both are present.
       - name: horror_share
         description: Share of watches carrying the Horror genre.
       - name: thriller_share
@@ -176,6 +271,14 @@ models:
       - name: tmdb_id
         description: TMDB film identifier — the primary watchlist key.
         tests: [unique, not_null]
+      - name: imdb_id
+        description: IMDb id (tt#######) — kept for external linking.
+      - name: title
+        description: Film title from the watchlist export.
+      - name: release_year
+        description: Release year from the watchlist export.
+      - name: release_date
+        description: Full release date from the candidate seed, for the release-date barcode.
       - name: added_date
         description: Date the film was added to the watchlist.
         tests: [not_null]
@@ -190,10 +293,35 @@ models:
                 values: [true, false]
       - name: genres
         description: >
-          Comma-separated genre names. Backfilled for the whole list by
-          scripts/enrich_watchlist.py; a null here means TMDB has no record for
-          the film, which would leave it out of every watchlist chart.
+          Comma-separated genre names. Backfilled by scripts/enrich_watchlist.py;
+          NULL means TMDB has no record for the film.
         tests:
           - not_null:
               config:
                 severity: warn
+      - name: keywords
+        description: Comma-separated TMDB keyword names.
+      - name: runtime_min
+        description: Runtime in minutes.
+      - name: director
+        description: Comma-separated director names from OMDb.
+      - name: actors
+        description: Comma-separated lead actors from OMDb.
+      - name: rated
+        description: MPAA content rating from OMDb.
+      - name: metascore
+        description: Metacritic score (0-100) from OMDb.
+      - name: rt_rating
+        description: Rotten Tomatoes score (0-100) from OMDb.
+      - name: imdb_rating
+        description: IMDb user rating (0.0-10.0) from OMDb.
+      - name: imdb_votes
+        description: IMDb vote count from OMDb.
+      - name: tmdb_rating
+        description: TMDB audience score (0.0-10.0).
+      - name: production_countries
+        description: Comma-separated ISO 3166-1 alpha-2 country codes.
+      - name: original_language
+        description: TMDB original language as ISO 639-1 code.
+      - name: collection
+        description: TMDB collection name, if any.
