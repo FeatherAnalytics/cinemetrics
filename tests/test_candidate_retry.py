@@ -236,7 +236,7 @@ def test_admission_cap_prefers_similar_over_list():
     old_max = fc_mod.MAX_ADMIT
     fc_mod.MAX_ADMIT = 3
     try:
-        admitted = fc_mod._admit(similar, list_ids, existing)
+        admitted = fc_mod._admit(similar, list_ids, [], existing)
         assert len(admitted) == 3
         assert all(src == "similar" for _, src in admitted)
     finally:
@@ -257,7 +257,7 @@ def test_reverify_marks_series_not_a_film_and_movie_ok(tmp_path, monkeypatch):
         row(1, imdb_id="tt1", omdb_status="ok_legacy", metascore="80"),
         row(2, imdb_id="tt2", omdb_status="ok_legacy", metascore="75"),
     ]
-    updated = fc_mod._reverify(rows_to_check, budget=10)
+    updated = fc_mod._reverify(rows_to_check, max_calls=10)
     assert updated == 2
     assert rows_to_check[0]["omdb_status"] == "not_a_film"
     assert rows_to_check[1]["omdb_status"] == "ok"

@@ -45,7 +45,7 @@ jobs:
       # list pages (popular, top_rated) and similar_* are excluded so the pool
       # still refreshes.
       - name: Restore API cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             data/raw/tmdb_candidates/detail_*.json
@@ -195,6 +195,17 @@ jobs:
         run: gh workflow run deploy.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Save unconditionally: the nights that fail are exactly the ones whose
+      # spent API calls we most want to keep. actions/cache's built-in post-step
+      # only saves on success, so an explicit save with !cancelled() is needed.
+      - name: Save API cache
+        if: ${{ !cancelled() }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/raw/tmdb_candidates/detail_*.json
+            data/raw/omdb
+          key: raw-${{ github.run_id }}
       - name: Open an issue on failure
         if: failure()
         env:

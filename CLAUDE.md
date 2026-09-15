@@ -27,7 +27,7 @@ Personal film analytics pipeline: Letterboxd watch history → dbt/DuckDB → Ne
   was never revisited. The pool is ~46k rows; growth is capped at 300 admissions per night
   (similar hits first, then list hits by TMDB vote count), not by pruning — the row-count
   rule stands. Doneness is now `ingest.enrich.has_omdb_data` plus `omdb_status`. Each candidate
-  carries a `source` column (similar, popular, top_rated, watchlist, export, legacy) tracking
+  carries a `source` column (similar, popular, top_rated, legacy) tracking
   how it entered the pool. Legacy rows with `omdb_status = ok_legacy` are re-verified with
   leftover OMDb budget each night (up to 500 calls); each becomes `ok` or `not_a_film`. The
   warm actions/cache from the nightly means cached rows cost no API call.

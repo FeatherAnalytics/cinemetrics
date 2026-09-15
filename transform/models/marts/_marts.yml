@@ -98,7 +98,7 @@ models:
       - name: source
         description: >
           How this candidate entered the pool: similar, popular, top_rated,
-          watchlist, export, or legacy (pre-provenance rows).
+          or legacy (pre-provenance rows).
 
   - name: dim_watchlist
     description: >

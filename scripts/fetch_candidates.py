@@ -120,6 +120,7 @@ def _omdb_get(imdb_id: str) -> dict:
             is_valid=lambda d: bool(d),
         )
     except RuntimeError:
+        # ingest/http.py raises for 401/403; on the free tier that means spent.
         _OMDB_DOWN.set()
         raise
 
@@ -265,7 +266,10 @@ def _seed_ids() -> set[int]:
 
 
 def _admit(
-    similar_ids: set[int], list_ids: list[int], existing: set[int],
+    similar_ids: set[int],
+    popular_ids: list[int],
+    top_rated_ids: list[int],
+    existing: set[int],
 ) -> list[tuple[int, str]]:
     """Pick at most MAX_ADMIT new candidates, similar first."""
     admitted: list[tuple[int, str]] = []
@@ -275,20 +279,29 @@ def _admit(
             break
         admitted.append((tid, "similar"))
         seen.add(tid)
-    for tid in list_ids:
+    tagged = [(t, "popular") for t in popular_ids] + [(t, "top_rated") for t in top_rated_ids]
+    for tid, source in tagged:
         if len(admitted) >= MAX_ADMIT:
             break
         if tid not in seen:
-            admitted.append((tid, "list"))
+            admitted.append((tid, source))
             seen.add(tid)
     return admitted
 
 
-def _reverify(rows: list[dict[str, str]], budget: int) -> int:
-    """Re-ask OMDb for ok_legacy rows to check Type; returns count updated."""
+def _reverify(rows: list[dict[str, str]], max_calls: int) -> int:
+    """Re-ask OMDb for ok_legacy rows to check Type; returns count updated.
+
+    Counts network calls, not cache hits: a cached row is free and should be
+    cleared immediately, so the first warm-cache nights drain the backlog.
+    """
     updated = 0
+    calls_at_start = _omdb_call_count
     for row in rows:
-        if budget <= 0 or _OMDB_DOWN.is_set():
+        calls_used = _omdb_call_count - calls_at_start
+        if calls_used >= max_calls or _OMDB_DOWN.is_set():
+            break
+        if (1000 - _omdb_call_count) <= 0:
             break
         if row.get("omdb_status") != "ok_legacy":
             continue
@@ -298,7 +311,6 @@ def _reverify(rows: list[dict[str, str]], budget: int) -> int:
         omdb = _omdb_get(imdb_id)
         if not omdb:
             continue
-        budget -= 1
         if omdb.get("Response") == "True" and omdb.get("Type", "movie") != "movie":
             row["omdb_status"] = "not_a_film"
         else:
@@ -330,20 +342,25 @@ def main() -> None:
             similar_ids.update(similar)
 
     print(f"fetching popular + top-rated lists (pages={LIST_PAGES})...")
-    list_ids: list[int] = []
-    list_ids.extend(_fetch_list("movie/popular", pages=LIST_PAGES))
-    list_ids.extend(_fetch_list("movie/top_rated", pages=LIST_PAGES))
+    popular_ids = _fetch_list("movie/popular", pages=LIST_PAGES)
+    top_rated_ids = _fetch_list("movie/top_rated", pages=LIST_PAGES)
 
-    admitted = _admit(similar_ids, list_ids, existing)
+    admitted = _admit(similar_ids, popular_ids, top_rated_ids, existing)
     new_ids = [tid for tid, _ in admitted]
     sources = dict(admitted)
-    skipped = len((similar_ids | set(list_ids)) - existing) - len(new_ids)
+    all_discovered = similar_ids | set(popular_ids) | set(top_rated_ids)
+    skipped = len(all_discovered - existing) - len(new_ids)
     print(f"candidates: {len(new_ids)} admitted (max {MAX_ADMIT}), "
           f"{skipped} skipped, {len(pending)} to retry")
 
     appended = 0
     retried = 0
 
+    # New candidates run in their own pass before the retry backlog. The OMDb
+    # allowance is scarce (1,000/day) and new films that would otherwise sit
+    # nameless for a day are higher priority than retries of rows already in the
+    # seed. A merged ThreadPoolExecutor batch only approximates submission order,
+    # so separate passes enforce the priority.
     if new_ids or pending:
         enriched = _parallel(_enrich_tmdb, sorted(new_ids), "enriched")
 
@@ -353,6 +370,15 @@ def main() -> None:
             "re-enriched",
         )
 
+        # Rewriting the seed rather than appending. CLAUDE.md's append-only rule
+        # protects film_log.csv, which is watch history and irreplaceable. This
+        # seed is neither: every column is re-derivable from TMDB and OMDb, and a
+        # row that never got its OMDb half can only be finished by editing it.
+        # The rule still holds for the row COUNT — nothing here removes a row.
+        #
+        # Built the same guarded way as _unfinished: an unparseable tmdb_id
+        # anywhere in 46k committed rows would otherwise raise here and take the
+        # nightly down, after the API calls had already been spent.
         index: dict[int, int] = {}
         for position, row in enumerate(rows):
             try:
@@ -360,6 +386,11 @@ def main() -> None:
             except (ValueError, KeyError):
                 continue
 
+        # Only when the retry actually produced OMDb data or reached a terminal
+        # state. A rebuilt row that is still empty differs from the committed one
+        # anyway (TMDB vote counts move daily), so writing it back would put a
+        # thousand-line diff of pure churn in front of the rows that gained
+        # something.
         for tmdb_id, row in repaired.items():
             if row and (has_omdb_data(row) or is_terminal(row)):
                 rows[index[tmdb_id]] = row
@@ -372,7 +403,8 @@ def main() -> None:
                 rows.append(row)
                 appended += 1
 
-    # Re-verify legacy rows with leftover OMDb budget
+    # Re-verify legacy rows with leftover OMDb budget. Counts network calls,
+    # not cache hits, so warm-cache nights drain the backlog for free.
     leftover = max(0, min(1000 - _omdb_call_count, 500))
     reverified = _reverify(rows, leftover)
     if reverified:
