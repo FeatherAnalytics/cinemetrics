@@ -37,7 +37,7 @@ WEB_JSON = ROOT / "web" / "public" / "data" / "cinemetrics.json"
 
 # Edited in place: an inline HTML comment wraps each figure, so the prose around
 # it stays hand-written. Safe here because GitHub renders HTML comments invisibly.
-MARKER_TARGETS = [ROOT / "docs" / "ARCHITECTURE.md"]
+MARKER_TARGETS = [ROOT / "docs" / "ARCHITECTURE.md", ROOT / "README.md"]
 MARKER = re.compile(r"(<!--stat:(?P<name>[a-z0-9_]+)-->)(?P<value>.*?)(<!--/stat-->)", re.S)
 
 # Rendered from a template instead, because dbt's docs renderer escapes HTML
