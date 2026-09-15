@@ -17,8 +17,8 @@ One row per film, keyed by imdb id, regenerated from two APIs:
 
 | Source | Fields |
 |--------|--------|
-| **TMDB** (`ingest/tmdb.py`) | tmdb_id, genres, keywords, runtime, budget, revenue |
-| **OMDb** (`ingest/omdb.py`) | metascore, rt_rating, imdb_rating, imdb_votes, box_office, director, actors, rated |
+| **TMDB** (`ingest/http.py`) | tmdb_id, genres, keywords, runtime, budget, revenue |
+| **OMDb** (`ingest/http.py`) | metascore, rt_rating, imdb_rating, imdb_votes, box_office, director, actors, rated |
 
 TMDB resolves the id and gives thematic data; OMDb gives critic scores and cast. Both cover
 ~100% of films by id, so there is no manual matching. API responses are cached under

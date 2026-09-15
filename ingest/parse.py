@@ -51,13 +51,13 @@ def float_or_empty(v: object) -> str:
 
 
 def int_or_none(v: str | None) -> int | None:
-    """Digits-only int, or None. Mirrors ingest/omdb.py:_int."""
+    """Digits-only int, or None."""
     s = na_none(v)
     return int(re.sub(r"[^0-9]", "", s)) if s and re.search(r"\d", s) else None
 
 
 def float_or_none(v: str | None) -> float | None:
-    """float(v), or None. Mirrors ingest/omdb.py:_float."""
+    """float(v), or None."""
     s = na_none(v)
     try:
         return float(s) if s else None

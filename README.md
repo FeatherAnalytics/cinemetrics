@@ -1,6 +1,6 @@
 # cinemetrics
 
-<!--stat:watches-->809<!--/stat--> viewings of <!--stat:films-->683<!--/stat--> films across <!--stat:years_word-->eight<!--/stat--> years, from a single Letterboxd account. Enriched via TMDB and OMDb, modeled with dbt in DuckDB, served as a static Next.js dashboard with an ML-powered recommendation engine. Nothing predicts the rating — month p=0.40, weekday p=0.19, genre medians 70 to 80 — what changes is volume.
+<!--stat:watches-->809<!--/stat--> viewings of <!--stat:films-->683<!--/stat--> films across <!--stat:years_word-->eight<!--/stat--> years, from a single Letterboxd account. Enriched via TMDB and OMDb, modeled with dbt in DuckDB, served as a static Next.js dashboard with an ML-powered recommendation engine.
 
 **Live:** [featheranalytics.dev/cinemetrics](https://featheranalytics.dev/cinemetrics)
 
