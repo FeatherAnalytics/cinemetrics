@@ -166,6 +166,7 @@ export function ViewingsToDate() {
         width={W}
         height={H}
         role="img"
+        aria-label="Viewings to date"
         style={{ maxWidth: "100%" }}
         onMouseMove={onMove}
         onMouseLeave={() => setHover(null)}

@@ -93,7 +93,7 @@ export const SURFACE = {
 export const INK = {
   primary: "#0b0b0b",
   secondary: "#3d3c38",
-  muted: "#67655f",
+  muted: "#908d85",
   grid: "#b3b1a6",
   /**
    * The neutral fill for a mark carrying no categorical colour — a bar in a
@@ -155,7 +155,7 @@ export const DARK = {
   ink: {
     primary: "#f2f0ea",
     secondary: "#b6b3a9",
-    muted: "#86837a",
+    muted: "#7a776e",
     grid: "#3a3833",
     // Lifted well clear of `grid`. A bar at the gridline tone is nearly
     // invisible on the dark card, and the knocked-out value label sitting on it

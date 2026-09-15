@@ -160,7 +160,7 @@ export function ViewingVelocity() {
         <Toggle options={GRAINS} value={grain} onChange={setGrain} label="Bucket size" />
         <Toggle options={KINDS} value={kind} onChange={setKind} label="Which watches" />
       </div>
-      <svg width={W} height={H} role="img" style={{ maxWidth: "100%" }}>
+      <svg width={W} height={H} role="img" aria-label="Viewing velocity over time" style={{ maxWidth: "100%" }}>
         {[
           { v: peak, label: `${peak}` },
           { v: median, label: `median ${median.toFixed(median % 1 ? 1 : 0)}` },

@@ -119,7 +119,7 @@ export function RatingsByGenre() {
         {bySecondary ? "second genre · " : ""}median spread{" "}
         <span style={{ color: tokens.ink.primary }}>{(spread / 20).toFixed(2)}★</span>
       </div>
-      <svg width={W} height={H} role="img" style={{ maxWidth: "100%" }}>
+      <svg width={W} height={H} role="img" aria-label="Rating distribution by genre" style={{ maxWidth: "100%" }}>
         {[0, 20, 40, 60, 80, 100].map((t) => (
           <g key={t}>
             <line x1={ML} y1={y(t)} x2={W - 12} y2={y(t)} stroke={tokens.ink.grid} strokeOpacity={0.4} />

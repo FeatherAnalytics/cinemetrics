@@ -195,6 +195,7 @@ export function CumulativeWatches() {
         width={W}
         height={H}
         role="img"
+        aria-label="Cumulative watches by year"
         style={{ maxWidth: "100%" }}
         onMouseMove={onMove}
         onMouseLeave={() => setHover(null)}
