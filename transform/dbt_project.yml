@@ -71,6 +71,7 @@ seeds:
         imdb_votes: bigint
         box_office: bigint
         poster_path: varchar
+        omdb_status: varchar
     poster_slices:
       +schema: enrichment
       +column_types:

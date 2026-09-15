@@ -84,7 +84,8 @@ models:
   - name: dim_candidate
     description: >
       One row per candidate film (recommendation pool, not yet watched). Keyed by
-      tmdb_id and mutually exclusive with dim_film.
+      tmdb_id and mutually exclusive with dim_film. Excludes rows whose OMDb Type
+      is not "movie" (omdb_status = not_a_film).
     columns:
       - name: tmdb_id
         description: TMDB film identifier — the primary candidate key.

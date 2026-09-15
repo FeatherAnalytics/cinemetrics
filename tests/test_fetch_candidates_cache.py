@@ -151,4 +151,6 @@ def test_both_candidate_writers_produce_the_same_row(cache_dir, monkeypatch):
     monkeypatch.setattr(ew, "tmdb_get", lambda *a, **k: DETAIL)
     monkeypatch.setattr(ew, "CACHE", cache_dir / "watchlist")
 
-    assert ew._enrich(444) == fc._enrich_tmdb(444)
+    fc_row = fc._enrich_tmdb(444)
+    fc_row.pop("omdb_status", None)
+    assert ew._enrich(444) == fc_row

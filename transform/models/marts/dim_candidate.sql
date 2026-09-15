@@ -29,3 +29,7 @@ from {{ ref('stg_candidate_enrichment') }} c
 where not exists (
     select 1 from {{ ref('dim_film') }} f where f.tmdb_id = c.tmdb_id
 )
+  -- Films only. A TMDB movie record occasionally carries an imdb_id that
+  -- points at a series, and OMDb then answers for the series. Type is the
+  -- only evidence; TV ratings and the "TV Movie" genre are films and stay.
+  and coalesce(c.omdb_status, '') <> 'not_a_film'

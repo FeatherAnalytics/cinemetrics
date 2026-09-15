@@ -36,6 +36,7 @@ from ingest.enrich import (  # noqa: E402
     CANDIDATE_CSV_COLUMNS,
     build_enrichment_row,
     has_omdb_data,
+    is_terminal,
 )
 from ingest.http import cached_json, omdb_get, tmdb_get  # noqa: E402
 
@@ -138,6 +139,8 @@ def _unfinished(rows: list[dict[str, str]]) -> dict[int, str]:
             tmdb_id = int(row["tmdb_id"])
         except (ValueError, KeyError):
             continue
+        if is_terminal(row):
+            continue
         if not has_omdb_data(row):
             pending[tmdb_id] = (row.get("imdb_id") or "").strip()
     return pending
@@ -213,36 +216,45 @@ def _enrich_tmdb(tmdb_id: int, *, seed_imdb_id: str = "") -> dict | None:
         return None
 
     imdb_id = data.get("imdb_id", "")
+
+    if not imdb_id:
+        row = build_enrichment_row(
+            data, {}, tmdb_id=str(tmdb_id), imdb_id="",
+            prefer_omdb=True, omdb_countries=True,
+            include_lang_collection=True, include_candidate_meta=True,
+        )
+        row["omdb_status"] = "no_imdb_id"
+        return row
+
     # A film OMDb could answer for, on a night it has stopped answering. Writing
     # it now would commit a row with no critic data and — before doneness was
     # measured by content — mark it finished forever. Leave it for tomorrow.
-    if imdb_id and _OMDB_DOWN.is_set():
+    if _OMDB_DOWN.is_set():
         return None
 
-    omdb = _omdb_get(imdb_id) if imdb_id else {}
+    omdb = _omdb_get(imdb_id)
 
-    return build_enrichment_row(
+    row = build_enrichment_row(
         data,
         omdb,
         tmdb_id=str(tmdb_id),
         imdb_id=imdb_id,
-        # Matches the watched-film pipeline (update.py, rebuild_enrichment.py)
-        # rather than diverging from it. These used to read TMDB only, which is
-        # why the two halves of the dataset disagreed about genre names: OMDb
-        # writes "Sci-Fi", TMDB "Science Fiction", and nothing joined them.
-        #
-        # Degrades safely. build_enrichment_row falls back to TMDB for genres,
-        # runtime and countries whenever the OMDb dict is empty, which is what
-        # happens once the free tier's 1,000 calls a day run out.
         prefer_omdb=True,
         omdb_countries=True,
         include_lang_collection=True,
-        # title, release_date, tmdb_rating and tmdb_votes exist in the seed only
-        # because one-off backfills added them. Without this flag every candidate
-        # written here lands with no title, which is what put nameless films on
-        # the production site.
         include_candidate_meta=True,
     )
+
+    if omdb.get("Response") == "True" and omdb.get("Type", "movie") != "movie":
+        row["omdb_status"] = "not_a_film"
+    elif omdb.get("Response") == "False" and not _OMDB_DOWN.is_set():
+        row["omdb_status"] = "not_found"
+    elif has_omdb_data(row):
+        row["omdb_status"] = "ok"
+    else:
+        row["omdb_status"] = ""
+
+    return row
 
 
 def _ids_from(path: Path, column: str = "tmdb_id") -> set[int]:
@@ -340,11 +352,7 @@ def main() -> None:
 
     updated = 0
     for tmdb_id, row in repaired.items():
-        # Only when the retry actually produced OMDb data. A rebuilt row that is
-        # still empty differs from the committed one anyway — TMDB vote counts
-        # move daily — so writing it back would put a thousand-line diff of pure
-        # churn in front of the few rows that gained something.
-        if row and has_omdb_data(row):
+        if row and (has_omdb_data(row) or is_terminal(row)):
             rows[index[tmdb_id]] = row
             updated += 1
 

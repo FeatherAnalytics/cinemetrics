@@ -189,12 +189,11 @@ def test_film_csv_columns_includes_poster_path():
     assert "poster_path" in FILM_CSV_COLUMNS
 
 
-def test_candidate_csv_columns_ends_with_poster_path():
-    # candidate_enrichment.csv gained poster_path last, after the four
-    # candidate-only columns, rather than mid-row where the film seed puts it.
+def test_candidate_csv_columns_has_poster_path_before_omdb_status():
     from ingest.enrich import CANDIDATE_CSV_COLUMNS
 
-    assert CANDIDATE_CSV_COLUMNS[-1] == "poster_path"
+    assert CANDIDATE_CSV_COLUMNS[-2] == "poster_path"
+    assert CANDIDATE_CSV_COLUMNS[-1] == "omdb_status"
 
 
 @pytest.mark.parametrize(
@@ -239,7 +238,10 @@ def test_row_keys_equal_the_column_list(kwargs, columns_name):
         tmdb_id="27205", imdb_id="tt1375666",
         **kwargs,
     )
-    assert set(row) == set(getattr(enrich, columns_name))
+    expected = set(getattr(enrich, columns_name))
+    # omdb_status is set by the caller, not the row builder
+    expected.discard("omdb_status")
+    assert set(row) == expected
 
 
 def test_strict_writer_rejects_a_key_no_column_accepts():

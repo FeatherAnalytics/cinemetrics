@@ -34,6 +34,7 @@ select
     try_cast(tmdb_votes as integer)  as tmdb_votes,
     -- Empty for the films TMDB serves no poster for; NULL says "no art" rather
     -- than pointing the CDN at an empty path.
-    nullif(poster_path, '')          as poster_path
+    nullif(poster_path, '')          as poster_path,
+    omdb_status
 from {{ ref('candidate_enrichment') }}
 where tmdb_id is not null
