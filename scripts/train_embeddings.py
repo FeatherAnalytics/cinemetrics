@@ -1,10 +1,8 @@
 """Train film embeddings and export for the recommendation engine.
 
-Loads rated films from marts.dim_film. Candidates come from the candidate_enrichment
-seed plus the cached TMDB details, not from marts.dim_candidate, because that mart
-blanks title and release_year and both are needed as features here.
-
-Encodes features and exports embeddings.json for upload to R2.
+Loads rated films from marts.dim_film, candidates from marts.dim_candidate.
+The mart applies canonical_genres(), so the encoder sees the same genre
+vocabulary as the rated films.
 
 Skips training if source data hasn't changed (hash check).
 """
@@ -28,6 +26,7 @@ from recommend.model import build_embeddings_export  # noqa: E402
 DB = ROOT / "data" / "movies.duckdb"
 OUT_DIR = ROOT / "data" / "ml"
 LAST_TRAIN = OUT_DIR / ".last_train"
+VERSION_FILE = ROOT / "web" / "public" / "data" / "embeddings-version.json"
 
 
 def _file_hash(path: Path) -> str:
@@ -59,12 +58,6 @@ def _load_films(con: duckdb.DuckDBPyConnection) -> tuple[list[dict], dict[int, f
             f.genres, f.keywords, f.runtime_min as runtime,
             f.director, f.actors, f.metascore, f.rt_rating, f.imdb_rating,
             f.production_countries, f.rated, f.original_language as language,
-            -- Candidates carry poster_path because _load_candidates keeps every
-            -- column of its seed, so leaving it out here made `poster: null` in
-            -- the export mean two different things: "TMDB serves no art" for a
-            -- candidate, and "this query did not ask" for all 676 rated films.
-            -- dim_film already coalesces the curated overrides, so the right
-            -- value is one column away and needs no fetch.
             f.poster_path
         from marts.dim_film f
     """).fetchdf().to_dict("records")
@@ -80,63 +73,37 @@ def _load_films(con: duckdb.DuckDBPyConnection) -> tuple[list[dict], dict[int, f
     return rows, ratings
 
 
-def _load_candidates(rated_ids: set[int]) -> list[dict]:
-    csv_path = SEEDS_DIR / "candidate_enrichment.csv"
-    if not csv_path.exists():
-        return []
-    import pandas as pd
-    df = pd.read_csv(csv_path)
-    df = df[~df["tmdb_id"].isin(rated_ids)]
-    if "original_language" in df.columns:
-        df = df.rename(columns={"original_language": "language"})
+def _load_candidates(con: duckdb.DuckDBPyConnection, rated_ids: set[int]) -> list[dict]:
+    rows = con.execute("""
+        select
+            c.tmdb_id, c.imdb_id, c.title, c.release_year,
+            c.genres, c.keywords, c.runtime_min as runtime,
+            c.director, c.actors, c.metascore, c.rt_rating, c.imdb_rating,
+            c.production_countries, c.rated, c.original_language as language,
+            c.poster_path
+        from marts.dim_candidate c
+    """).fetchdf().to_dict("records")
+    return [r for r in rows if int(r["tmdb_id"]) not in rated_ids]
 
-    # Title and release date come from the SEED, which is committed, rather than
-    # from data/raw/tmdb_candidates, which is not.
-    #
-    # Reading the cache is what put nameless films on the production site: a
-    # candidate with no cached detail file silently got title "", and the card
-    # still rendered because its Letterboxd link resolves through imdb_id. Any
-    # machine without a warm cache — a fresh clone, and the CI runner that
-    # actually builds the deployed artifact — produced blanks for every film it
-    # had not personally fetched.
-    #
-    # The cache remains the fallback for a seed written before
-    # scripts/backfill_candidate_titles.py added the columns.
-    if "title" in df.columns and "release_date" in df.columns:
-        df["release_year"] = (
-            df["release_date"].astype(str).str[:4].where(lambda s: s.str.isdigit())
-        )
-        df["release_year"] = pd.to_numeric(df["release_year"], errors="coerce")
-        df["title"] = df["title"].fillna("")
-        return df.to_dict("records")
 
-    cache_dir = ROOT / "data" / "raw" / "tmdb_candidates"
-    titles, years = [], []
-    for tid in df["tmdb_id"]:
-        detail = cache_dir / f"detail_{int(tid)}.json"
-        if detail.exists():
-            d = json.loads(detail.read_text(encoding="utf-8"))
-            titles.append(d.get("title", ""))
-            rd = (d.get("release_date") or "")[:4]
-            years.append(int(rd) if rd.isdigit() else None)
-        else:
-            titles.append("")
-            years.append(None)
-    df["title"] = titles
-    df["release_year"] = years
-    return df.to_dict("records")
+def _write_version(data_hash: str) -> None:
+    VERSION_FILE.write_text(
+        json.dumps({"version": data_hash}, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def main(force: bool = False) -> None:
     if not _should_train(force):
         print("source data unchanged — skipping training")
+        if not VERSION_FILE.exists():
+            _write_version(_data_hash())
         return
 
     print("loading films from DuckDB...")
     con = duckdb.connect(str(DB), read_only=True)
     rated_films, ratings = _load_films(con)
+    candidates = _load_candidates(con, set(ratings.keys()))
     con.close()
-    candidates = _load_candidates(set(ratings.keys()))
 
     all_films = rated_films + candidates
     print(
@@ -158,7 +125,9 @@ def main(force: bool = False) -> None:
 
     emb_path.write_text(json.dumps(export), encoding="utf-8")
 
-    LAST_TRAIN.write_text(_data_hash(), encoding="utf-8")
+    data_hash = _data_hash()
+    LAST_TRAIN.write_text(data_hash, encoding="utf-8")
+    _write_version(data_hash)
 
     emb_kb = emb_path.stat().st_size / 1024
     print(f"wrote {emb_path.name} ({emb_kb:.0f} KB)")
