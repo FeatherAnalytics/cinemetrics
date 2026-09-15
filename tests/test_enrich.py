@@ -189,11 +189,12 @@ def test_film_csv_columns_includes_poster_path():
     assert "poster_path" in FILM_CSV_COLUMNS
 
 
-def test_candidate_csv_columns_has_poster_path_before_omdb_status():
+def test_candidate_csv_columns_ends_with_omdb_status_and_source():
     from ingest.enrich import CANDIDATE_CSV_COLUMNS
 
-    assert CANDIDATE_CSV_COLUMNS[-2] == "poster_path"
-    assert CANDIDATE_CSV_COLUMNS[-1] == "omdb_status"
+    assert CANDIDATE_CSV_COLUMNS[-3] == "poster_path"
+    assert CANDIDATE_CSV_COLUMNS[-2] == "omdb_status"
+    assert CANDIDATE_CSV_COLUMNS[-1] == "source"
 
 
 @pytest.mark.parametrize(
@@ -239,8 +240,9 @@ def test_row_keys_equal_the_column_list(kwargs, columns_name):
         **kwargs,
     )
     expected = set(getattr(enrich, columns_name))
-    # omdb_status is set by the caller, not the row builder
+    # omdb_status and source are set by the caller, not the row builder
     expected.discard("omdb_status")
+    expected.discard("source")
     assert set(row) == expected
 
 

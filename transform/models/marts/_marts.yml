@@ -95,6 +95,10 @@ models:
           TMDB poster image path, e.g. "/abc123.jpg". NULL when TMDB serves no
           poster. Same convention as dim_film.poster_path: the CDN host and size
           segment are the renderer's choice and are not stored here.
+      - name: source
+        description: >
+          How this candidate entered the pool: similar, popular, top_rated,
+          watchlist, export, or legacy (pre-provenance rows).
 
   - name: dim_watchlist
     description: >
