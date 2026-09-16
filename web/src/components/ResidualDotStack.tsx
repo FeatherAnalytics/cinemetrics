@@ -198,7 +198,7 @@ export function ResidualDotStack() {
           I liked it more →
         </text>
 
-        {dots.map((d) => {
+        {dots.map((d, di) => {
           const sel = d.tmdb_id === selectedId;
           // No fade here: under the lens the unhearted films are already gone, so
           // every dot on screen is one I hearted and dimming would be dimming the
@@ -233,6 +233,7 @@ export function ResidualDotStack() {
           return (
             <circle
               key={d.tmdb_id}
+              id={`res-mark-${di}`}
               cx={d.cx}
               cy={d.cy}
               r={sel ? dotR + 1.2 : dotR}
