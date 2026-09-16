@@ -801,9 +801,9 @@ function Explorer() {
   );
 }
 
-export function ExplorerApp({ data }: { data: Dataset }) {
+export function ExplorerApp({ data, initialStory }: { data: Dataset; initialStory?: string }) {
   return (
-    <ExplorerProvider data={data}>
+    <ExplorerProvider data={data} initialStory={initialStory}>
       <RecommendProvider>
         <Explorer />
       </RecommendProvider>

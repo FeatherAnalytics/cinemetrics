@@ -307,13 +307,15 @@ const Ctx = createContext<ExplorerValue | null>(null);
 export function ExplorerProvider({
   data,
   children,
+  initialStory,
 }: {
   data: Dataset;
   children: ReactNode;
+  initialStory?: string;
 }) {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [activeStory, setActiveStory] = useState<string | null>(null);
+  const [activeStory, setActiveStory] = useState<string | null>(initialStory ?? null);
   const [storyResult, setStoryResult] = useState<StoryResult | null>(null);
 
   const derived = useMemo(() => {
