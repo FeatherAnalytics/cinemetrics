@@ -464,6 +464,8 @@ anything in the README.
   dataset. Counting actual return visits in the data gives
   <!--stat:returns-->126<!--/stat--> returns across
   <!--stat:films_with_returns-->87<!--/stat--> films. Always state which one a figure means.
+- **Sheet-era stars are derived**, not recorded. The 129 pre-Letterboxd rows carry `my_rating` but no `star_rating`; `stg_film_log.sql` fills them via `coalesce(star_rating, my_rating / 20)`, which lands exactly on Letterboxd's half-star vocabulary.
+- **Ratings live in `ratings.csv`, not `diary.csv`.** The per-entry `Rating` in the Letterboxd diary export is frequently blank even when the film is rated. Never sync ratings from the diary; it would destroy real data.
 - **Franchise rollups** are curated in the
   [`franchise_mapping()`](../transform/macros/franchise_mapping.sql) macro, keyed by TMDB
   collection, `tmdb_id`, or director.
