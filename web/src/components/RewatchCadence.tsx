@@ -8,6 +8,7 @@ import { BrushRectOverlay, rectContains, useDragRect, watchKey } from "@/lib/bru
 import { isSolstice, SunMarker } from "@/lib/solstice";
 import { trunc } from "@/lib/format";
 import { DotRow, LABEL, ROWH, W, xAt, yAt } from "@/lib/dotRow";
+import { useWidth } from "@/lib/useWidth";
 import type { EnrichedWatch, Film } from "@/lib/types";
 import { likedOnly } from "@/lib/heartLens";
 
@@ -51,6 +52,7 @@ function CadenceRow({
   tokens,
   setSelected,
   setHover,
+  width,
 }: {
   r: Row;
   index: number;
@@ -63,6 +65,7 @@ function CadenceRow({
   tokens: Tokens;
   setSelected: (id: number) => void;
   setHover: (h: Hover) => void;
+  width?: number;
 }) {
   const sel = r.tmdb_id === selectedId;
   const color = sel ? tokens.ui.selected : tokens.genre[primaryGenre(r.film)];
@@ -80,6 +83,7 @@ function CadenceRow({
       selected={sel}
       leader={index === 0}
       onSelect={() => setSelected(r.tmdb_id)}
+      width={width}
       label={trunc(r.film?.title ?? String(r.tmdb_id))}
       line={{ stroke: color, width: sel ? 1.75 : 1.1, opacity: dim ? 0.3 : 0.85 }}
       rightLabel={
@@ -208,7 +212,8 @@ export function RewatchCadence() {
     return { bands, H: yCur + 10 };
   }, [grew, soured, unchanged, showUnchanged]);
 
-  const x = (t: number) => xAt(t, x0, x1);
+  const [ref, measuredW] = useWidth(W, 320);
+  const x = (t: number) => xAt(t, x0, x1, measuredW);
   // Brush hit-testing reads the SETTLED position, not the drawn one. Testing
   // against a dot mid-flight would select whatever the tween happened to be
   // passing through at mouse-up.
@@ -220,7 +225,7 @@ export function RewatchCadence() {
   }
 
   const { rect, handlers } = useDragRect(
-    () => ({ w: W, h: H }),
+    () => ({ w: measuredW, h: H }),
     (r) => {
       const keys = new Set<string>();
       for (const band of bands)
@@ -235,11 +240,11 @@ export function RewatchCadence() {
   );
 
   return (
-    <figure className="relative m-0 overflow-x-auto">
+    <figure ref={ref} className="relative m-0">
       <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="w-full"
-        style={{ minWidth: 500, touchAction: "none" }}
+        width={measuredW}
+        height={H}
+        style={{ maxWidth: "100%", touchAction: "none" }}
         role="img"
         aria-label="Rewatched films grouped by whether my rating grew, soured, or held; dots are watches over time, height is my rating. Drag to brush a selection."
         {...handlers}
@@ -249,7 +254,7 @@ export function RewatchCadence() {
           return (
             <g key={Y}>
               <line x1={xx} y1={TOP - 4} x2={xx} y2={H - 6} stroke={tokens.ink.grid} strokeWidth={0.5} />
-              <text x={xx} y={TOP - 8} fill={tokens.ink.muted} fontSize={10} textAnchor="middle">{Y}</text>
+              <text x={xx} y={TOP - 8} fill={tokens.ink.muted} fontSize={11} textAnchor="middle">{Y}</text>
             </g>
           );
         })}
@@ -260,7 +265,7 @@ export function RewatchCadence() {
               x={0}
               y={band.headerY + HEADER_H / 2 + 4}
               fill={tokens.ink.secondary}
-              fontSize={10}
+              fontSize={11}
               fontFamily="var(--font-mono)"
               letterSpacing="0.1em"
             >
@@ -269,7 +274,7 @@ export function RewatchCadence() {
             <line
               x1={LABEL}
               y1={band.headerY + HEADER_H / 2}
-              x2={W - 4}
+              x2={measuredW - 4}
               y2={band.headerY + HEADER_H / 2}
               stroke={tokens.ink.grid}
               strokeWidth={0.5}
@@ -289,6 +294,7 @@ export function RewatchCadence() {
                 tokens={tokens}
                 setSelected={setSelected}
                 setHover={setHover}
+                width={measuredW}
               />
             ))}
           </g>
@@ -316,7 +322,7 @@ export function RewatchCadence() {
         <div
           className="pointer-events-none absolute z-10 rounded-md px-2 py-1 text-xs shadow"
           style={{
-            left: `${(hover.x / W) * 100}%`,
+            left: `${(hover.x / measuredW) * 100}%`,
             top: `${(hover.y / H) * 100}%`,
             transform: "translate(-50%, -150%)",
             background: tokens.ink.primary,
