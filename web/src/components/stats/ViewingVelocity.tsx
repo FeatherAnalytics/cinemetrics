@@ -175,7 +175,7 @@ export function ViewingVelocity() {
               strokeOpacity={i === 0 ? 0.4 : undefined}
               strokeDasharray={i === 0 ? undefined : "4 3"}
             />
-            <text x={ML - 4} y={y(t.v) + 3} textAnchor="end" fontSize={8} fill={tokens.ink.muted}>
+            <text x={ML - 4} y={y(t.v) + 3} textAnchor="end" fontSize={11} fill={tokens.ink.muted}>
               {t.label}
             </text>
           </g>
@@ -259,7 +259,7 @@ export function ViewingVelocity() {
               key={k}
               x={ML + i * step}
               y={H - 3}
-              fontSize={8}
+              fontSize={11}
               fill={tokens.ink.muted}
               pointerEvents="none"
             >

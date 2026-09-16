@@ -235,11 +235,11 @@ export function RewatchCadence() {
   );
 
   return (
-    <figure className="relative m-0">
+    <figure className="relative m-0 overflow-x-auto">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full"
-        style={{ touchAction: "none" }}
+        style={{ minWidth: 500, touchAction: "none" }}
         role="img"
         aria-label="Rewatched films grouped by whether my rating grew, soured, or held; dots are watches over time, height is my rating. Drag to brush a selection."
         {...handlers}
