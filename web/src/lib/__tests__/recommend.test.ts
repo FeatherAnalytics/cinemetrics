@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import {
   cosineSimilarity,
   sparseCosine,
   decodeEmbeddings,
+  parseV3Binary,
   topNSimilar,
   filterRecommendations,
   scoreByTaste,
@@ -183,5 +186,29 @@ describe("filterRecommendations", () => {
   it("applies no filters when empty", () => {
     const result = filterRecommendations(recs, {});
     expect(result).toHaveLength(3);
+  });
+});
+
+describe("parseV3Binary", () => {
+  it("round-trips three vectors from the Python-generated fixture", () => {
+    const buf = readFileSync(
+      resolve(__dirname, "fixtures/embeddings-v3-fixture.bin"),
+    );
+    const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    const vectors = parseV3Binary(ab);
+
+    expect(Object.keys(vectors).map(Number).sort((a, b) => a - b)).toEqual([100, 200, 300]);
+
+    expect(vectors[100].idx).toEqual([1, 5]);
+    expect(vectors[100].val[0]).toBeCloseTo(0.5, 1);
+    expect(vectors[100].val[1]).toBeCloseTo(0.3, 1);
+
+    expect(vectors[200].idx).toEqual([0, 3, 7]);
+    expect(vectors[200].val[0]).toBeCloseTo(0.2, 1);
+    expect(vectors[200].val[1]).toBeCloseTo(0.8, 1);
+    expect(vectors[200].val[2]).toBeCloseTo(0.1, 1);
+
+    expect(vectors[300].idx).toEqual([9]);
+    expect(vectors[300].val[0]).toBeCloseTo(1.0, 1);
   });
 });

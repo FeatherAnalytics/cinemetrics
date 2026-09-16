@@ -2,9 +2,9 @@ export type CandidateMetadata = {
   title: string;
   year: number | null;
   genres: string;
-  keywords: string;
-  director: string;
-  actors: string;
+  keywords?: string;
+  director?: string;
+  actors?: string;
   runtime: number | null;
   rated: string;
   language: string;
@@ -28,6 +28,7 @@ export type EmbeddingData = {
   dims: number;
   vectors: Record<number, SparseVec>;
   metadata: Record<number, CandidateMetadata>;
+  featureNames?: string[];
 };
 
 // Wire format for embeddings-v2.json: each vector is an [indices, values] pair.
@@ -211,6 +212,44 @@ export function decodeEmbeddings(file: EmbeddingFileV2): EmbeddingData {
   return { dims: file.dims, vectors, metadata: file.metadata };
 }
 
+/** Parse the v3 binary format: per film uint32 tmdb_id, uint16 nnz, nnz×uint16 indices, nnz×float16 values. */
+export function parseV3Binary(buf: ArrayBuffer): Record<number, SparseVec> {
+  const view = new DataView(buf);
+  const vectors: Record<number, SparseVec> = {};
+  let offset = 0;
+  while (offset < buf.byteLength) {
+    const tmdbId = view.getUint32(offset, true);
+    const nnz = view.getUint16(offset + 4, true);
+    offset += 6;
+    const idx: number[] = new Array(nnz);
+    for (let i = 0; i < nnz; i++) {
+      idx[i] = view.getUint16(offset, true);
+      offset += 2;
+    }
+    const f16 = new Uint16Array(buf, offset, nnz);
+    const val: number[] = new Array(nnz);
+    for (let i = 0; i < nnz; i++) {
+      val[i] = float16ToNumber(f16[i]);
+    }
+    offset += nnz * 2;
+    vectors[tmdbId] = { idx, val };
+  }
+  return vectors;
+}
+
+function float16ToNumber(h: number): number {
+  const sign = (h >> 15) & 1;
+  const exp = (h >> 10) & 0x1f;
+  const frac = h & 0x3ff;
+  if (exp === 0) {
+    return (sign ? -1 : 1) * 2 ** -14 * (frac / 1024);
+  }
+  if (exp === 0x1f) {
+    return frac ? NaN : (sign ? -Infinity : Infinity);
+  }
+  return (sign ? -1 : 1) * 2 ** (exp - 15) * (1 + frac / 1024);
+}
+
 /**
  * Bumped whenever the artifact's CONTENT changes without the dataset changing.
  *
@@ -228,14 +267,25 @@ export async function loadEmbeddings(
   version: string,
 ): Promise<{ data: EmbeddingData }> {
   if (_cache) return _cache;
-  // The version param (derived from the dataset) busts the browser's HTTP
-  // cache whenever a data update deploys; between deploys the R2 object's
-  // Cache-Control lets repeat visits skip the download entirely.
-  const embRes = await fetch(
-    `${r2Url}/embeddings-v2.json?v=${encodeURIComponent(version)}-${EMBEDDINGS_BUILD}`,
-  );
-  if (!embRes.ok) throw new Error("Failed to load embeddings");
-  const data = decodeEmbeddings((await embRes.json()) as EmbeddingFileV2);
+  const v = `${encodeURIComponent(version)}-${EMBEDDINGS_BUILD}`;
+  const [binRes, metaRes, featRes] = await Promise.all([
+    fetch(`${r2Url}/embeddings-v3.bin?v=${v}`),
+    fetch(`${r2Url}/metadata-v3.json?v=${v}`),
+    fetch(`${r2Url}/features-v3.json?v=${v}`),
+  ]);
+  if (!binRes.ok || !metaRes.ok || !featRes.ok) throw new Error("Failed to load embeddings");
+  const [buf, meta, feat] = await Promise.all([
+    binRes.arrayBuffer(),
+    metaRes.json() as Promise<Record<number, CandidateMetadata>>,
+    featRes.json() as Promise<{ dims: number; names: string[] }>,
+  ]);
+  const vectors = parseV3Binary(buf);
+  const data: EmbeddingData = {
+    dims: feat.dims,
+    vectors,
+    metadata: meta,
+    featureNames: feat.names,
+  };
   _cache = { data };
   return _cache;
 }

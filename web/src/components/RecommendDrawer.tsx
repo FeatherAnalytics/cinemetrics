@@ -28,8 +28,8 @@ const R2_URL = process.env.NEXT_PUBLIC_R2_URL || "";
 function matchesDashboardFilters(meta: CandidateMetadata, dashFilters: Filters): boolean {
   const genres = meta.genres ? meta.genres.split(", ").map((g) => g.trim()) : [];
   if (dashFilters.genres.size > 0 && !genres.some((g) => dashFilters.genres.has(g as never))) return false;
-  if (dashFilters.director && !(meta.director || "").toLowerCase().includes(dashFilters.director.toLowerCase())) return false;
-  if (dashFilters.actor && !(meta.actors || "").toLowerCase().includes(dashFilters.actor.toLowerCase())) return false;
+  if (dashFilters.director && !(meta.director ?? "").toLowerCase().includes(dashFilters.director.toLowerCase())) return false;
+  if (dashFilters.actor && !(meta.actors ?? "").toLowerCase().includes(dashFilters.actor.toLowerCase())) return false;
   if (dashFilters.releaseYearRange) {
     const y = meta.year;
     if (y == null || y < dashFilters.releaseYearRange[0] || y > dashFilters.releaseYearRange[1]) return false;
