@@ -32,19 +32,9 @@ other chart and fills the same `SelectionPanel` the main page uses. Story chips
 and the filter rail are not wired yet. The raw `LabCharts.tsx` prototypes are
 DELETED; everything on the swap list now lives as a real component.
 
-**The editorial pass is written up in `thoughts/STATS-STORY-NARRATIVE.md`**: what
-is signal, what is noise, four proposed story beats, and the case for cutting #11.
-Headline finding: three of the eight charts test whether something predicts my
-rating, and all three come back null. That IS the story, and no chart says it yet.
+**The editorial pass shipped in PR #27 as "The shape of it"** — four beats, each a headline sentence plus one chart, with the remaining charts in a collapsed deep dive. Beat 4 was rewritten after the p-values were regenerated on first viewings with a rating (n=584): month p=0.01 (H=24.4), weekday p=0.08, genre p<0.01 (H=17.6 across six groups). Three in four ratings still land between 60 and 80. The original null-result framing did not reproduce; the honest shape is "small but real."
 
-Open decisions: where #12 belongs, whether #11 survives, and whether #6 and #6b
-are one finding at two zoom levels.
-
-The promotion route for the approved five is written up in
-`thoughts/STATS-STORY-SWAP.md`: a `mode` field on `ChartSection` so the stats story
-REPLACES the eight narrative charts rather than adding to them. Not wired in yet.
-**Do not delete `web/src/components/lab/LabCharts.tsx` until it is** — the chart
-bodies live there and nowhere else.
+The chart-set swap mechanism is the `chartSet` field on `StoryConfig` in `web/src/lib/stories.ts`: when the stats story is active it replaces the narrative charts entirely, and `StoryBeats.tsx` renders the four beats with a "Deep dive" disclosure for the rest.
 
 **Conventions.** No em-dashes in prose or UI copy. **American English throughout**,
 in code comments as much as in UI copy: color not colour, gray not grey, centered not
