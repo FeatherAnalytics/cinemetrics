@@ -9,6 +9,8 @@ import {
   topNSimilar,
   filterRecommendations,
   scoreByTaste,
+  scoreWithPrior,
+  criticPrior,
   tasteVector,
   type EmbeddingData,
   type RecommendationFilters,
@@ -186,6 +188,37 @@ describe("filterRecommendations", () => {
   it("applies no filters when empty", () => {
     const result = filterRecommendations(recs, {});
     expect(result).toHaveLength(3);
+  });
+});
+
+describe("scoreWithPrior", () => {
+  it("with lambda=0 the ranking equals pure cosine order", () => {
+    const taste = tasteVector(DATA, [{ tmdb_id: 1, rating: 100 }])!;
+    const cosineOnly = scoreByTaste(taste, DATA, new Set([1]));
+    const withPrior = scoreWithPrior(taste, DATA, new Set([1]), 0);
+    cosineOnly.sort((a, b) => b.score - a.score);
+    withPrior.sort((a, b) => b.score - a.score);
+    expect(withPrior.map((r) => r.tmdb_id)).toEqual(cosineOnly.map((r) => r.tmdb_id));
+  });
+
+  it("with lambda=1 a high-prior low-cosine film outranks a low-prior high-cosine one", () => {
+    const taste = tasteVector(DATA, [{ tmdb_id: 1, rating: 100 }])!;
+    const scored = scoreWithPrior(taste, DATA, new Set([1]), 1);
+    const byId = new Map(scored.map((r) => [r.tmdb_id, r.score]));
+    // Film 4 has metascore=90, rt=92, imdb=8.5 (prior ≈ 0.88) but low cosine to film 1
+    // Film 3 has metascore=70, rt=75, imdb=7.0 (prior ≈ 0.72) and zero cosine to film 1
+    expect(byId.get(4)!).toBeGreaterThan(byId.get(3)!);
+  });
+});
+
+describe("criticPrior", () => {
+  it("averages available scores", () => {
+    expect(criticPrior(METADATA[1], 0.5)).toBeCloseTo((80/100 + 85/100 + 8.0/10) / 3);
+  });
+
+  it("returns pool mean when no scores", () => {
+    const noScores = { ...METADATA[1], metascore: null, rt_rating: null, imdb_rating: null };
+    expect(criticPrior(noScores, 0.42)).toBeCloseTo(0.42);
   });
 });
 

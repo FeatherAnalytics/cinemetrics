@@ -7,7 +7,7 @@ import {
   loadEmbeddings,
   topNSimilar,
   filterRecommendations,
-  scoreByTaste,
+  scoreWithPrior,
   tasteVector,
   type Recommendation,
   type CandidateMetadata,
@@ -82,7 +82,7 @@ export function weightedSample(pool: Recommendation[], n: number): Recommendatio
 }
 
 async function fetchRecs(
-  state: { mode: string; sourceTmdbId: number | null; filters: Record<string, unknown>; genre: string | null; hideRated: boolean },
+  state: { mode: string; sourceTmdbId: number | null; filters: Record<string, unknown>; genre: string | null; hideRated: boolean; lambda: number },
   ratedIds: Set<number>,
   films: Map<number, { tmdb_id: number; genres: string[]; director: string | null; actors: string | null; keywords: string[] }>,
   watches: { tmdb_id: number; rating: number | null }[],
@@ -110,7 +110,7 @@ async function fetchRecs(
     // random. weightedSample keeps variety; the scores steer it.
     const taste = tasteVector(data, watches);
     let pool: Recommendation[] = taste
-      ? scoreByTaste(taste, data, excludeIds)
+      ? scoreWithPrior(taste, data, excludeIds, state.lambda)
       : Object.keys(data.vectors)
           .map(Number)
           .filter((id) => !excludeIds.has(id) && data.metadata[id])
@@ -255,7 +255,7 @@ export function RecommendDrawer() {
     runtimeRange?.join("-") ?? "",
     ratingRange?.join("-") ?? "",
   ].join("|");
-  const currentKey = `${state.mode}:${state.sourceTmdbId}:${state.genre}:${state.filters.language}:${shuffleCount}:${dashSig}`;
+  const currentKey = `${state.mode}:${state.sourceTmdbId}:${state.genre}:${state.filters.language}:${state.lambda}:${shuffleCount}:${dashSig}`;
   if (state.open && R2_URL && currentKey !== reqKey) {
     setReqKey(currentKey);
     setStatus("loading");
@@ -363,6 +363,32 @@ export function RecommendDrawer() {
             >
               Shuffle
             </button>
+          </div>
+
+          <div
+            className="mb-3 flex rounded-lg border overflow-hidden"
+            style={{ borderColor: hairline(tokens.ink.primary, 20) }}
+            role="group"
+            aria-label="Critic influence"
+          >
+            {([
+              { label: "Deep cuts", value: 0 },
+              { label: "Balanced", value: 0.5 },
+              { label: "Safe picks", value: 1 },
+            ] as const).map(({ label, value }) => (
+              <button
+                key={value}
+                onClick={() => dispatch({ type: "SET_LAMBDA", lambda: value })}
+                className="flex-1 px-2 py-1 text-[10px] font-medium"
+                style={{
+                  background: state.lambda === value ? tokens.ui.active : "transparent",
+                  color: state.lambda === value ? tokens.ui.activeText : tokens.ink.secondary,
+                }}
+                aria-pressed={state.lambda === value}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {effectiveStatus === "loading" && (

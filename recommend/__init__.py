@@ -11,5 +11,5 @@ FEATURE_WEIGHTS = {
     "director": 0.0,
     "actors": 0.0,
     "country": 1.0,
-    "critic_scores": 3.0,
+    "critic_scores": 0.0,
 }

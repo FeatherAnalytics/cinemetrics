@@ -159,6 +159,15 @@ export function tasteVector(
   return taste.some((v) => v !== 0) ? taste : null;
 }
 
+/** Mean of available normalized critic scores (metascore/100, rt/100, imdb/10), or pool mean when none. */
+export function criticPrior(meta: CandidateMetadata, poolMean: number): number {
+  const scores: number[] = [];
+  if (meta.metascore != null) scores.push(meta.metascore / 100);
+  if (meta.rt_rating != null) scores.push(meta.rt_rating / 100);
+  if (meta.imdb_rating != null) scores.push(meta.imdb_rating / 10);
+  return scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : poolMean;
+}
+
 /** Score every candidate not in excludeIds by cosine similarity to `taste`. */
 export function scoreByTaste(
   taste: number[],
@@ -181,6 +190,33 @@ export function scoreByTaste(
     });
   }
   return scored;
+}
+
+/** Score candidates by cosine(taste, film) + λ · prior(film). */
+export function scoreWithPrior(
+  taste: number[],
+  data: EmbeddingData,
+  excludeIds: Set<number>,
+  lambda: number,
+): Recommendation[] {
+  const base = scoreByTaste(taste, data, excludeIds);
+  if (lambda === 0) return base;
+  const poolMean = computePoolMean(base.map((r) => r.metadata));
+  for (const r of base) {
+    const prior = criticPrior(r.metadata, poolMean);
+    r.score = r.score + lambda * prior;
+  }
+  return base;
+}
+
+function computePoolMean(metas: CandidateMetadata[]): number {
+  let sum = 0;
+  let n = 0;
+  for (const m of metas) {
+    const p = criticPrior(m, NaN);
+    if (!isNaN(p)) { sum += p; n++; }
+  }
+  return n > 0 ? sum / n : 0.5;
 }
 
 export function filterRecommendations(
