@@ -146,9 +146,10 @@ export function MostRewatched() {
   const ratingLen = (r: number) => (r / 100) * RATING_W;
 
   return (
-    <figure className="m-0">
+    <figure className="m-0 overflow-x-auto">
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        style={{ minWidth: 500 }}
         className="w-full"
         role="img"
         aria-label="Films ranked by how many times they were watched, colored by genre. Viewings bars grow rightward from the title; mirrored bars grow leftward from the right edge showing my average rating for that film."

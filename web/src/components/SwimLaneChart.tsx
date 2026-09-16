@@ -278,11 +278,11 @@ export function SwimLaneChart() {
   );
 
   return (
-    <figure className="relative m-0">
+    <figure className="relative m-0 overflow-x-auto">
       <svg
         viewBox={`0 0 ${BASE_WIDTH} ${viewBoxHeight}`}
         className="w-full"
-        style={{ touchAction: "none" }}
+        style={{ minWidth: 600, touchAction: "none" }}
         role="img"
         aria-label="Swim lane chart of every watch by date. One row per year, January to December. Drag to brush a selection."
         {...handlers}
