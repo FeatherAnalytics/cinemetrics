@@ -48,6 +48,7 @@ export function ResidualDotStack() {
     [filtered],
   );
   const [hover, setHover] = useState<Dot | null>(null);
+  const [rovingIdx, setRovingIdx] = useState(-1);
 
   const { dots, r2, rMax, axisMax, H, baseline, dotR } = useMemo(() => {
     const { films: allFilms, r2 } = computeResiduals(filtered, byId);
@@ -157,12 +158,20 @@ export function ResidualDotStack() {
     <figure className="relative m-0">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full"
+        className="w-full chart-mark"
         style={{ touchAction: "none" }}
+        {...handlers}
         role="group"
         tabIndex={0}
-        aria-label="Every film stacked by how far my rating deviates from the critic-based prediction. Drag to brush a selection."
-        {...handlers}
+        aria-label="Residual dot stack. Arrow keys navigate, Enter selects."
+        aria-activedescendant={rovingIdx >= 0 ? `res-mark-${rovingIdx}` : undefined}
+        onKeyDown={(e) => {
+          if (!dots.length) return;
+          if (e.key === "ArrowRight") { e.preventDefault(); setRovingIdx((i) => Math.min(i + 1, dots.length - 1)); }
+          else if (e.key === "ArrowLeft") { e.preventDefault(); setRovingIdx((i) => Math.max(i - 1, 0)); }
+          else if ((e.key === "Enter" || e.key === " ") && rovingIdx >= 0) { e.preventDefault(); setSelected(dots[rovingIdx].tmdb_id); }
+        }}
+        onFocus={() => { if (rovingIdx < 0) setRovingIdx(0); }}
       >
         <line x1={ML} y1={baseline} x2={W - MR} y2={baseline} stroke={tokens.ink.axis} strokeWidth={1.5} />
         {ticks.map((v) => (

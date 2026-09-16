@@ -478,7 +478,10 @@ export function ExplorerProvider({
         ? `${window.location.pathname.replace(/\/s\/[^/]+$/, "")}/s/${activeStory}`.replace(/\/+/g, "/")
         : window.location.pathname.replace(/\/s\/[^/]+$/, "") || "/";
       const hash = window.location.hash;
-      const url = qs ? `${base}?${qs}${hash}` : `${base}${hash}`;
+      const existing = new URLSearchParams(window.location.search);
+      const dive = existing.get("dive");
+      const fullQs = qs || (dive ? `dive=${dive}` : "");
+      const url = fullQs ? `${base}?${fullQs}${hash}` : `${base}${hash}`;
       if (pushNeeded.current) {
         pushNeeded.current = false;
         window.history.pushState(null, "", url);

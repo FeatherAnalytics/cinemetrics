@@ -47,6 +47,7 @@ export function SwimLaneChart() {
   } = useExplorer();
   const { tokens } = useTheme();
   const [hover, setHover] = useState<{ x: number; y: number; w: EnrichedWatch } | null>(null);
+  const [rovingIdx, setRovingIdx] = useState(-1);
   const monthFocus = storyResult?.monthFocus ?? null;
   const showYearMeans = storyResult?.yearMeans ?? false;
 
@@ -288,20 +289,29 @@ export function SwimLaneChart() {
       </div>
       <svg
         viewBox={`0 0 ${BASE_WIDTH} ${viewBoxHeight}`}
-        className="w-full"
+        className="w-full chart-mark"
         style={{ minWidth: 600, touchAction: "none" }}
         role="group"
         tabIndex={0}
-        aria-label="Swim lane chart of every watch by date. One row per year, January to December. Drag to brush a selection. Use arrow keys to navigate marks."
+        aria-label="Swim lane chart. Arrow keys navigate marks, Enter selects."
+        aria-activedescendant={rovingIdx >= 0 ? `swim-mark-${rovingIdx}` : undefined}
         onKeyDown={(e) => {
-          if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+          const visible = points.filter((p) => p.op > 0.1);
+          if (!visible.length) return;
+          if (e.key === "ArrowRight") {
             e.preventDefault();
-            const filtered_ = points.filter((p) => p.op > 0.1);
-            if (!filtered_.length) return;
-            const idx = e.key === "ArrowRight" ? 0 : filtered_.length - 1;
-            setSelected(filtered_[idx].w.tmdb_id);
+            setRovingIdx((i) => Math.min(i + 1, visible.length - 1));
+          } else if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            setRovingIdx((i) => Math.max(i - 1, 0));
+          } else if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            if (rovingIdx >= 0 && rovingIdx < visible.length) {
+              setSelected(visible[rovingIdx].w.tmdb_id);
+            }
           }
         }}
+        onFocus={() => { if (rovingIdx < 0) setRovingIdx(0); }}
         {...handlers}
       >
         {/* Lane backgrounds */}

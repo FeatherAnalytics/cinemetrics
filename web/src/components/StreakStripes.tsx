@@ -144,6 +144,7 @@ export function StreakStripes() {
    */
   const source = lens != null && lens !== "heart" ? all : filtered;
   const [hover, setHover] = useState<{ i: number; w: EnrichedWatch } | null>(null);
+  const [rovingIdx, setRovingIdx] = useState(-1);
 
   const { rated, med, devMax } = useMemo(() => {
     const rated = source
@@ -268,9 +269,15 @@ export function StreakStripes() {
         className="w-full chart-mark"
         role="group"
         tabIndex={0}
-        aria-label={
-          LEGENDS[lens ?? "rating"].aria
-        }
+        aria-label={`${LEGENDS[lens ?? "rating"].aria} Arrow keys navigate, Enter selects.`}
+        aria-activedescendant={rovingIdx >= 0 ? `stripe-${rovingIdx}` : undefined}
+        onKeyDown={(e) => {
+          if (!rated.length) return;
+          if (e.key === "ArrowRight") { e.preventDefault(); setRovingIdx((i) => Math.min(i + 1, rated.length - 1)); }
+          else if (e.key === "ArrowLeft") { e.preventDefault(); setRovingIdx((i) => Math.max(i - 1, 0)); }
+          else if ((e.key === "Enter" || e.key === " ") && rovingIdx >= 0) { e.preventDefault(); setSelected(rated[rovingIdx].tmdb_id); }
+        }}
+        onFocus={() => { if (rovingIdx < 0) setRovingIdx(0); }}
       >
         {rated.map((w, i) => {
           const sel = hasSel && w.tmdb_id === selectedId;
