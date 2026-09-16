@@ -159,7 +159,8 @@ export function ResidualDotStack() {
         viewBox={`0 0 ${W} ${H}`}
         className="w-full"
         style={{ touchAction: "none" }}
-        role="img"
+        role="group"
+        tabIndex={0}
         aria-label="Every film stacked by how far my rating deviates from the critic-based prediction. Drag to brush a selection."
         {...handlers}
       >

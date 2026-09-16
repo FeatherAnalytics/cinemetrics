@@ -7,7 +7,7 @@ import { hasKnownRewatchState, insetRect, NO_DATA_STROKE, quantile } from "@/lib
 import type { EnrichedWatch } from "@/lib/types";
 import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import { useWidth } from "@/lib/useWidth";
-import { accentFor, isPicked, pickWatches } from "./pick";
+import { a11yMark, accentFor, isPicked, pickWatches } from "./pick";
 import { Toggle } from "./Toggle";
 
 type Grain = "week" | "month" | "year";
@@ -160,7 +160,7 @@ export function ViewingVelocity() {
         <Toggle options={GRAINS} value={grain} onChange={setGrain} label="Bucket size" />
         <Toggle options={KINDS} value={kind} onChange={setKind} label="Which watches" />
       </div>
-      <svg width={W} height={H} role="img" aria-label="Viewing velocity over time" style={{ maxWidth: "100%" }}>
+      <svg width={W} height={H} role="group" aria-label="Viewing velocity over time" style={{ maxWidth: "100%" }}>
         {[
           { v: peak, label: `${peak}` },
           { v: median, label: `median ${median.toFixed(median % 1 ? 1 : 0)}` },
@@ -246,6 +246,7 @@ export function ViewingVelocity() {
                 fillOpacity={picked ? 0.12 : 1}
                 style={{ cursor: "pointer" }}
                 onClick={() => pickWatches(c, filters.selection, setSelection)}
+                {...a11yMark(() => pickWatches(c, filters.selection, setSelection), `${k}, ${c.length} watches`, picked)}
               />
             </g>
           );

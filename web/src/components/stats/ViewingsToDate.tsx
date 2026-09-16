@@ -15,7 +15,7 @@ import {
 } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
-import { accentFor, isPicked, pickWatches } from "./pick";
+import { a11yMark, accentFor, isPicked, pickWatches } from "./pick";
 
 const W0 = 720;
 const W_MIN = 380;
@@ -224,6 +224,7 @@ export function ViewingsToDate() {
               key={l.year}
               style={{ cursor: "pointer" }}
               onClick={() => pickWatches(l.watches, filters.selection, setSelection)}
+              {...a11yMark(() => pickWatches(l.watches, filters.selection, setSelection), `${l.year}, ${l.shown} watches`, on)}
             >
               <rect
                 x={legX - 3}

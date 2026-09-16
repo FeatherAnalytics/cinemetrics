@@ -8,7 +8,7 @@ import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { mean } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
-import { accentFor, isPicked, pickWatches } from "./pick";
+import { a11yMark, accentFor, isPicked, pickWatches } from "./pick";
 
 // Geometry copied from "What travels well" so the two charts are the same
 // object seen twice, not two charts that resemble each other. BAR_H and GAP come
@@ -186,7 +186,7 @@ export function MostRewatched() {
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         style={{ minWidth: 500 }}
         className="w-full"
-        role="img"
+        role="group"
         aria-label="Films ranked by how many times they were watched, colored by genre. Viewings bars grow rightward from the title; mirrored bars grow leftward from the right edge showing my average rating for that film."
       >
         {/* Column headers */}
@@ -238,6 +238,7 @@ export function MostRewatched() {
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
               onClick={() => pickWatches(f.watches, filters.selection, setSelection)}
+              {...a11yMark(() => pickWatches(f.watches, filters.selection, setSelection), `${f.title}, ${f.watches.length} viewings`, on)}
             >
               {/* Row hit area, so the whole line is clickable */}
               <rect x={0} y={y} width={WIDTH} height={BAR_H} fill="transparent" />

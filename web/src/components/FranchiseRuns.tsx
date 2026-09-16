@@ -219,7 +219,7 @@ export function FranchiseRuns() {
         viewBox={`0 0 ${W} ${H}`}
         className="w-full"
         style={{ touchAction: "none" }}
-        role="img"
+        role="group"
         aria-label="One row per franchise; dots are watches over time, height is my rating. Drag to brush a selection."
         {...handlers}
       >

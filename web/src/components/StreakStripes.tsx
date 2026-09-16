@@ -265,8 +265,9 @@ export function StreakStripes() {
     <figure className="relative m-0">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full"
-        role="img"
+        className="w-full chart-mark"
+        role="group"
+        tabIndex={0}
         aria-label={
           LEGENDS[lens ?? "rating"].aria
         }

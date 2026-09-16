@@ -8,6 +8,7 @@ import { watchKey } from "@/lib/brush";
 import { computeResiduals } from "@/lib/stats";
 import { BAR_H, GAP } from "@/lib/barChart";
 import { heartByFilm, heartDeltaPP, ppLabel } from "@/lib/heartLens";
+import { a11yMark } from "./stats/pick";
 import { useAnimatedValues } from "@/lib/useAnimatedValues";
 
 const LABEL_W = 200;
@@ -171,7 +172,7 @@ export function KeywordBars() {
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
-        role="img"
+        role="group"
         aria-label="Keywords whose heart rate sits furthest above and below my overall heart rate"
       >
         {/* Zero line */}
@@ -214,6 +215,7 @@ export function KeywordBars() {
                 onMouseEnter={() => setHover(bar.keyword)}
                 onMouseLeave={() => setHover(null)}
                 onClick={() => handleClick(bar)}
+                {...a11yMark(() => handleClick(bar), `${bar.keyword}, ${bar.filmIds.size} films`, isHover)}
               />
 
               {/* The value sits across the zero line from its own bar, hugging

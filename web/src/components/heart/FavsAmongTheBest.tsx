@@ -7,7 +7,7 @@ import { useTheme } from "@/lib/theme";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { ceilingFilms } from "@/lib/fourFavs";
 import { favColor, StarMarker } from "@/lib/favMarker";
-import { isPicked, pickWatches } from "@/components/stats/pick";
+import { a11yMark, isPicked, pickWatches } from "@/components/stats/pick";
 
 const LABEL_W = 210;
 const COUNT_W = 300;
@@ -94,7 +94,7 @@ export function FavsAmongTheBest() {
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
-        role="img"
+        role="group"
         aria-label={`Every film rated ${rating}, ordered by how many times I watched it. Bars grow rightward from the title; the four profile favorites are starred and drawn in their genre color.`}
       >
         <text
@@ -133,6 +133,7 @@ export function FavsAmongTheBest() {
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
               onClick={() => pickWatches(f.watches, filters.selection, setSelection)}
+              {...a11yMark(() => pickWatches(f.watches, filters.selection, setSelection), `${f.label}, ${f.watches.length} viewings`, isPicked(f.watches, filters.selection))}
             >
               <rect x={0} y={y} width={WIDTH} height={BAR_H} fill="transparent" />
 

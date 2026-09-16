@@ -8,7 +8,7 @@ import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { mean } from "@/lib/statsChart";
 import { favDirectorCohorts, type CohortFilm } from "@/lib/fourFavs";
 import { favColor, StarMarker } from "@/lib/favMarker";
-import { isPicked, pickWatches } from "@/components/stats/pick";
+import { a11yMark, isPicked, pickWatches } from "@/components/stats/pick";
 
 const LABEL_W = 210;
 const RATING_W = 300;
@@ -92,7 +92,7 @@ export function FavDirectors() {
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
-        role="img"
+        role="group"
         aria-label="Each of the four profile favorites grouped with the rest of that director's films I have watched. Bars are my rating on a nought to one hundred scale; the favorite is starred and drawn in its genre color, the others in gray. A dashed line marks my average rating."
       >
         <text
@@ -163,6 +163,7 @@ export function FavDirectors() {
               onMouseEnter={() => setHover(key)}
               onMouseLeave={() => setHover(null)}
               onClick={() => pickWatches(r.film.watches, filters.selection, setSelection)}
+              {...a11yMark(() => pickWatches(r.film.watches, filters.selection, setSelection), `${r.film.title}, ${r.film.rating != null ? r.film.rating : "unrated"}`, isPicked(r.film.watches, filters.selection))}
             >
               <rect x={0} y={r.y} width={WIDTH} height={BAR_H} fill="transparent" />
 

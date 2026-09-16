@@ -7,7 +7,7 @@ import { hairline, useTheme, type Tokens } from "@/lib/theme";
 import { insetRect, lerpHex, mean, NO_DATA_STROKE } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
-import { accentFor, isPicked, pickWatches } from "./pick";
+import { a11yMark, accentFor, isPicked, pickWatches } from "./pick";
 
 const BASE_FONT = 9;
 
@@ -193,7 +193,7 @@ export function GenrePairing() {
       {/* Scrolls rather than shrinks below CELL_MIN: a matrix squeezed past the
           point its numbers fit is not a smaller chart, it is an unreadable one. */}
       <div className="overflow-x-auto">
-        <svg width={size} height={size} role="img">
+        <svg width={size} height={size} role="group" aria-label="Genre pairing matrix">
           {/* Each axis title runs ALONG its own axis rather than stacking in the
               corner. Stacked, the two read as one phrase and the row title's
               arrow appeared to point at the column title instead of at the
@@ -264,6 +264,7 @@ export function GenrePairing() {
                   onMouseEnter={() => setHover({ a, b, n: v.n, rating: v.rating })}
                   onMouseLeave={() => setHover(null)}
                   onClick={() => pickWatches(v.watches, filters.selection, setSelection)}
+                  {...a11yMark(() => pickWatches(v.watches, filters.selection, setSelection), `${a} × ${b}, ${v.n} watches`, isPicked(v.watches, filters.selection))}
                 >
                   {/* Cells butt together: a gutter reads as a white grid drawn
                       over the data, which fights the density ramp. */}

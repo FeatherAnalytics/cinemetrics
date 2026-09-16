@@ -8,6 +8,7 @@ import { languageName } from "@/lib/languages";
 import { aggregateOrigin, type CountryRow, type OriginDimension } from "@/lib/countryStats";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { ChartTakeaway } from "./ChartTakeaway";
+import { a11yMark } from "./stats/pick";
 import { Toggle } from "./stats/Toggle";
 import { heartDeltaPP, heartShare, ppLabel } from "@/lib/heartLens";
 import { useAnimatedValues } from "@/lib/useAnimatedValues";
@@ -158,7 +159,7 @@ export function CountryBars() {
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
-        role="img"
+        role="group"
         aria-label={`Top production ${
           isLang ? "languages" : "countries"
         } ranked by film count, colored by dominant genre. Film bars grow rightward from the name. The right-hand track diverges from a zero line: bars grow right where I heart films from that ${dimension} more often than average and left where less often.`}
@@ -226,6 +227,7 @@ export function CountryBars() {
               onMouseEnter={() => setHover(row.iso)}
               onMouseLeave={() => setHover(null)}
               onClick={() => handleRow(row)}
+              {...a11yMark(() => handleRow(row), `${row.iso}, ${row.count} films`, sel)}
             >
               {/* Row hit area, so the whole line is clickable */}
               <rect x={0} y={y} width={WIDTH} height={BAR_H} fill="transparent" />
