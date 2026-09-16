@@ -26,6 +26,7 @@ import { RatingsByGenre } from "@/components/stats/RatingsByGenre";
 import { FlagpoleChart } from "@/components/FlagpoleChart";
 import { GenrePairing } from "@/components/stats/GenrePairing";
 import { RatingDistribution } from "@/components/stats/RatingDistribution";
+import { StoryBeats } from "@/components/stats/StoryBeats";
 import { PosterBarcode, PosterBarcodeBlurb } from "@/components/PosterBarcode";
 import { FavPosters } from "@/components/heart/FavPosters";
 import { LikedByRating, LikedByRatingBlurb } from "@/components/heart/LikedByRating";
@@ -727,7 +728,33 @@ function Explorer() {
           <div className="grid grid-cols-1 gap-8">
             <SelectionPanel />
 
-            {sections.map(({ id, title, blurbClass, blurb, heartBlurb, Chart }) => (
+            {activeStory === "stats" && (
+              <StoryBeats>
+                {sections
+                  .filter((s) => !["pace", "todate", "velocity", "rewatched"].includes(s.id))
+                  .map(({ id, title, Chart }) => (
+                    <section key={id} id={`chart-${id}`} className="scroll-mt-6">
+                      <h2
+                        className="mb-2 font-display text-lg font-semibold"
+                        style={{ color: tokens.ink.primary }}
+                      >
+                        {title}
+                      </h2>
+                      <div
+                        className="rounded-md border p-4"
+                        style={{
+                          background: "var(--surface-card)",
+                          borderColor: hairline(tokens.ink.primary, 9),
+                        }}
+                      >
+                        <Chart />
+                      </div>
+                    </section>
+                  ))}
+              </StoryBeats>
+            )}
+
+            {activeStory !== "stats" && sections.map(({ id, title, blurbClass, blurb, heartBlurb, Chart }: typeof sections[number]) => (
               <section key={id} id={`chart-${id}`} className="scroll-mt-6" style={chartStyle(id)}>
                 <div className="min-w-0">
                   <h2
