@@ -6,6 +6,7 @@ import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { deltaLabel, type RatingDelta } from "@/lib/ratingDelta";
 import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import type { RankedBar } from "@/lib/watchlistChart";
+import { a11yMark } from "@/components/stats/pick";
 
 const LABEL_W = 150;
 const BAR_W = 300; // films track, grows left to right
@@ -113,7 +114,7 @@ export function RankedBars({
 
   return (
     <figure className="m-0">
-      <svg viewBox={`0 0 ${width} ${HEIGHT}`} className="w-full" role="img" aria-label={ariaLabel}>
+      <svg viewBox={`0 0 ${width} ${HEIGHT}`} className="w-full" role={onPick ? "group" : "img"} aria-label={ariaLabel}>
         {hasDev && (
           <>
             <text
@@ -262,6 +263,7 @@ export function RankedBars({
                 onMouseEnter={() => setHover(bar.key)}
                 onMouseLeave={() => setHover(null)}
                 onClick={onPick ? () => onPick(bar.key) : undefined}
+                {...(onPick ? a11yMark(() => onPick(bar.key), `${bar.label}, ${bar.count}`, isActive) : {})}
               />
             </g>
           );

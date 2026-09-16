@@ -128,7 +128,7 @@ export function contrastiveExplain(
     if (!KNOWN_FAMILIES.has(family)) continue;
     const df = dimFreq.get(i) ?? 1;
     const idf = Math.log(ratedCount / Math.max(df, 1));
-    contributions.push({ dim: i, value: contrib * Math.max(idf, 0.1), family });
+    contributions.push({ dim: i, value: contrib * Math.max(idf * idf, 0.01), family });
   }
   contributions.sort((a, b) => b.value - a.value);
 
