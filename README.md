@@ -28,14 +28,53 @@ A personal film analytics project that started as a spreadsheet and became an en
 
 ## How it fits together
 
-```
-Letterboxd (ratings log)   ─┐
-TMDB   (genres, keywords)  ─┼─► seeds ─► dbt (staging → marts) ─► export ─► dashboard
-OMDb   (critic scores)     ─┘
-                                  │
-                            candidate pool ─► scikit-learn (feature embeddings)
-                                  │
-                            Cloudflare R2 ─► browser (cosine similarity, client-side)
+```mermaid
+flowchart LR
+  subgraph Sources
+    letterboxd[Letterboxd RSS]
+    tmdb[TMDB]
+    omdb[OMDb]
+  end
+  subgraph Ingest
+    update[update.py]
+    fetch[fetch_candidates.py]
+  end
+  subgraph Model
+    seeds[(seed CSVs)]
+    dbt[dbt: staging → marts]
+    db[(DuckDB)]
+  end
+  subgraph Publish
+    export[export_web.py]
+    train[train_embeddings.py]
+    json[cinemetrics.json]
+    r2[Cloudflare R2]
+    site[GitHub Pages]
+    drawer[Recommendation drawer]
+  end
+
+  letterboxd --> update
+  tmdb --> update
+  tmdb --> fetch
+  omdb --> update
+  omdb --> fetch
+  update --> seeds
+  fetch --> seeds
+  seeds --> dbt
+  dbt --> db
+  db --> export
+  db --> train
+  export --> json
+  train --> r2
+  json --> site
+  r2 --> drawer
+  drawer --> site
+
+  nightly{{Nightly Action}} -.-> update
+  nightly -.-> fetch
+  nightly -.-> dbt
+  nightly -.-> export
+  nightly -.-> train
 ```
 
 - **Seeds**: committed CSVs — [`film_log.csv`](transform/seeds/film_log.csv) (watch history), [`film_enrichment.csv`](transform/seeds/film_enrichment.csv) (rated films), [`candidate_enrichment.csv`](transform/seeds/candidate_enrichment.csv) (recommendation pool from TMDB similar + popular).
