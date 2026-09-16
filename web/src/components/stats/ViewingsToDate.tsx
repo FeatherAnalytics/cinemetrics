@@ -15,7 +15,7 @@ import {
 } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
-import { a11yMark, accentFor, isPicked, pickWatches } from "./pick";
+import { accentFor, isPicked, pickWatches } from "./pick";
 
 const W0 = 720;
 const W_MIN = 380;

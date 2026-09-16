@@ -51,17 +51,15 @@ function phraseReason(
   featureName: string,
   filmMeta: CandidateMetadata,
   ctx: ExplainContext,
-): Reason {
+): Reason | null {
   const { family, value } = parseFeature(featureName);
 
   if (family === "genre") {
-    let count = 0;
     const ratingByFilm = new Map<number, number>();
     for (const w of ctx.watches) {
       const cur = ratingByFilm.get(w.tmdb_id);
       if (cur == null || w.rating > cur) ratingByFilm.set(w.tmdb_id, w.rating);
     }
-    for (const [, r] of ratingByFilm) if (r >= 80) count++;
     const genreCount = [...ratingByFilm].filter(([tid, r]) => {
       if (r < 80) return false;
       const vec = ctx.vectors[tid];
@@ -100,8 +98,10 @@ function phraseReason(
     return { type: "country", text: `from ${value}` };
   }
 
-  return { type: family, text: value };
+  return null;
 }
+
+const KNOWN_FAMILIES = new Set(["kw", "genre", "director", "actor", "country"]);
 
 export function contrastiveExplain(
   filmVec: SparseVec,
@@ -117,9 +117,13 @@ export function contrastiveExplain(
   contributions.sort((a, b) => b.value - a.value);
 
   const reasons: Reason[] = [];
-  for (const { dim } of contributions.slice(0, 3)) {
+  for (const { dim } of contributions) {
+    if (reasons.length >= 3) break;
     const name = ctx.featureNames[dim] ?? `dim:${dim}`;
-    reasons.push(phraseReason(dim, name, filmMeta, ctx));
+    const { family } = parseFeature(name);
+    if (!KNOWN_FAMILIES.has(family)) continue;
+    const reason = phraseReason(dim, name, filmMeta, ctx);
+    if (reason) reasons.push(reason);
   }
 
   const priorScore = ctx.lambda * criticPrior(filmMeta, ctx.poolMean);

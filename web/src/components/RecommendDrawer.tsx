@@ -113,8 +113,8 @@ async function fetchRecs(
   films: Map<number, { tmdb_id: number; genres: string[]; director: string | null; actors: string | null; keywords: string[] }>,
   watches: { tmdb_id: number; rating: number | null }[],
   dashFilters: Filters,
-): Promise<{ recs: Recommendation[]; reasons: Record<number, Reason[]>; boostCount: number }> {
-  if (!R2_URL) return { recs: [], reasons: {}, boostCount: 0 };
+): Promise<{ recs: Recommendation[]; reasons: Record<number, Reason[]>; boostCount: number; skippedFilters: string[] }> {
+  if (!R2_URL) return { recs: [], reasons: {}, boostCount: 0, skippedFilters: [] };
   const { data } = await loadEmbeddings(R2_URL, embeddingsVersion.version);
   const TARGET = 10;
   let finalRecs: Recommendation[] = [];
@@ -183,7 +183,14 @@ async function fetchRecs(
       : [];
   }
 
-  return { recs: finalRecs, reasons, boostCount };
+  const skippedFilters: string[] = [];
+  if (dashFilters.director && finalRecs.some((r) => r.metadata.director == null)) {
+    skippedFilters.push("director");
+  }
+  if (dashFilters.actor && finalRecs.some((r) => r.metadata.actors == null)) {
+    skippedFilters.push("actor");
+  }
+  return { recs: finalRecs, reasons, boostCount, skippedFilters };
 }
 
 function CredibilityPanel({ tokens }: { tokens: ReturnType<typeof useTheme>["tokens"] }) {
@@ -277,6 +284,7 @@ export function RecommendDrawer() {
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [reasonsMap, setReasonsMap] = useState<Record<number, Reason[]>>({});
   const [boostCount, setBoostCount] = useState(0);
+  const [skippedFilters, setSkippedFilters] = useState<string[]>([]);
   const [shuffleCount, setShuffleCount] = useState(0);
   const [status, setStatus] = useState<Status>("loading");
 
@@ -339,6 +347,7 @@ export function RecommendDrawer() {
         setRecs(result.recs);
         setReasonsMap(result.reasons);
         setBoostCount(result.boostCount);
+        setSkippedFilters(result.skippedFilters);
         setStatus("ready");
       })
       .catch(() => {
@@ -446,6 +455,9 @@ export function RecommendDrawer() {
 
           <p className="mb-3 text-[11px]" style={{ color: tokens.ink.muted }}>
             Based on my ratings and taste.
+            {skippedFilters.length > 0 && (
+              <span> {skippedFilters.join(" and ")} filter not applied (data unavailable).</span>
+            )}
           </p>
 
           <div className="mb-3 flex flex-wrap gap-2">

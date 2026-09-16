@@ -100,7 +100,7 @@ export function PosterBarcodeBlurb() {
 }
 
 export function PosterBarcode() {
-  const { filtered, setSelected, setSelection, heartLens, activeStory, storyResult, filters } = useExplorer();
+  const { filtered, setSelection, heartLens, activeStory, storyResult, filters } = useExplorer();
   const { tokens } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // x and figW travel with the watch: both come off the same getBoundingClientRect
@@ -154,6 +154,10 @@ export function PosterBarcode() {
       // exists for a mark carrying no categorical color, and it reaches 3.70:1.
       const noSlice = tokens.ink.mark;
 
+      // Heart lens filters the watch set (line 121); story dims stripes outside
+      // the selection. When both apply, the lens wins: the barcode only contains
+      // hearted watches, so dimming inside that set is the story operating on the
+      // lens's output, not competing with it.
       const storyKeys = activeStory && storyResult?.selection ? storyResult.selection : null;
       const bw = w / watches.length;
       watches.forEach((wt, i) => {
@@ -280,8 +284,8 @@ export function PosterBarcode() {
           nothing left that can change height under the pointer. */}
       <figcaption className="mt-2 text-sm" style={{ color: tokens.ink.muted }}>
         {activeStory && storyResult?.selection
-          ? `${storyResult.selection.size} of ${watches.length} watches.`
-          : `${watches.length} watches.`}
+          ? `${storyResult.selection.size} of ${watches.length} ${watches.length === 1 ? "watch" : "watches"}.`
+          : `${watches.length} ${watches.length === 1 ? "watch" : "watches"}.`}
         {" "}Tap or hover for the film.
       </figcaption>
     </figure>

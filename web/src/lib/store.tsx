@@ -472,7 +472,11 @@ export function ExplorerProvider({
         releaseYearBounds: derived.releaseYearBounds,
         runtimeBounds: derived.runtimeBounds,
       });
-      const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+      const base = activeStory
+        ? `${window.location.pathname.replace(/\/s\/[^/]+$/, "")}/s/${activeStory}`.replace(/\/+/g, "/")
+        : window.location.pathname.replace(/\/s\/[^/]+$/, "") || "/";
+      const hash = window.location.hash;
+      const url = qs ? `${base}?${qs}${hash}` : `${base}${hash}`;
       if (pushNeeded.current) {
         pushNeeded.current = false;
         window.history.pushState(null, "", url);
@@ -491,11 +495,13 @@ export function ExplorerProvider({
         runtimeBounds: derived.runtimeBounds,
       };
       const parsed = parseUrlState(new URLSearchParams(window.location.search), bounds);
-      if (parsed.story) {
-        const story = getStoryById(parsed.story);
+      const pathStory = window.location.pathname.match(/\/s\/([^/]+)/)?.[1] ?? null;
+      const storyId = parsed.story ?? pathStory;
+      if (storyId) {
+        const story = getStoryById(storyId);
         if (story) {
           const result = story.compute(derived.films, derived.all, derived.watchlist);
-          setActiveStory(parsed.story);
+          setActiveStory(storyId);
           setStoryResult(result);
           setFilters({ ...EMPTY_FILTERS, ...result.filters, selection: result.selection ?? null });
         }

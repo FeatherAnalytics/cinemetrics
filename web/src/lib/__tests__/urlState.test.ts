@@ -34,9 +34,9 @@ describe("encodeUrlState", () => {
     expect(encodeUrlState(DEFAULTS, null, BOUNDS)).toBe("");
   });
 
-  it("encodes a story alone, ignoring filters", () => {
+  it("encodes nothing for a story (path-based routing)", () => {
     const filters = { ...DEFAULTS, country: "US" };
-    expect(encodeUrlState(filters, "spooktober", BOUNDS)).toBe("story=spooktober");
+    expect(encodeUrlState(filters, "spooktober", BOUNDS)).toBe("");
   });
 
   it("omits ranges that span the full bounds", () => {

@@ -923,7 +923,6 @@ export const STORIES: StoryConfig[] = [
   {
     id: "stats",
     label: "The shape of it",
-    landing: true,
     // `dim` is empty by design. The narrative charts are ABSENT while this story
     // runs, not faded, so there is nothing left on screen to dim.
     focus: { primary: "monthly", emphasize: ["monthly", "velocity", "genrebox"], dim: [] },
@@ -968,7 +967,7 @@ export function chartSetFor(activeStory: string | null): ChartSet {
  * Held as a lookup rather than an id constant so removing the `landing` flag is
  * enough to turn it back into an ordinary story.
  */
-export const LANDING_STORY: StoryConfig | undefined = STORIES.find((s) => s.landing);
+export const LANDING_STORY: StoryConfig | undefined = STORIES.find((s) => s.id === "stats");
 
 /** The charts an active story suppresses entirely. */
 export function hiddenCharts(activeStory: string | null): ChartId[] {

@@ -283,18 +283,13 @@ describe("chart sets", () => {
     expect(swapsChartSet("heart")).toBe(true);
   });
 
-  it("keeps the landing story out of the chip strip", () => {
-    // The landing page is the default view, not an invitation, so offering a chip
-    // for it would ask the reader to navigate to where they already are.
+  it("includes the stats story in the chip strip", () => {
     const chips = computeStoryHeadlines([], []).map((c) => c.id);
-    expect(chips).not.toContain("stats");
-    expect(chips.length).toBe(STORIES.filter((s) => !s.landing).length);
+    expect(chips).toContain("stats");
   });
 
-  it("has exactly one landing story, and it is the one the page falls back to", () => {
-    const landing = STORIES.filter((s) => s.landing);
-    expect(landing).toHaveLength(1);
-    expect(chartSetFor(null)).toBe(landing[0].chartSet);
+  it("falls back to the stats chart set when no story is active", () => {
+    expect(chartSetFor(null)).toBe("landing");
   });
 
   it("leaves the filter-driven stories on the narrative page", () => {

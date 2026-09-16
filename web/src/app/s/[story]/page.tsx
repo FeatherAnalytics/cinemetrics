@@ -29,13 +29,13 @@ export async function generateMetadata({ params }: { params: Promise<{ story: st
     openGraph: {
       title: `${meta.title} — cinemetrics`,
       description: meta.description,
-      images: [{ url: `og.png`, width: 1200, height: 630 }],
+      images: [{ url: `s/${story}/og.png`, width: 1200, height: 630 }],
     },
     twitter: {
       card: "summary_large_image",
       title: `${meta.title} — cinemetrics`,
       description: meta.description,
-      images: [{ url: `og.png` }],
+      images: [{ url: `s/${story}/og.png` }],
     },
   };
 }

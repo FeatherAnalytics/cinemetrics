@@ -45,11 +45,9 @@ export function encodeUrlState(
   bounds: Bounds,
 ): string {
   const p = new URLSearchParams();
-  // A story fully determines its filters, so it's encoded alone.
-  if (activeStory) {
-    p.set("story", activeStory);
-    return p.toString();
-  }
+  // Stories are encoded in the path (/s/<id>), not the query string. The filters
+  // a story sets are implicit, so the QS is empty. Keep ?story= parsing for old links.
+  if (activeStory) return "";
   if (filters.genres.size > 0) p.set("genres", [...filters.genres].sort().join(","));
   const watched = encodeRange(filters.yearRange, bounds.yearBounds);
   if (watched) p.set("watched", watched);

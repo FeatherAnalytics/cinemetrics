@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme, hairline } from "@/lib/theme";
 import { MonthlyPace } from "./MonthlyPace";
 import { ViewingsToDate } from "./ViewingsToDate";
@@ -29,7 +29,17 @@ const BEATS = [
 
 export function StoryBeats({ children }: { children?: React.ReactNode }) {
   const { tokens } = useTheme();
-  const [diveOpen, setDiveOpen] = useState(false);
+  const [diveOpen, setDiveOpen] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get("dive") === "1"; }
+    catch { return false; }
+  });
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (diveOpen) p.set("dive", "1"); else p.delete("dive");
+    const qs = p.toString();
+    const url = qs ? `${window.location.pathname}?${qs}${window.location.hash}` : `${window.location.pathname}${window.location.hash}`;
+    window.history.replaceState(null, "", url);
+  }, [diveOpen]);
 
   return (
     <div className="flex flex-col gap-8">
