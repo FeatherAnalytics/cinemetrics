@@ -263,6 +263,27 @@ def test_reverify_marks_series_not_a_film_and_movie_ok(tmp_path, monkeypatch):
     assert rows_to_check[1]["omdb_status"] == "ok"
 
 
+def test_reverify_catches_runtime_error_and_preserves_rows(monkeypatch):
+    """The nightly crash from run 35102762302: _reverify called _omdb_get
+    unguarded, so a 401 (daily limit) killed the run before write_rows."""
+    import scripts.fetch_candidates as fc_mod
+
+    def explode(imdb_id):
+        raise RuntimeError("rejected the credential (401)")
+
+    monkeypatch.setattr(fc_mod, "_omdb_get", explode)
+
+    rows_to_check = [
+        row(1, imdb_id="tt1", omdb_status="ok_legacy", metascore="80"),
+        row(2, imdb_id="tt2", omdb_status="ok_legacy", metascore="75"),
+    ]
+    original_statuses = [r["omdb_status"] for r in rows_to_check]
+    updated = fc_mod._reverify(rows_to_check, max_calls=10)
+
+    assert updated == 0
+    assert [r["omdb_status"] for r in rows_to_check] == original_statuses
+
+
 def test_omdb_is_not_called_again_once_it_has_stopped_answering(tmp_path, monkeypatch):
     calls: list[str] = []
 

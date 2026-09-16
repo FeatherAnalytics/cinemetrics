@@ -308,7 +308,12 @@ def _reverify(rows: list[dict[str, str]], max_calls: int) -> int:
         imdb_id = (row.get("imdb_id") or "").strip()
         if not imdb_id:
             continue
-        omdb = _omdb_get(imdb_id)
+        try:
+            omdb = _omdb_get(imdb_id)
+        except RuntimeError:
+            # OMDb uses HTTP 401 to signal the 1,000-call daily limit, not
+            # just a bad key. The latch is already set; no later call can succeed.
+            break
         if not omdb:
             continue
         if omdb.get("Response") == "True" and omdb.get("Type", "movie") != "movie":
