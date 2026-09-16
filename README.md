@@ -4,6 +4,8 @@
 
 **Live:** [featheranalytics.dev/cinemetrics](https://featheranalytics.dev/cinemetrics)
 
+![Cross-filtered dashboard: the poster barcode hero and the first chart row](docs/images/hero.png)
+
 ## Why this exists
 
 A personal film analytics project that started as a spreadsheet and became an end-to-end pipeline: ingest, model, export, deploy, recommend. The interesting part is not the stack — it is what the data says when you stop lying to it about what it recorded.
