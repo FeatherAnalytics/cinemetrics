@@ -1,7 +1,7 @@
 # Prior Art & Platform Notes
 
 What's worth borrowing from other Letterboxd projects, what isn't, and what we've
-learned about the platform itself. Data-quality conventions live in [ARCHITECTURE.md](ARCHITECTURE.md#data-conventions); this file is about external code and Letterboxd mechanics.
+learned about the platform itself. Data-quality conventions live in [ARCHITECTURE.md](ARCHITECTURE.md#conventions); this file is about external code and Letterboxd mechanics.
 
 Last surveyed: 2026-07-25
 
