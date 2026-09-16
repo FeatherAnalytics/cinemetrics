@@ -157,7 +157,7 @@ export function SwimLaneChart() {
           // ghosts when filters exclude it.
           const op = p.op < 0.3 ? 0.35 : Math.max(p.op, 0.9);
           return (
-            <g key={i} opacity={op} style={{ cursor: "pointer" }} {...handlers}>
+            <g key={i} id={`swim-mark-${i}`} opacity={op} style={{ cursor: "pointer" }} {...handlers}>
               <SunMarker x={p.x} y={p.y} accent={tokens.accent} />
             </g>
           );
@@ -176,7 +176,7 @@ export function SwimLaneChart() {
         // favorite goes unmarked, which is a worse loss than a cluster of two.
         if (isFav(p.w.tmdb_id)) {
           return (
-            <g key={i} opacity={p.op} style={{ cursor: "pointer" }} {...handlers}>
+            <g key={i} id={`swim-mark-${i}`} opacity={p.op} style={{ cursor: "pointer" }} {...handlers}>
               <StarMarker x={p.x} y={p.y} r={p.r + 2.4} fill={favColor(p.w.film, tokens)} />
             </g>
           );
@@ -198,7 +198,7 @@ export function SwimLaneChart() {
         if (leg) {
           const op = p.op < 0.3 ? 0.35 : Math.max(p.op, 0.9);
           return (
-            <g key={i} opacity={op} style={{ cursor: "pointer" }} {...handlers}>
+            <g key={i} id={`swim-mark-${i}`} opacity={op} style={{ cursor: "pointer" }} {...handlers}>
               <PlaneMarker x={p.x} y={p.y} leg={leg} color={p.color} />
             </g>
           );
@@ -207,6 +207,7 @@ export function SwimLaneChart() {
         return (
           <circle
             key={i}
+            id={`swim-mark-${i}`}
             cx={p.x}
             cy={p.y}
             r={p.r}
@@ -296,18 +297,17 @@ export function SwimLaneChart() {
         aria-label="Swim lane chart. Arrow keys navigate marks, Enter selects."
         aria-activedescendant={rovingIdx >= 0 ? `swim-mark-${rovingIdx}` : undefined}
         onKeyDown={(e) => {
-          const visible = points.filter((p) => p.op > 0.1);
-          if (!visible.length) return;
+          if (!points.length) return;
           if (e.key === "ArrowRight") {
             e.preventDefault();
-            setRovingIdx((i) => Math.min(i + 1, visible.length - 1));
+            setRovingIdx((i) => Math.min(i + 1, points.length - 1));
           } else if (e.key === "ArrowLeft") {
             e.preventDefault();
             setRovingIdx((i) => Math.max(i - 1, 0));
           } else if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            if (rovingIdx >= 0 && rovingIdx < visible.length) {
-              setSelected(visible[rovingIdx].w.tmdb_id);
+            if (rovingIdx >= 0 && rovingIdx < points.length) {
+              setSelected(points[rovingIdx].w.tmdb_id);
             }
           }
         }}

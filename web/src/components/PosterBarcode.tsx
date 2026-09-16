@@ -100,7 +100,7 @@ export function PosterBarcodeBlurb() {
 }
 
 export function PosterBarcode() {
-  const { filtered, setSelection, heartLens, activeStory, storyResult, filters } = useExplorer();
+  const { filtered, all, setSelection, heartLens, activeStory, storyResult, filters } = useExplorer();
   const { tokens } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // x and figW travel with the watch: both come off the same getBoundingClientRect
@@ -284,7 +284,7 @@ export function PosterBarcode() {
           nothing left that can change height under the pointer. */}
       <figcaption className="mt-2 text-sm" style={{ color: tokens.ink.muted }}>
         {activeStory && storyResult?.selection
-          ? `${storyResult.selection.size} of ${watches.length} ${watches.length === 1 ? "watch" : "watches"}.`
+          ? `${storyResult.selection.size} of ${all.length} ${all.length === 1 ? "watch" : "watches"}.`
           : `${watches.length} ${watches.length === 1 ? "watch" : "watches"}.`}
         {" "}Tap or hover for the film.
       </figcaption>

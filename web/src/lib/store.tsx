@@ -475,8 +475,8 @@ export function ExplorerProvider({
         runtimeBounds: derived.runtimeBounds,
       });
       const base = activeStory
-        ? `${window.location.pathname.replace(/\/s\/[^/]+$/, "")}/s/${activeStory}`.replace(/\/+/g, "/")
-        : window.location.pathname.replace(/\/s\/[^/]+$/, "") || "/";
+        ? `${window.location.pathname.replace(/\/s\/[^/]+\/?$/, "")}/s/${activeStory}/`.replace(/\/+/g, "/")
+        : window.location.pathname.replace(/\/s\/[^/]+\/?$/, "") || "/";
       const hash = window.location.hash;
       const existing = new URLSearchParams(window.location.search);
       const dive = existing.get("dive");
