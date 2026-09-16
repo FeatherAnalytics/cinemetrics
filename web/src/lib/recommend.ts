@@ -40,7 +40,8 @@ type EmbeddingFileV2 = {
 
 export type Recommendation = {
   tmdb_id: number;
-  score: number; // cosine similarity (0-1)
+  score: number;
+  cosineScore: number;
   metadata: CandidateMetadata;
 };
 
@@ -114,9 +115,11 @@ export function topNSimilar(
     if (excludeIds.has(id)) continue;
     const meta = data.metadata[id];
     if (!meta) continue;
+    const cos = sparseCosine(sourceVec, vec);
     scored.push({
       tmdb_id: id,
-      score: sparseCosine(sourceVec, vec),
+      score: cos,
+      cosineScore: cos,
       metadata: meta,
     });
   }
@@ -183,9 +186,11 @@ export function scoreByTaste(
     if (excludeIds.has(id)) continue;
     const meta = data.metadata[id];
     if (!meta) continue;
+    const cos = Math.max(0, denseSparseCosine(taste, tasteNorm, vec));
     scored.push({
       tmdb_id: id,
-      score: Math.max(0, denseSparseCosine(taste, tasteNorm, vec)),
+      score: cos,
+      cosineScore: cos,
       metadata: meta,
     });
   }
@@ -203,8 +208,7 @@ export function scoreWithPrior(
   if (lambda === 0) return base;
   const poolMean = computePoolMean(base.map((r) => r.metadata));
   for (const r of base) {
-    const prior = criticPrior(r.metadata, poolMean);
-    r.score = r.score + lambda * prior;
+    r.score = r.cosineScore + lambda * criticPrior(r.metadata, poolMean);
   }
   return base;
 }

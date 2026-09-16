@@ -160,9 +160,9 @@ describe("scoreByTaste", () => {
 
 describe("filterRecommendations", () => {
   const recs = [
-    { tmdb_id: 2, score: 0.99, metadata: METADATA[2] },
-    { tmdb_id: 3, score: 0.1, metadata: METADATA[3] },
-    { tmdb_id: 4, score: 0.95, metadata: METADATA[4] },
+    { tmdb_id: 2, score: 0.99, cosineScore: 0.99, metadata: METADATA[2] },
+    { tmdb_id: 3, score: 0.1, cosineScore: 0.1, metadata: METADATA[3] },
+    { tmdb_id: 4, score: 0.95, cosineScore: 0.95, metadata: METADATA[4] },
   ];
 
   it("filters english only", () => {
@@ -205,9 +205,22 @@ describe("scoreWithPrior", () => {
     const taste = tasteVector(DATA, [{ tmdb_id: 1, rating: 100 }])!;
     const scored = scoreWithPrior(taste, DATA, new Set([1]), 1);
     const byId = new Map(scored.map((r) => [r.tmdb_id, r.score]));
-    // Film 4 has metascore=90, rt=92, imdb=8.5 (prior ≈ 0.88) but low cosine to film 1
-    // Film 3 has metascore=70, rt=75, imdb=7.0 (prior ≈ 0.72) and zero cosine to film 1
     expect(byId.get(4)!).toBeGreaterThan(byId.get(3)!);
+  });
+
+  it("cosineScore is identical across lambda values", () => {
+    const taste = tasteVector(DATA, [{ tmdb_id: 1, rating: 100 }])!;
+    const at0 = scoreWithPrior(taste, DATA, new Set([1]), 0);
+    const at2 = scoreWithPrior(taste, DATA, new Set([1]), 2);
+    const at4 = scoreWithPrior(taste, DATA, new Set([1]), 4);
+    for (const id of [2, 3, 4]) {
+      const c0 = at0.find((r) => r.tmdb_id === id)!.cosineScore;
+      const c2 = at2.find((r) => r.tmdb_id === id)!.cosineScore;
+      const c4 = at4.find((r) => r.tmdb_id === id)!.cosineScore;
+      expect(c0).toBeCloseTo(c2);
+      expect(c0).toBeCloseTo(c4);
+      expect(Math.min(100, Math.round(c0 * 100))).toBeLessThanOrEqual(100);
+    }
   });
 });
 

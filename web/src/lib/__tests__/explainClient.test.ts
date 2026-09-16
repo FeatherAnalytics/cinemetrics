@@ -40,8 +40,6 @@ function makeCtx(overrides: Partial<ExplainContext> = {}): ExplainContext {
       10: meta({ title: "Film A", tmdb_id: 10 } as never),
       20: meta({ title: "Film B", tmdb_id: 20 } as never),
     },
-    lambda: 0.5,
-    poolMean: 0.7,
     ...overrides,
   };
 }
@@ -63,18 +61,6 @@ describe("contrastiveExplain", () => {
     expect(reasons[0].text).toContain("Horror");
   });
 
-  it("adds a critic line when the prior dominates", () => {
-    const filmVec: SparseVec = { idx: [0], val: [0.01] };
-    const ctx = makeCtx({
-      taste: [0.01, 0, 0, 0, 0],
-      lambda: 1,
-    });
-    const reasons = contrastiveExplain(filmVec, meta({ metascore: 95, rt_rating: 92, imdb_rating: 9.0 }), ctx);
-    const criticReason = reasons.find((r) => r.type === "critic");
-    expect(criticReason).toBeDefined();
-    expect(criticReason!.text).toContain("critics rate it");
-  });
-
   it("keyword reason names two watched films with that dimension", () => {
     const filmVec: SparseVec = { idx: [0], val: [0.9] };
     const ctx = makeCtx({ taste: [1, 0, 0, 0, 0] });
@@ -85,7 +71,7 @@ describe("contrastiveExplain", () => {
 
   it("returns empty when the film has no positive contributions", () => {
     const filmVec: SparseVec = { idx: [0], val: [0.5] };
-    const ctx = makeCtx({ taste: [-1, 0, 0, 0, 0], lambda: 0 });
+    const ctx = makeCtx({ taste: [-1, 0, 0, 0, 0] });
     const reasons = contrastiveExplain(filmVec, meta({ metascore: null, rt_rating: null, imdb_rating: null }), ctx);
     expect(reasons).toHaveLength(0);
   });

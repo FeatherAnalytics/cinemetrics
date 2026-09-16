@@ -1,5 +1,4 @@
 import type { CandidateMetadata, SparseVec } from "./recommend";
-import { criticPrior } from "./recommend";
 
 export type Reason = {
   type: string;
@@ -12,8 +11,6 @@ export type ExplainContext = {
   watches: { tmdb_id: number; rating: number }[];
   vectors: Record<number, SparseVec>;
   metadata: Record<number, CandidateMetadata>;
-  lambda: number;
-  poolMean: number;
 };
 
 function parseFeature(name: string): { family: string; value: string } {
@@ -108,11 +105,26 @@ export function contrastiveExplain(
   filmMeta: CandidateMetadata,
   ctx: ExplainContext,
 ): Reason[] {
+  const dimFreq = new Map<number, number>();
+  const ratingByFilm = new Map<number, number>();
+  for (const w of ctx.watches) {
+    const cur = ratingByFilm.get(w.tmdb_id);
+    if (cur == null || w.rating > cur) ratingByFilm.set(w.tmdb_id, w.rating);
+  }
+  const ratedCount = ratingByFilm.size || 1;
+  for (const [tid] of ratingByFilm) {
+    const vec = ctx.vectors[tid];
+    if (!vec) continue;
+    for (const i of vec.idx) dimFreq.set(i, (dimFreq.get(i) ?? 0) + 1);
+  }
+
   const contributions: { dim: number; value: number }[] = [];
   for (let k = 0; k < filmVec.idx.length; k++) {
     const i = filmVec.idx[k];
     const contrib = ctx.taste[i] * filmVec.val[k];
-    if (contrib > 0) contributions.push({ dim: i, value: contrib });
+    if (contrib <= 0) continue;
+    const freq = (dimFreq.get(i) ?? 1) / ratedCount;
+    contributions.push({ dim: i, value: contrib / Math.max(freq, 0.01) });
   }
   contributions.sort((a, b) => b.value - a.value);
 
@@ -124,19 +136,6 @@ export function contrastiveExplain(
     if (!KNOWN_FAMILIES.has(family)) continue;
     const reason = phraseReason(dim, name, filmMeta, ctx);
     if (reason) reasons.push(reason);
-  }
-
-  const priorScore = ctx.lambda * criticPrior(filmMeta, ctx.poolMean);
-  const maxCosineContrib = contributions[0]?.value ?? 0;
-  if (priorScore > maxCosineContrib && priorScore > 0) {
-    const scores: number[] = [];
-    if (filmMeta.metascore != null) scores.push(filmMeta.metascore);
-    if (filmMeta.rt_rating != null) scores.push(filmMeta.rt_rating);
-    if (filmMeta.imdb_rating != null) scores.push(Math.round(filmMeta.imdb_rating * 10));
-    const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
-    if (avg != null) {
-      reasons.push({ type: "critic", text: `critics rate it ${avg}; you lean toward acclaimed films` });
-    }
   }
 
   return reasons;

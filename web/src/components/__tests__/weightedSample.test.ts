@@ -6,6 +6,7 @@ function makePool(n: number): Recommendation[] {
   return Array.from({ length: n }, (_, i) => ({
     tmdb_id: i,
     score: 1.0 - i * (1.0 / n),
+    cosineScore: 1.0 - i * (1.0 / n),
     metadata: { tmdb_id: i } as unknown as Recommendation["metadata"],
   }));
 }

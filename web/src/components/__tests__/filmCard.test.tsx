@@ -53,7 +53,7 @@ function hexToRgb(hex: string): string {
 function Card(props: { metadata: CandidateMetadata; reasons?: { type: string; text: string }[] }) {
   return (
     <ThemeProvider>
-      <FilmCard metadata={props.metadata} score={0.42} reasons={props.reasons ?? []} />
+      <FilmCard metadata={props.metadata} score={0.42} cosineScore={0.42} reasons={props.reasons ?? []} />
     </ThemeProvider>
   );
 }
@@ -140,12 +140,15 @@ describe("FilmCard", () => {
     }
   });
 
-  it("shows at most three genre pills", () => {
-    const row = seed.find((r) => (r.genres ?? "").split(", ").length > 3)!;
+  it("shows at most four genres plus overflow count", () => {
+    const row = seed.find((r) => (r.genres ?? "").split(", ").length > 4)!;
     const meta = asCandidate(row);
     render(<Card metadata={meta} />);
-    const shown = meta.genres.split(", ").filter((g) => screen.queryByText(g) !== null);
-    expect(shown).toHaveLength(3);
+    const allGenres = meta.genres.split(", ");
+    const overflow = allGenres.length - 4;
+    if (overflow > 0) {
+      expect(screen.getByText(new RegExp(`\\+${overflow}`))).toBeTruthy();
+    }
   });
 
   it("recolors with the theme instead of freezing a palette value at import", () => {
@@ -157,7 +160,7 @@ describe("FilmCard", () => {
     render(
       <ThemeProvider>
         <Toggle />
-        <FilmCard metadata={asCandidate(withPoster[0])} score={0.42} reasons={reasons} />
+        <FilmCard metadata={asCandidate(withPoster[0])} score={0.42} cosineScore={0.42} reasons={reasons} />
       </ThemeProvider>,
     );
     expect(screen.getByText(reasons[0].text).style.color).toBe(hexToRgb(INK.secondary));

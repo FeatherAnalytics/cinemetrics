@@ -9,6 +9,7 @@ import { hairline, useTheme } from "@/lib/theme";
 type Props = {
   metadata: CandidateMetadata;
   score: number;
+  cosineScore: number;
   reasons: Reason[];
   /** Already on the Letterboxd watchlist — badged so a hit reads as a hit. */
   onWatchlist?: boolean;
@@ -64,7 +65,7 @@ const POSTER_H = 87;
 /** The three genres the card has room for beside a poster. */
 const MAX_GENRE_PILLS = 3;
 
-export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
+export function FilmCard({ metadata, score, cosineScore, reasons, onWatchlist }: Props) {
   const { tokens } = useTheme();
   const m = metadata;
   const genres = m.genres ? m.genres.split(", ").filter(Boolean) : [];
@@ -160,12 +161,13 @@ export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
                 {meta}
               </div>
             </div>
-            {score > 0 && (
+            {cosineScore > 0 && (
               <span
                 className="whitespace-nowrap font-mono text-[10px] font-medium"
                 style={{ color: tokens.accent }}
+                title="How closely this film's genres, keywords, runtime, language and country resemble the films you rated highly. Not a predicted rating."
               >
-                {Math.round(score * 100)}% match
+                similarity {Math.min(100, Math.round(cosineScore * 100))}
               </span>
             )}
           </div>
@@ -188,38 +190,22 @@ export function FilmCard({ metadata, score, reasons, onWatchlist }: Props) {
             </div>
           )}
 
-          <div className="flex flex-wrap gap-1">
-            {genres.slice(0, MAX_GENRE_PILLS).map((g) => {
-              const key = GENRE_KEY_SET.has(g) ? (g as GenreKey) : null;
-              return (
-                <span
-                  key={g}
-                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px]"
-                  style={{
-                    background: hairline(tokens.ink.primary, 5),
-                    color: tokens.ink.secondary,
-                  }}
-                >
-                  {key && (
-                    <span
-                      className="inline-block h-1.5 w-1.5 rounded-full"
-                      style={{ background: tokens.genre[key] }}
-                    />
-                  )}
-                  {g}
-                </span>
-              );
-            })}
-            <span
-              className="rounded-full border px-1.5 py-0.5 text-[10px]"
-              style={{
-                borderColor: hairline(tokens.ink.primary, 18),
-                color: tokens.ink.muted,
-              }}
-            >
-              {langLabel}
-            </span>
-          </div>
+          {genres.length > 0 && (
+            <div className="text-[11px]" style={{ color: tokens.ink.secondary }}>
+              {genres.slice(0, 4).join(", ")}
+              {genres.length > 4 && ` +${genres.length - 4}`}
+            </div>
+          )}
+
+          {(m.metascore != null || m.rt_rating != null || m.imdb_rating != null) && (
+            <div className="text-[10px]" style={{ color: tokens.ink.muted }}>
+              {[
+                m.metascore != null ? `${m.metascore} Metascore` : null,
+                m.rt_rating != null ? `${m.rt_rating}% RT` : null,
+                m.imdb_rating != null ? `${m.imdb_rating} IMDb` : null,
+              ].filter(Boolean).join(" · ")}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -18,7 +18,6 @@ import {
   type ExplainContext,
   type Reason,
 } from "@/lib/explainClient";
-import { criticPrior } from "@/lib/recommend";
 import { FilmCard } from "./FilmCard";
 import { hairline, useTheme } from "@/lib/theme";
 
@@ -140,7 +139,7 @@ async function fetchRecs(
       : Object.keys(data.vectors)
           .map(Number)
           .filter((id) => !excludeIds.has(id) && data.metadata[id])
-          .map((id) => ({ tmdb_id: id, score: 0, metadata: data.metadata[id] }));
+          .map((id) => ({ tmdb_id: id, score: 0, cosineScore: 0, metadata: data.metadata[id] }));
     pool = filterRecommendations(pool, {
       ...state.filters,
       genre: state.mode === "genre-recommend" ? (state.genre ?? undefined) : undefined,
@@ -159,21 +158,12 @@ async function fetchRecs(
     }
   }
 
-  const metas = Object.values(data.metadata);
-  let priorSum = 0, priorN = 0;
-  for (const m of metas) {
-    const p = criticPrior(m, NaN);
-    if (!isNaN(p)) { priorSum += p; priorN++; }
-  }
-  const poolMean = priorN > 0 ? priorSum / priorN : 0.5;
   const explainCtx: ExplainContext | null = taste && data.featureNames ? {
     taste,
     featureNames: data.featureNames,
     watches: watches.filter((w) => w.rating != null) as { tmdb_id: number; rating: number }[],
     vectors: data.vectors,
     metadata: data.metadata,
-    lambda: state.lambda,
-    poolMean,
   } : null;
   const reasons: Record<number, Reason[]> = {};
   for (const r of finalRecs) {
@@ -583,6 +573,7 @@ export function RecommendDrawer() {
                     <FilmCard
                       metadata={r.metadata}
                       score={r.score}
+                      cosineScore={r.cosineScore}
                       reasons={reasonsMap[r.tmdb_id] ?? []}
                       onWatchlist={watchlistIds.has(r.tmdb_id)}
                     />
