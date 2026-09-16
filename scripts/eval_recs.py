@@ -182,7 +182,11 @@ def main() -> None:
 
     result: dict = {"pool_size": pool_size, "rated_count": len(rated)}
 
-    for label, lam in [("cosine", 0.0), ("balanced", 0.5)]:
+    LAMBDAS = [
+        ("cosine", 0.0), ("lambda_0.5", 0.5), ("lambda_1", 1.0),
+        ("balanced", 2.0), ("safe", 4.0),
+    ]
+    for label, lam in LAMBDAS:
         print(f"  {label} (λ={lam}) liked...")
         result[f"{label}_liked"] = _eval_ranker(rated, 80, True, dims, vectors, metadata, lam)
         print(f"  {label} (λ={lam}) disliked...")
@@ -197,7 +201,7 @@ def main() -> None:
     result["imdb_disliked"] = _eval_imdb_desc(rated, 50, False, vectors, metadata)
 
     result["popular_pool_size"] = popular_pool
-    for label, lam in [("cosine", 0.0), ("balanced", 0.5)]:
+    for label, lam in LAMBDAS:
         print(f"  {label} (λ={lam}) popular liked...")
         result[f"popular_{label}_liked"] = _eval_ranker(
             rated, 80, True, dims, popular_vectors, metadata, lam,

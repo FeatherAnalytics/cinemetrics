@@ -27,7 +27,7 @@ function readLambda(): number {
     const v = localStorage.getItem("cinemetrics-recs-lambda");
     if (v != null) { const n = Number(v); if (!isNaN(n)) return n; }
   } catch { /* private browsing */ }
-  return 0.5;
+  return 2;
 }
 
 export const initialRecommendState: RecommendState = {
@@ -37,7 +37,7 @@ export const initialRecommendState: RecommendState = {
   genre: null,
   filters: {},
   hideRated: true,
-  lambda: 0.5,
+  lambda: 2,
 };
 
 type Action =

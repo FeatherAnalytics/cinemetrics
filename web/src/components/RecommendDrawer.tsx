@@ -27,12 +27,14 @@ type EvalRow = { median_rank: number | null; hit_100: number | null };
 type EvalData = {
   pool_size: number;
   popular_pool_size?: number;
-  balanced_liked?: EvalRow;
   cosine_liked?: EvalRow;
+  balanced_liked?: EvalRow;
+  safe_liked?: EvalRow;
   random_liked?: EvalRow;
   imdb_liked?: EvalRow;
-  popular_balanced_liked?: EvalRow;
   popular_cosine_liked?: EvalRow;
+  popular_balanced_liked?: EvalRow;
+  popular_safe_liked?: EvalRow;
   popular_random_liked?: EvalRow;
   popular_imdb_liked?: EvalRow;
 };
@@ -233,8 +235,9 @@ function CredibilityPanel({ tokens }: { tokens: ReturnType<typeof useTheme>["tok
         How good is this?
       </summary>
       {renderTable(`Full pool (${evalData.pool_size?.toLocaleString()} films)`, evalData.pool_size, [
-        { label: "Balanced (λ=0.5)", data: evalData.balanced_liked },
-        { label: "Cosine only", data: evalData.cosine_liked },
+        { label: "Cosine only (λ=0)", data: evalData.cosine_liked },
+        { label: "Balanced (λ=2)", data: evalData.balanced_liked },
+        { label: "Safe picks (λ=4)", data: evalData.safe_liked },
         { label: "IMDb rating", data: evalData.imdb_liked },
         { label: "Random", data: evalData.random_liked },
       ])}
@@ -242,8 +245,9 @@ function CredibilityPanel({ tokens }: { tokens: ReturnType<typeof useTheme>["tok
         `Films people have seen (${evalData.popular_pool_size.toLocaleString()} with 1k+ votes)`,
         evalData.popular_pool_size,
         [
-          { label: "Balanced (λ=0.5)", data: evalData.popular_balanced_liked },
-          { label: "Cosine only", data: evalData.popular_cosine_liked },
+          { label: "Cosine only (λ=0)", data: evalData.popular_cosine_liked },
+          { label: "Balanced (λ=2)", data: evalData.popular_balanced_liked },
+          { label: "Safe picks (λ=4)", data: evalData.popular_safe_liked },
           { label: "IMDb rating", data: evalData.popular_imdb_liked },
           { label: "Random", data: evalData.popular_random_liked },
         ],
@@ -492,8 +496,8 @@ export function RecommendDrawer() {
           >
             {([
               { label: "Deep cuts", value: 0 },
-              { label: "Balanced", value: 0.5 },
-              { label: "Safe picks", value: 1 },
+              { label: "Balanced", value: 2 },
+              { label: "Safe picks", value: 4 },
             ] as const).map(({ label, value }) => (
               <button
                 key={value}
