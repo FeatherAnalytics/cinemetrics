@@ -279,6 +279,12 @@ export function SwimLaneChart() {
 
   return (
     <figure className="relative m-0 overflow-x-auto">
+      <div
+        className="pointer-events-none absolute right-2 top-2 rounded bg-black/50 px-2 py-0.5 text-[10px] text-white md:hidden"
+        aria-hidden
+      >
+        scroll →
+      </div>
       <svg
         viewBox={`0 0 ${BASE_WIDTH} ${viewBoxHeight}`}
         className="w-full"
