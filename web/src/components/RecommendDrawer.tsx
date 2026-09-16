@@ -14,10 +14,11 @@ import {
 } from "@/lib/recommend";
 import type { Filters } from "@/lib/store";
 import {
-  explainRecommendation,
-  computeGenreAffinities,
+  contrastiveExplain,
+  type ExplainContext,
   type Reason,
 } from "@/lib/explainClient";
+import { criticPrior } from "@/lib/recommend";
 import { FilmCard } from "./FilmCard";
 import { hairline, useTheme } from "@/lib/theme";
 
@@ -93,6 +94,7 @@ async function fetchRecs(
   const TARGET = 10;
   let finalRecs: Recommendation[] = [];
   let boostCount = 0;
+  const taste = tasteVector(data, watches);
 
   if (state.mode === "similar" && state.sourceTmdbId) {
     const excludeIds = state.hideRated
@@ -108,7 +110,6 @@ async function fetchRecs(
     // Score candidates against the user's taste vector (rating-weighted mean of
     // their rated films' embeddings) so "recommended for you" is earned, not
     // random. weightedSample keeps variety; the scores steer it.
-    const taste = tasteVector(data, watches);
     let pool: Recommendation[] = taste
       ? scoreWithPrior(taste, data, excludeIds, state.lambda)
       : Object.keys(data.vectors)
@@ -133,11 +134,28 @@ async function fetchRecs(
     }
   }
 
-  const genreAffinities = computeGenreAffinities([...films.values()] as never[], watches);
-  const sourceData = state.sourceTmdbId ? data.metadata[state.sourceTmdbId] ?? undefined : undefined;
+  const metas = Object.values(data.metadata);
+  let priorSum = 0, priorN = 0;
+  for (const m of metas) {
+    const p = criticPrior(m, NaN);
+    if (!isNaN(p)) { priorSum += p; priorN++; }
+  }
+  const poolMean = priorN > 0 ? priorSum / priorN : 0.5;
+  const explainCtx: ExplainContext | null = taste && data.featureNames ? {
+    taste,
+    featureNames: data.featureNames,
+    watches: watches.filter((w) => w.rating != null) as { tmdb_id: number; rating: number }[],
+    vectors: data.vectors,
+    metadata: data.metadata,
+    lambda: state.lambda,
+    poolMean,
+  } : null;
   const reasons: Record<number, Reason[]> = {};
   for (const r of finalRecs) {
-    reasons[r.tmdb_id] = explainRecommendation(sourceData, r.metadata, genreAffinities);
+    const vec = data.vectors[r.tmdb_id];
+    reasons[r.tmdb_id] = explainCtx && vec
+      ? contrastiveExplain(vec, r.metadata, explainCtx)
+      : [];
   }
 
   return { recs: finalRecs, reasons, boostCount };

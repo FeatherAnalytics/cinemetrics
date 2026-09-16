@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { csvParse } from "d3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FilmCard } from "@/components/FilmCard";
-import { explainRecommendation } from "@/lib/explainClient";
+import type { Reason } from "@/lib/explainClient";
 import { DARK, INK } from "@/lib/palette";
 import type { CandidateMetadata } from "@/lib/recommend";
 import { ThemeProvider, useTheme } from "@/lib/theme";
@@ -126,9 +126,10 @@ describe("FilmCard", () => {
     }
     const pair = [...byDirector.values()].find((rows) => rows.length > 1)!;
     const target = asCandidate(pair[1]);
-    const reasons = explainRecommendation(asCandidate(pair[0]), target, {
-      [target.genres.split(", ")[0]]: 6,
-    });
+    const reasons: Reason[] = [
+      { type: "director", text: `directed by ${pair[0].director}` },
+      { type: "genre", text: `${target.genres.split(", ")[0]}, like 5 films you rated 80+` },
+    ];
     expect(reasons.length).toBeGreaterThan(1);
 
     render(<Card metadata={target} reasons={reasons} />);

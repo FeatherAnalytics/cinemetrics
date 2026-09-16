@@ -1,91 +1,92 @@
 import { describe, expect, it } from "vitest";
-import { computeGenreAffinities, explainRecommendation } from "../explainClient";
-import type { CandidateMetadata } from "../recommend";
+import { contrastiveExplain, type ExplainContext } from "../explainClient";
+import type { CandidateMetadata, SparseVec } from "../recommend";
 
-/**
- * A candidate as the embeddings artifact ships one: comma-joined strings, not
- * arrays. `Film` uses arrays for the same fields, which is why explainClient
- * carries a getter per field rather than reading them directly.
- */
-function candidate(over: Partial<CandidateMetadata> = {}): CandidateMetadata {
+function meta(over: Partial<CandidateMetadata> = {}): CandidateMetadata {
   return {
     title: "Target",
     year: 2020,
     genres: "Horror, Drama",
-    keywords: "cult, ritual",
-    director: "Ari Aster",
+    runtime: 120,
+    rated: "R",
+    language: "en",
+    production_countries: "US",
+    metascore: 80,
+    rt_rating: 85,
+    imdb_rating: 8.0,
+    imdb_id: "tt1",
     poster: null,
     ...over,
-  } as CandidateMetadata;
+  };
 }
 
-const AFFINITIES = { Horror: 6.4, Drama: 1.2 };
+const FEATURE_NAMES = [
+  "kw:dystopia", "kw:cult", "genre:Horror", "genre:Drama", "director:Aster",
+];
 
-describe("explainRecommendation", () => {
-  it("explains a taste-based recommendation, which has no source film", () => {
-    // The drawer opens in two modes. "similar" carries a source film; the
-    // default taste mode carries none, and `sourceTmdbId` is null for it. The
-    // genre-affinity reason needs only the target and the affinities, so it is
-    // answerable either way -- and it is the ONLY honest explanation available
-    // when there is no source, because the recommendation came from the whole
-    // rating history rather than from one film.
-    const reasons = explainRecommendation(undefined, candidate(), AFFINITIES);
-    expect(reasons.length).toBeGreaterThan(0);
-    expect(reasons.map((r) => r.type)).toContain("genre");
+function makeCtx(overrides: Partial<ExplainContext> = {}): ExplainContext {
+  return {
+    taste: [0.8, 0.1, 0.5, 0.2, 0.3],
+    featureNames: FEATURE_NAMES,
+    watches: [
+      { tmdb_id: 10, rating: 90 },
+      { tmdb_id: 20, rating: 85 },
+    ],
+    vectors: {
+      10: { idx: [0, 2], val: [0.5, 0.3] },
+      20: { idx: [0, 3], val: [0.4, 0.2] },
+    },
+    metadata: {
+      10: meta({ title: "Film A", tmdb_id: 10 } as never),
+      20: meta({ title: "Film B", tmdb_id: 20 } as never),
+    },
+    lambda: 0.5,
+    poolMean: 0.7,
+    ...overrides,
+  };
+}
+
+describe("contrastiveExplain", () => {
+  it("a dominant keyword dimension yields a keyword reason first", () => {
+    const filmVec: SparseVec = { idx: [0], val: [0.9] };
+    const ctx = makeCtx({ taste: [1, 0, 0, 0, 0] });
+    const reasons = contrastiveExplain(filmVec, meta(), ctx);
+    expect(reasons[0].type).toBe("keyword");
+    expect(reasons[0].text).toContain("dystopia");
   });
 
-  it("picks the target's strongest genre, not its first", () => {
-    const reasons = explainRecommendation(undefined, candidate(), AFFINITIES);
-    // Horror at +6.4 beats Drama at +1.2, and the label rounds.
-    expect(reasons.find((r) => r.type === "genre")?.text).toBe(
-      "I rate Horror +6 above avg",
-    );
+  it("a dominant genre dimension yields a genre reason", () => {
+    const filmVec: SparseVec = { idx: [2], val: [0.9] };
+    const ctx = makeCtx({ taste: [0, 0, 1, 0, 0] });
+    const reasons = contrastiveExplain(filmVec, meta(), ctx);
+    expect(reasons[0].type).toBe("genre");
+    expect(reasons[0].text).toContain("Horror");
   });
 
-  it("claims no genre affinity when every genre sits at or below average", () => {
-    const reasons = explainRecommendation(undefined, candidate(), {
-      Horror: -3,
-      Drama: 0,
+  it("adds a critic line when the prior dominates", () => {
+    const filmVec: SparseVec = { idx: [0], val: [0.01] };
+    const ctx = makeCtx({
+      taste: [0.01, 0, 0, 0, 0],
+      lambda: 1,
     });
-    expect(reasons.map((r) => r.type)).not.toContain("genre");
+    const reasons = contrastiveExplain(filmVec, meta({ metascore: 95, rt_rating: 92, imdb_rating: 9.0 }), ctx);
+    const criticReason = reasons.find((r) => r.type === "critic");
+    expect(criticReason).toBeDefined();
+    expect(criticReason!.text).toContain("critics rate it");
   });
 
-  it("adds the shared keywords and director once a source film is present", () => {
-    const source = candidate({
-      title: "Source",
-      keywords: "cult, ritual, folk horror",
-      director: "Ari Aster",
-    });
-    const reasons = explainRecommendation(source, candidate(), AFFINITIES);
-    const types = reasons.map((r) => r.type);
-    expect(types).toContain("keywords");
-    expect(types).toContain("director");
-    expect(types).toContain("genre");
+  it("keyword reason names two watched films with that dimension", () => {
+    const filmVec: SparseVec = { idx: [0], val: [0.9] };
+    const ctx = makeCtx({ taste: [1, 0, 0, 0, 0] });
+    const reasons = contrastiveExplain(filmVec, meta(), ctx);
+    expect(reasons[0].text).toContain("Film A");
+    expect(reasons[0].text).toContain("Film B");
   });
 
-  it("never returns more than three reasons, so a card cannot grow unbounded", () => {
-    const source = candidate({
-      keywords: "cult, ritual, folk horror, sweden, daylight",
-      director: "Ari Aster",
-    });
-    expect(
-      explainRecommendation(source, candidate(), AFFINITIES).length,
-    ).toBeLessThanOrEqual(3);
-  });
-});
-
-describe("computeGenreAffinities", () => {
-  it("scores a genre by how far its mean rating sits from the overall mean", () => {
-    const films = [
-      { tmdb_id: 1, genres: ["Horror"] },
-      { tmdb_id: 2, genres: ["Comedy"] },
-    ] as never;
-    const affinities = computeGenreAffinities(films, [
-      { tmdb_id: 1, rating: 90 },
-      { tmdb_id: 2, rating: 70 },
-    ]);
-    // Overall mean is 80, so Horror is +10 and Comedy -10.
-    expect(affinities.Horror).toBeCloseTo(10, 6);
-    expect(affinities.Comedy).toBeCloseTo(-10, 6);
+  it("returns empty when the film has no positive contributions", () => {
+    const filmVec: SparseVec = { idx: [0], val: [0.5] };
+    const ctx = makeCtx({ taste: [-1, 0, 0, 0, 0], lambda: 0 });
+    const reasons = contrastiveExplain(filmVec, meta({ metascore: null, rt_rating: null, imdb_rating: null }), ctx);
+    expect(reasons).toHaveLength(0);
   });
 });

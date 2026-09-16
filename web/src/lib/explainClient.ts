@@ -1,105 +1,139 @@
-import type { CandidateMetadata } from "./recommend";
-import type { Film } from "./types";
+import type { CandidateMetadata, SparseVec } from "./recommend";
+import { criticPrior } from "./recommend";
 
 export type Reason = {
   type: string;
   text: string;
 };
 
-function splitComma(val: string | undefined | null): string[] {
-  return (val || "").split(",").map((s) => s.trim()).filter(Boolean);
+export type ExplainContext = {
+  taste: number[];
+  featureNames: string[];
+  watches: { tmdb_id: number; rating: number }[];
+  vectors: Record<number, SparseVec>;
+  metadata: Record<number, CandidateMetadata>;
+  lambda: number;
+  poolMean: number;
+};
+
+function parseFeature(name: string): { family: string; value: string } {
+  const colon = name.indexOf(":");
+  if (colon < 0) return { family: "other", value: name };
+  return { family: name.slice(0, colon), value: name.slice(colon + 1) };
 }
 
-function getKeywords(source: CandidateMetadata | Film): string[] {
-  if (Array.isArray((source as Film).keywords)) {
-    return (source as Film).keywords;
+function topRatedWithDim(
+  dim: number,
+  ctx: ExplainContext,
+  limit: number,
+): { title: string; rating: number }[] {
+  const hits: { title: string; rating: number }[] = [];
+  const ratingByFilm = new Map<number, number>();
+  for (const w of ctx.watches) {
+    const cur = ratingByFilm.get(w.tmdb_id);
+    if (cur == null || w.rating > cur) ratingByFilm.set(w.tmdb_id, w.rating);
   }
-  return splitComma((source as CandidateMetadata).keywords);
+  for (const [tid, rating] of ratingByFilm) {
+    const vec = ctx.vectors[tid];
+    if (!vec) continue;
+    const idx = vec.idx.indexOf(dim);
+    if (idx >= 0 && vec.val[idx] > 0) {
+      const meta = ctx.metadata[tid];
+      if (meta) hits.push({ title: meta.title, rating });
+    }
+  }
+  hits.sort((a, b) => b.rating - a.rating);
+  return hits.slice(0, limit);
 }
 
-function getDirector(source: CandidateMetadata | Film): string {
-  return typeof source.director === "string" ? source.director : "";
+function phraseReason(
+  dim: number,
+  featureName: string,
+  filmMeta: CandidateMetadata,
+  ctx: ExplainContext,
+): Reason {
+  const { family, value } = parseFeature(featureName);
+
+  if (family === "genre") {
+    let count = 0;
+    const ratingByFilm = new Map<number, number>();
+    for (const w of ctx.watches) {
+      const cur = ratingByFilm.get(w.tmdb_id);
+      if (cur == null || w.rating > cur) ratingByFilm.set(w.tmdb_id, w.rating);
+    }
+    for (const [, r] of ratingByFilm) if (r >= 80) count++;
+    const genreCount = [...ratingByFilm].filter(([tid, r]) => {
+      if (r < 80) return false;
+      const vec = ctx.vectors[tid];
+      if (!vec) return false;
+      return vec.idx.indexOf(dim) >= 0;
+    }).length;
+    return { type: "genre", text: `${value}, like ${genreCount} films you rated 80+` };
+  }
+
+  if (family === "kw") {
+    const matches = topRatedWithDim(dim, ctx, 2);
+    if (matches.length >= 2) {
+      return {
+        type: "keyword",
+        text: `shares '${value}' with ${matches[0].title} (${matches[0].rating}) and ${matches[1].title} (${matches[1].rating})`,
+      };
+    }
+    if (matches.length === 1) {
+      return {
+        type: "keyword",
+        text: `shares '${value}' with ${matches[0].title} (${matches[0].rating})`,
+      };
+    }
+    return { type: "keyword", text: `keyword: ${value}` };
+  }
+
+  if (family === "director") {
+    return { type: "director", text: `directed by ${value}` };
+  }
+
+  if (family === "actor") {
+    return { type: "actor", text: `stars ${value}` };
+  }
+
+  if (family === "country") {
+    return { type: "country", text: `from ${value}` };
+  }
+
+  return { type: family, text: value };
 }
 
-export function explainRecommendation(
-  source: CandidateMetadata | Film | undefined,
-  target: CandidateMetadata,
-  genreAffinities: Record<string, number>,
+export function contrastiveExplain(
+  filmVec: SparseVec,
+  filmMeta: CandidateMetadata,
+  ctx: ExplainContext,
 ): Reason[] {
+  const contributions: { dim: number; value: number }[] = [];
+  for (let k = 0; k < filmVec.idx.length; k++) {
+    const i = filmVec.idx[k];
+    const contrib = ctx.taste[i] * filmVec.val[k];
+    if (contrib > 0) contributions.push({ dim: i, value: contrib });
+  }
+  contributions.sort((a, b) => b.value - a.value);
+
   const reasons: Reason[] = [];
+  for (const { dim } of contributions.slice(0, 3)) {
+    const name = ctx.featureNames[dim] ?? `dim:${dim}`;
+    reasons.push(phraseReason(dim, name, filmMeta, ctx));
+  }
 
-  // Keywords and a shared director are comparisons, so they exist only in
-  // "similar" mode. The drawer's DEFAULT mode carries no source at all --
-  // `sourceTmdbId` is null unless a film was clicked -- and returning early on
-  // that threw away the genre reason below, which needs no source. The result
-  // was a drawer that never explained itself in the mode most readers open.
-  if (source) {
-    const sourceKw = new Set(getKeywords(source));
-    const targetKw = new Set(splitComma(target.keywords));
-    const sharedKw = [...sourceKw].filter((k) => targetKw.has(k));
-    if (sharedKw.length > 0) {
-      reasons.push({
-        type: "keywords",
-        text: `Keywords: ${sharedKw.slice(0, 3).join(", ")}`,
-      });
-    }
-
-    const sourceDirs = splitComma(getDirector(source));
-    const targetDirs = splitComma(target.director);
-    const sharedDirs = sourceDirs.filter((d) => targetDirs.includes(d));
-    if (sharedDirs.length > 0) {
-      reasons.push({
-        type: "director",
-        text: `Director: ${sharedDirs[0]}`,
-      });
+  const priorScore = ctx.lambda * criticPrior(filmMeta, ctx.poolMean);
+  const maxCosineContrib = contributions[0]?.value ?? 0;
+  if (priorScore > maxCosineContrib && priorScore > 0) {
+    const scores: number[] = [];
+    if (filmMeta.metascore != null) scores.push(filmMeta.metascore);
+    if (filmMeta.rt_rating != null) scores.push(filmMeta.rt_rating);
+    if (filmMeta.imdb_rating != null) scores.push(Math.round(filmMeta.imdb_rating * 10));
+    const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+    if (avg != null) {
+      reasons.push({ type: "critic", text: `critics rate it ${avg}; you lean toward acclaimed films` });
     }
   }
 
-  const targetGenres = splitComma(target.genres);
-  let bestBoost = 0;
-  let bestGenre = "";
-  for (const g of targetGenres) {
-    const boost = genreAffinities[g] ?? 0;
-    if (boost > bestBoost) {
-      bestBoost = boost;
-      bestGenre = g;
-    }
-  }
-  if (bestGenre && Math.round(bestBoost) > 0) {
-    reasons.push({
-      type: "genre",
-      text: `I rate ${bestGenre} +${Math.round(bestBoost)} above avg`,
-    });
-  }
-
-  return reasons.slice(0, 3);
-}
-
-export function computeGenreAffinities(
-  films: Film[],
-  watches: { tmdb_id: number; rating: number | null }[],
-): Record<string, number> {
-  const ratingsByGenre: Record<string, number[]> = {};
-  const allRatings: number[] = [];
-  const filmMap = new Map(films.map((f) => [f.tmdb_id, f]));
-
-  for (const w of watches) {
-    if (w.rating == null) continue;
-    allRatings.push(w.rating);
-    const film = filmMap.get(w.tmdb_id);
-    if (!film) continue;
-    for (const g of film.genres) {
-      (ratingsByGenre[g] ??= []).push(w.rating);
-    }
-  }
-
-  const overallAvg = allRatings.length > 0
-    ? allRatings.reduce((a, b) => a + b, 0) / allRatings.length
-    : 0;
-  const affinities: Record<string, number> = {};
-  for (const [genre, ratings] of Object.entries(ratingsByGenre)) {
-    const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
-    affinities[genre] = avg - overallAvg;
-  }
-  return affinities;
+  return reasons;
 }
