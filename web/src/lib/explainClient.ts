@@ -118,24 +118,31 @@ export function contrastiveExplain(
     for (const i of vec.idx) dimFreq.set(i, (dimFreq.get(i) ?? 0) + 1);
   }
 
-  const contributions: { dim: number; value: number }[] = [];
+  const contributions: { dim: number; value: number; family: string }[] = [];
   for (let k = 0; k < filmVec.idx.length; k++) {
     const i = filmVec.idx[k];
     const contrib = ctx.taste[i] * filmVec.val[k];
     if (contrib <= 0) continue;
-    const freq = (dimFreq.get(i) ?? 1) / ratedCount;
-    contributions.push({ dim: i, value: contrib / Math.max(freq, 0.01) });
+    const name = ctx.featureNames[i] ?? `dim:${i}`;
+    const { family } = parseFeature(name);
+    if (!KNOWN_FAMILIES.has(family)) continue;
+    const df = dimFreq.get(i) ?? 1;
+    const idf = Math.log(ratedCount / Math.max(df, 1));
+    contributions.push({ dim: i, value: contrib * Math.max(idf, 0.1), family });
   }
   contributions.sort((a, b) => b.value - a.value);
 
   const reasons: Reason[] = [];
-  for (const { dim } of contributions) {
+  const usedFamilies = new Set<string>();
+  for (const { dim, family } of contributions) {
     if (reasons.length >= 3) break;
+    if (usedFamilies.has(family)) continue;
     const name = ctx.featureNames[dim] ?? `dim:${dim}`;
-    const { family } = parseFeature(name);
-    if (!KNOWN_FAMILIES.has(family)) continue;
     const reason = phraseReason(dim, name, filmMeta, ctx);
-    if (reason) reasons.push(reason);
+    if (reason) {
+      reasons.push(reason);
+      usedFamilies.add(family);
+    }
   }
 
   return reasons;

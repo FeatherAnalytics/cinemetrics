@@ -12,6 +12,7 @@ import { heartDim } from "@/lib/heartLens";
 import { favColor, StarMarker } from "@/lib/favMarker";
 import type { EnrichedWatch } from "@/lib/types";
 import { ChartTakeaway } from "./ChartTakeaway";
+import { useRovingFocus } from "@/lib/useRovingFocus";
 
 const MARGIN_LEFT = 55;
 const MARGIN_TOP = 8;
@@ -289,8 +290,18 @@ export function SwimLaneChart() {
         viewBox={`0 0 ${BASE_WIDTH} ${viewBoxHeight}`}
         className="w-full"
         style={{ minWidth: 600, touchAction: "none" }}
-        role="img"
-        aria-label="Swim lane chart of every watch by date. One row per year, January to December. Drag to brush a selection."
+        role="group"
+        tabIndex={0}
+        aria-label="Swim lane chart of every watch by date. One row per year, January to December. Drag to brush a selection. Use arrow keys to navigate marks."
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+            e.preventDefault();
+            const filtered_ = points.filter((p) => p.op > 0.1);
+            if (!filtered_.length) return;
+            const idx = e.key === "ArrowRight" ? 0 : filtered_.length - 1;
+            setSelected(filtered_[idx].w.tmdb_id);
+          }
+        }}
         {...handlers}
       >
         {/* Lane backgrounds */}

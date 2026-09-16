@@ -777,7 +777,7 @@ function computeStats(films: Film[], watches: EnrichedWatch[]): StoryResult {
       gap == null
         ? `${MONTHS[busiest.m]} outdraws ${MONTHS[quietest.m]}`
         : `${ratio.toFixed(1)}x more in ${MONTHS[busiest.m]}`,
-    chip: "Dive deep",
+    chip: "The shape of it",
     ...(nothingPredicts
       ? { subtext: "What changes is how much I watch, not what I think of it." }
       : {}),

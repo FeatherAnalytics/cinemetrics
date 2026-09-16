@@ -217,10 +217,11 @@ export function FranchiseRuns() {
     <figure className="relative m-0">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full"
+        className="w-full chart-mark"
         style={{ touchAction: "none" }}
         role="group"
-        aria-label="One row per franchise; dots are watches over time, height is my rating. Drag to brush a selection."
+        tabIndex={0}
+        aria-label="One row per franchise; dots are watches over time, height is my rating. Drag to brush a selection. Focus then Enter to select."
         {...handlers}
       >
         {years.map((Y) => {

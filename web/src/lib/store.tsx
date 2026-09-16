@@ -451,11 +451,13 @@ export function ExplorerProvider({
       runtimeBounds: derived.runtimeBounds,
     };
     const parsed = parseUrlState(new URLSearchParams(window.location.search), bounds);
-    if (parsed.story) {
-      const story = getStoryById(parsed.story);
+    const pathStory = window.location.pathname.match(/\/s\/([^/]+)/)?.[1] ?? null;
+    const storyId = parsed.story ?? pathStory ?? initialStory ?? null;
+    if (storyId) {
+      const story = getStoryById(storyId);
       if (!story) return;
       const result = story.compute(derived.films, derived.all, derived.watchlist);
-      setActiveStory(parsed.story);
+      setActiveStory(storyId);
       setStoryResult(result);
       setFilters({ ...EMPTY_FILTERS, ...result.filters, selection: result.selection ?? null });
     } else if (Object.keys(parsed.filters).length > 0) {
