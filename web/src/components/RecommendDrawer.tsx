@@ -24,6 +24,25 @@ import { hairline, useTheme } from "@/lib/theme";
 
 import embeddingsVersion from "../../public/data/embeddings-version.json";
 
+type EvalData = {
+  pool_size: number;
+  balanced_liked?: { median_rank: number | null; hit_100: number | null };
+  cosine_liked?: { median_rank: number | null; hit_100: number | null };
+  random_liked?: { median_rank: number | null; hit_100: number | null };
+  imdb_liked?: { median_rank: number | null; hit_100: number | null };
+};
+
+let _evalCache: EvalData | null | false = null;
+async function loadEval(): Promise<EvalData | null> {
+  if (_evalCache !== null) return _evalCache || null;
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/data/recs-eval.json`);
+    if (!res.ok) { _evalCache = false; return null; }
+    _evalCache = await res.json();
+    return _evalCache || null;
+  } catch { _evalCache = false; return null; }
+}
+
 const R2_URL = process.env.NEXT_PUBLIC_R2_URL || "";
 
 function matchesDashboardFilters(meta: CandidateMetadata, dashFilters: Filters): boolean {
@@ -159,6 +178,63 @@ async function fetchRecs(
   }
 
   return { recs: finalRecs, reasons, boostCount };
+}
+
+function CredibilityPanel({ tokens }: { tokens: ReturnType<typeof useTheme>["tokens"] }) {
+  const [evalData, setEvalData] = useState<EvalData | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { loadEval().then(setEvalData); }, []);
+  if (!evalData) return null;
+
+  const rows = [
+    { label: "Balanced (λ=0.5)", data: evalData.balanced_liked },
+    { label: "Cosine only", data: evalData.cosine_liked },
+    { label: "IMDb rating", data: evalData.imdb_liked },
+    { label: "Random", data: evalData.random_liked },
+  ].filter((r) => r.data?.median_rank != null);
+
+  return (
+    <details
+      className="mt-4 border-t pt-3"
+      style={{ borderColor: hairline(tokens.ink.primary, 12) }}
+      open={open}
+      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
+    >
+      <summary
+        className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.15em]"
+        style={{ color: tokens.ink.muted }}
+      >
+        How good is this?
+      </summary>
+      <div className="mt-2">
+        <table className="w-full text-[11px]" style={{ color: tokens.ink.secondary }}>
+          <thead>
+            <tr>
+              <th className="text-left font-medium pb-1">Ranker</th>
+              <th className="text-right font-medium pb-1">Median rank</th>
+              <th className="text-right font-medium pb-1">Hit@100</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.label}>
+                <td className="py-0.5">{r.label}</td>
+                <td className="text-right py-0.5">{r.data!.median_rank?.toLocaleString()}</td>
+                <td className="text-right py-0.5">
+                  {r.data!.hit_100 != null ? `${Math.round(r.data!.hit_100 * 100)}%` : "–"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="mt-2 text-[11px] leading-relaxed" style={{ color: tokens.ink.muted }}>
+          Content features alone explain little of the variance in my ratings (R&sup2;&nbsp;0.04 vs
+          0.21 for critic scores). The held-out numbers above show how often a liked film lands in
+          the top 100 of a {evalData.pool_size?.toLocaleString()}-film pool.
+        </p>
+      </div>
+    </details>
+  );
 }
 
 type Status = "loading" | "ready" | "error";
@@ -480,6 +556,8 @@ export function RecommendDrawer() {
               ))}
             </div>
           )}
+
+          <CredibilityPanel tokens={tokens} />
         </div>
       </aside>
     </>
