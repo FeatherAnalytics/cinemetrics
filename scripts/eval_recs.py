@@ -125,14 +125,15 @@ def _eval_imdb_desc(
     if not films:
         return {"n": 0, "median_rank": None, "hit_10": None, "hit_100": None, "mrr": None}
 
-    all_candidates = [
-        (tid, float(metadata.get(tid, {}).get("imdb_rating") or 0))
-        for tid in vectors if tid not in rated
-    ]
-    all_candidates.sort(key=lambda x: -x[1])
-    imdb_rank_map = {tid: i + 1 for i, (tid, _) in enumerate(all_candidates)}
-
-    ranks = [imdb_rank_map.get(tid, len(all_candidates) + 1) for tid in films]
+    ranks: list[int] = []
+    for held_out in films:
+        pool = [
+            (tid, float(metadata.get(tid, {}).get("imdb_rating") or 0))
+            for tid in vectors if tid not in rated or tid == held_out
+        ]
+        pool.sort(key=lambda x: -x[1])
+        rank = next((i + 1 for i, (t, _) in enumerate(pool) if t == held_out), len(pool) + 1)
+        ranks.append(rank)
     n = len(ranks)
     return {
         "n": n,
@@ -165,8 +166,20 @@ def main() -> None:
     con.close()
     rated = {int(r["tmdb_id"]): float(r["rating"]) for r in rows}
 
+    vote_rows = con.execute("""
+        select tmdb_id, tmdb_votes
+        from staging.stg_candidate_enrichment
+        where tmdb_votes is not null
+    """).fetchdf().to_dict("records")
+    votes_by_id = {int(r["tmdb_id"]): int(r["tmdb_votes"]) for r in vote_rows}
+    con.close()
+
     pool_size = len(vectors) - len(rated)
-    print(f"eval: {len(rated)} rated films, {pool_size} candidates in pool")
+    popular_ids = {tid for tid in vectors if votes_by_id.get(tid, 0) >= 1000 or tid in rated}
+    popular_vectors = {tid: v for tid, v in vectors.items() if tid in popular_ids}
+    popular_pool = len(popular_vectors) - len(rated)
+    print(f"eval: {len(rated)} rated films, {pool_size} candidates in pool, "
+          f"{popular_pool} with 1000+ votes")
 
     result: dict = {"pool_size": pool_size, "rated_count": len(rated)}
 
@@ -183,6 +196,15 @@ def main() -> None:
     print("  IMDb desc baseline...")
     result["imdb_liked"] = _eval_imdb_desc(rated, 80, True, vectors, metadata)
     result["imdb_disliked"] = _eval_imdb_desc(rated, 50, False, vectors, metadata)
+
+    result["popular_pool_size"] = popular_pool
+    for label, lam in [("cosine", 0.0), ("balanced", 0.5)]:
+        print(f"  {label} (λ={lam}) popular liked...")
+        result[f"popular_{label}_liked"] = _eval_ranker(
+            rated, 80, True, dims, popular_vectors, metadata, lam,
+        )
+    result["popular_random_liked"] = _eval_random(rated, 80, True, popular_pool)
+    result["popular_imdb_liked"] = _eval_imdb_desc(rated, 80, True, popular_vectors, metadata)
 
     result["date"] = datetime.now(UTC).strftime("%Y-%m-%d")
 

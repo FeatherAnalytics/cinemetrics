@@ -24,12 +24,18 @@ import { hairline, useTheme } from "@/lib/theme";
 
 import embeddingsVersion from "../../public/data/embeddings-version.json";
 
+type EvalRow = { median_rank: number | null; hit_100: number | null };
 type EvalData = {
   pool_size: number;
-  balanced_liked?: { median_rank: number | null; hit_100: number | null };
-  cosine_liked?: { median_rank: number | null; hit_100: number | null };
-  random_liked?: { median_rank: number | null; hit_100: number | null };
-  imdb_liked?: { median_rank: number | null; hit_100: number | null };
+  popular_pool_size?: number;
+  balanced_liked?: EvalRow;
+  cosine_liked?: EvalRow;
+  random_liked?: EvalRow;
+  imdb_liked?: EvalRow;
+  popular_balanced_liked?: EvalRow;
+  popular_cosine_liked?: EvalRow;
+  popular_random_liked?: EvalRow;
+  popular_imdb_liked?: EvalRow;
 };
 
 let _evalCache: EvalData | null | false = null;
@@ -48,8 +54,8 @@ const R2_URL = process.env.NEXT_PUBLIC_R2_URL || "";
 function matchesDashboardFilters(meta: CandidateMetadata, dashFilters: Filters): boolean {
   const genres = meta.genres ? meta.genres.split(", ").map((g) => g.trim()) : [];
   if (dashFilters.genres.size > 0 && !genres.some((g) => dashFilters.genres.has(g as never))) return false;
-  if (dashFilters.director && !(meta.director ?? "").toLowerCase().includes(dashFilters.director.toLowerCase())) return false;
-  if (dashFilters.actor && !(meta.actors ?? "").toLowerCase().includes(dashFilters.actor.toLowerCase())) return false;
+  if (dashFilters.director && meta.director != null && !(meta.director).toLowerCase().includes(dashFilters.director.toLowerCase())) return false;
+  if (dashFilters.actor && meta.actors != null && !(meta.actors).toLowerCase().includes(dashFilters.actor.toLowerCase())) return false;
   if (dashFilters.releaseYearRange) {
     const y = meta.year;
     if (y == null || y < dashFilters.releaseYearRange[0] || y > dashFilters.releaseYearRange[1]) return false;
@@ -186,12 +192,35 @@ function CredibilityPanel({ tokens }: { tokens: ReturnType<typeof useTheme>["tok
   useEffect(() => { loadEval().then(setEvalData); }, []);
   if (!evalData) return null;
 
-  const rows = [
-    { label: "Balanced (λ=0.5)", data: evalData.balanced_liked },
-    { label: "Cosine only", data: evalData.cosine_liked },
-    { label: "IMDb rating", data: evalData.imdb_liked },
-    { label: "Random", data: evalData.random_liked },
-  ].filter((r) => r.data?.median_rank != null);
+  function renderTable(label: string, poolSize: number, data: { label: string; data?: EvalRow }[]) {
+    const valid = data.filter((r) => r.data?.median_rank != null);
+    if (!valid.length) return null;
+    return (
+      <div className="mt-2">
+        <div className="mb-1 text-[10px] font-medium" style={{ color: tokens.ink.secondary }}>{label}</div>
+        <table className="w-full text-[11px]" style={{ color: tokens.ink.secondary }}>
+          <thead>
+            <tr>
+              <th className="text-left font-medium pb-1">Ranker</th>
+              <th className="text-right font-medium pb-1">Median rank</th>
+              <th className="text-right font-medium pb-1">Hit@100</th>
+            </tr>
+          </thead>
+          <tbody>
+            {valid.map((r) => (
+              <tr key={r.label}>
+                <td className="py-0.5">{r.label}</td>
+                <td className="text-right py-0.5">{r.data!.median_rank?.toLocaleString()}</td>
+                <td className="text-right py-0.5">
+                  {r.data!.hit_100 != null ? `${Math.round(r.data!.hit_100 * 100)}%` : "–"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
 
   return (
     <details
@@ -206,33 +235,27 @@ function CredibilityPanel({ tokens }: { tokens: ReturnType<typeof useTheme>["tok
       >
         How good is this?
       </summary>
-      <div className="mt-2">
-        <table className="w-full text-[11px]" style={{ color: tokens.ink.secondary }}>
-          <thead>
-            <tr>
-              <th className="text-left font-medium pb-1">Ranker</th>
-              <th className="text-right font-medium pb-1">Median rank</th>
-              <th className="text-right font-medium pb-1">Hit@100</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.label}>
-                <td className="py-0.5">{r.label}</td>
-                <td className="text-right py-0.5">{r.data!.median_rank?.toLocaleString()}</td>
-                <td className="text-right py-0.5">
-                  {r.data!.hit_100 != null ? `${Math.round(r.data!.hit_100 * 100)}%` : "–"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="mt-2 text-[11px] leading-relaxed" style={{ color: tokens.ink.muted }}>
-          Content features alone explain little of the variance in my ratings (R&sup2;&nbsp;0.04 vs
-          0.21 for critic scores). The held-out numbers above show how often a liked film lands in
-          the top 100 of a {evalData.pool_size?.toLocaleString()}-film pool.
-        </p>
-      </div>
+      {renderTable(`Full pool (${evalData.pool_size?.toLocaleString()} films)`, evalData.pool_size, [
+        { label: "Balanced (λ=0.5)", data: evalData.balanced_liked },
+        { label: "Cosine only", data: evalData.cosine_liked },
+        { label: "IMDb rating", data: evalData.imdb_liked },
+        { label: "Random", data: evalData.random_liked },
+      ])}
+      {evalData.popular_pool_size != null && renderTable(
+        `Films people have seen (${evalData.popular_pool_size.toLocaleString()} with 1k+ votes)`,
+        evalData.popular_pool_size,
+        [
+          { label: "Balanced (λ=0.5)", data: evalData.popular_balanced_liked },
+          { label: "Cosine only", data: evalData.popular_cosine_liked },
+          { label: "IMDb rating", data: evalData.popular_imdb_liked },
+          { label: "Random", data: evalData.popular_random_liked },
+        ],
+      )}
+      <p className="mt-2 text-[11px] leading-relaxed" style={{ color: tokens.ink.muted }}>
+        Content features alone explain little of the variance in my ratings (R&sup2;&nbsp;0.04 vs
+        0.21 for critic scores). The held-out numbers show how often a liked film lands in
+        the top 100 of each pool.
+      </p>
     </details>
   );
 }
