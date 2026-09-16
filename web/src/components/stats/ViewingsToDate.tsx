@@ -15,7 +15,7 @@ import {
 } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
-import { accentFor, isPicked, pickWatches } from "./pick";
+import { a11yMark, accentFor, isPicked, pickWatches } from "./pick";
 
 const W0 = 720;
 const W_MIN = 380;
@@ -165,7 +165,7 @@ export function ViewingsToDate() {
       <svg
         width={W}
         height={H}
-        role="img"
+        role="group"
         aria-label="Viewings to date"
         style={{ maxWidth: "100%" }}
         onMouseMove={onMove}

@@ -60,6 +60,29 @@ export function pickWatches(
   setSelection(next);
 }
 
+/** Keyboard accessibility props for a clickable SVG mark. */
+export function a11yMark(
+  handler: () => void,
+  label: string,
+  pressed: boolean,
+): Record<string, unknown> {
+  return {
+    role: "button",
+    tabIndex: 0,
+    "aria-label": label,
+    "aria-pressed": pressed,
+    className: "chart-mark",
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handler();
+      }
+    },
+  };
+}
+
+import type React from "react";
+
 /** Whether `current` is exactly the selection this group of watches would make. */
 export function isPicked(watches: EnrichedWatch[], current: Set<string> | null): boolean {
   if (!current || !watches.length) return false;
