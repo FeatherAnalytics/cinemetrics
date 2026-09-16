@@ -82,9 +82,15 @@ def _get_json(
             if resp.status_code == 200:
                 return resp.json()
             if resp.status_code in (401, 403):
+                if url.startswith(OMDB_BASE):
+                    raise RuntimeError(
+                        f"{url} returned {resp.status_code}. OMDb uses 401 to "
+                        "signal that the 1,000-call daily limit has been reached; "
+                        "if the limit was not hit, check OMDB_API_KEY in .env."
+                    )
                 raise RuntimeError(
                     f"{url} rejected the credential ({resp.status_code}). Retrying "
-                    "cannot fix this: check TMDB_API_KEY / OMDB_API_KEY in .env. "
+                    "cannot fix this: check TMDB_API_KEY in .env. "
                     "Note that python-dotenv resolves .env relative to the calling "
                     "script, so running from outside the repo finds no key at all."
                 )
