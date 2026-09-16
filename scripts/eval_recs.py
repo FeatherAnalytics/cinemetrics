@@ -163,7 +163,6 @@ def main() -> None:
         where rating_100 is not null
         group by tmdb_id
     """).fetchdf().to_dict("records")
-    con.close()
     rated = {int(r["tmdb_id"]): float(r["rating"]) for r in rows}
 
     vote_rows = con.execute("""
