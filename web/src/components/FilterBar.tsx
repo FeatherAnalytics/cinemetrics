@@ -118,6 +118,7 @@ export function FilterBar() {
     ratedOptions,
     franchiseOptions,
     activeStory,
+    storyResult,
     setStory,
     watchlist,
     filteredWatchlist,
@@ -390,9 +391,11 @@ export function FilterBar() {
         <span className="font-mono text-xs">
           {watchlistMode
             ? `${filteredWatchlist.length} / ${watchlist.length} films`
-            : filtered.length < all.length
-              ? `${filtered.length} / ${all.length} watches`
-              : `${all.length} watches`}
+            : activeStory && storyResult?.selection
+              ? `${storyResult.selection.size} of ${all.length} watches`
+              : filtered.length < all.length
+                ? `${filtered.length} of ${all.length} watches`
+                : `${all.length} watches`}
         </span>
         <button
           onClick={reset}
