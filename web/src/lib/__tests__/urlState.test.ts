@@ -34,9 +34,9 @@ describe("encodeUrlState", () => {
     expect(encodeUrlState(DEFAULTS, null, BOUNDS)).toBe("");
   });
 
-  it("encodes a story alone, ignoring filters", () => {
+  it("encodes nothing for a story (path-based routing)", () => {
     const filters = { ...DEFAULTS, country: "US" };
-    expect(encodeUrlState(filters, "spooktober", BOUNDS)).toBe("story=spooktober");
+    expect(encodeUrlState(filters, "spooktober", BOUNDS)).toBe("");
   });
 
   it("omits ranges that span the full bounds", () => {
@@ -119,6 +119,40 @@ describe("parseUrlState", () => {
     expect(parsed.filters.language).toBe("ko");
     expect(parsed.filters.rated).toBe("PG-13");
     expect(parsed.filters.franchise).toBe("MCU");
+  });
+
+  it("round-trips a full filter state", () => {
+    const filters: Filters = {
+      ...DEFAULTS,
+      genres: new Set<GenreKey>(["Horror", "Drama"]),
+      yearRange: [2020, 2024],
+      releaseYearRange: [1990, 2020],
+      rewatch: "first",
+      title: "blade",
+      director: "Ridley Scott",
+      actor: "Harrison Ford",
+      country: "US",
+      language: "en",
+      rated: "R",
+      franchise: "MCU",
+      runtimeRange: [90, 180],
+      ratingRange: [60, 100],
+    };
+    const qs = encodeUrlState(filters, null, BOUNDS);
+    const parsed = parseUrlState(new URLSearchParams(qs), BOUNDS);
+    expect(parsed.filters.genres).toEqual(new Set(["Drama", "Horror"]));
+    expect(parsed.filters.yearRange).toEqual([2020, 2024]);
+    expect(parsed.filters.releaseYearRange).toEqual([1990, 2020]);
+    expect(parsed.filters.rewatch).toBe("first");
+    expect(parsed.filters.title).toBe("blade");
+    expect(parsed.filters.director).toBe("Ridley Scott");
+    expect(parsed.filters.actor).toBe("Harrison Ford");
+    expect(parsed.filters.country).toBe("US");
+    expect(parsed.filters.language).toBe("en");
+    expect(parsed.filters.rated).toBe("R");
+    expect(parsed.filters.franchise).toBe("MCU");
+    expect(parsed.filters.runtimeRange).toEqual([90, 180]);
+    expect(parsed.filters.ratingRange).toEqual([60, 100]);
   });
 
   it("round-trips runtime and rating ranges, omitting full spans", () => {

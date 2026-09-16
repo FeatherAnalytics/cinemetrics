@@ -1,11 +1,16 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import {
   cosineSimilarity,
   sparseCosine,
   decodeEmbeddings,
+  parseV3Binary,
   topNSimilar,
   filterRecommendations,
   scoreByTaste,
+  scoreWithPrior,
+  criticPrior,
   tasteVector,
   type EmbeddingData,
   type RecommendationFilters,
@@ -155,9 +160,9 @@ describe("scoreByTaste", () => {
 
 describe("filterRecommendations", () => {
   const recs = [
-    { tmdb_id: 2, score: 0.99, metadata: METADATA[2] },
-    { tmdb_id: 3, score: 0.1, metadata: METADATA[3] },
-    { tmdb_id: 4, score: 0.95, metadata: METADATA[4] },
+    { tmdb_id: 2, score: 0.99, cosineScore: 0.99, metadata: METADATA[2] },
+    { tmdb_id: 3, score: 0.1, cosineScore: 0.1, metadata: METADATA[3] },
+    { tmdb_id: 4, score: 0.95, cosineScore: 0.95, metadata: METADATA[4] },
   ];
 
   it("filters english only", () => {
@@ -183,5 +188,73 @@ describe("filterRecommendations", () => {
   it("applies no filters when empty", () => {
     const result = filterRecommendations(recs, {});
     expect(result).toHaveLength(3);
+  });
+});
+
+describe("scoreWithPrior", () => {
+  it("with lambda=0 the ranking equals pure cosine order", () => {
+    const taste = tasteVector(DATA, [{ tmdb_id: 1, rating: 100 }])!;
+    const cosineOnly = scoreByTaste(taste, DATA, new Set([1]));
+    const withPrior = scoreWithPrior(taste, DATA, new Set([1]), 0);
+    cosineOnly.sort((a, b) => b.score - a.score);
+    withPrior.sort((a, b) => b.score - a.score);
+    expect(withPrior.map((r) => r.tmdb_id)).toEqual(cosineOnly.map((r) => r.tmdb_id));
+  });
+
+  it("with lambda=1 a high-prior low-cosine film outranks a low-prior high-cosine one", () => {
+    const taste = tasteVector(DATA, [{ tmdb_id: 1, rating: 100 }])!;
+    const scored = scoreWithPrior(taste, DATA, new Set([1]), 1);
+    const byId = new Map(scored.map((r) => [r.tmdb_id, r.score]));
+    expect(byId.get(4)!).toBeGreaterThan(byId.get(3)!);
+  });
+
+  it("cosineScore is identical across lambda values", () => {
+    const taste = tasteVector(DATA, [{ tmdb_id: 1, rating: 100 }])!;
+    const at0 = scoreWithPrior(taste, DATA, new Set([1]), 0);
+    const at2 = scoreWithPrior(taste, DATA, new Set([1]), 2);
+    const at4 = scoreWithPrior(taste, DATA, new Set([1]), 4);
+    for (const id of [2, 3, 4]) {
+      const c0 = at0.find((r) => r.tmdb_id === id)!.cosineScore;
+      const c2 = at2.find((r) => r.tmdb_id === id)!.cosineScore;
+      const c4 = at4.find((r) => r.tmdb_id === id)!.cosineScore;
+      expect(c0).toBeCloseTo(c2);
+      expect(c0).toBeCloseTo(c4);
+      expect(Math.min(100, Math.round(c0 * 100))).toBeLessThanOrEqual(100);
+    }
+  });
+});
+
+describe("criticPrior", () => {
+  it("averages available scores", () => {
+    expect(criticPrior(METADATA[1], 0.5)).toBeCloseTo((80/100 + 85/100 + 8.0/10) / 3);
+  });
+
+  it("returns pool mean when no scores", () => {
+    const noScores = { ...METADATA[1], metascore: null, rt_rating: null, imdb_rating: null };
+    expect(criticPrior(noScores, 0.42)).toBeCloseTo(0.42);
+  });
+});
+
+describe("parseV3Binary", () => {
+  it("round-trips three vectors from the Python-generated fixture", () => {
+    const buf = readFileSync(
+      resolve(__dirname, "fixtures/embeddings-v3-fixture.bin"),
+    );
+    const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    const vectors = parseV3Binary(ab);
+
+    expect(Object.keys(vectors).map(Number).sort((a, b) => a - b)).toEqual([100, 200, 300]);
+
+    expect(vectors[100].idx).toEqual([1, 5]);
+    expect(vectors[100].val[0]).toBeCloseTo(0.5, 1);
+    expect(vectors[100].val[1]).toBeCloseTo(0.3, 1);
+
+    expect(vectors[200].idx).toEqual([0, 3, 7]);
+    expect(vectors[200].val[0]).toBeCloseTo(0.2, 1);
+    expect(vectors[200].val[1]).toBeCloseTo(0.8, 1);
+    expect(vectors[200].val[2]).toBeCloseTo(0.1, 1);
+
+    expect(vectors[300].idx).toEqual([9]);
+    expect(vectors[300].val[0]).toBeCloseTo(1.0, 1);
   });
 });

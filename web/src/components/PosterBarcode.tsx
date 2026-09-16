@@ -9,6 +9,8 @@ import { primaryGenre } from "@/lib/palette";
 import { sliceStops } from "@/lib/posterSlice";
 import { posterUrl } from "@/lib/fourFavs";
 import type { EnrichedWatch } from "@/lib/types";
+import { watchKey } from "@/lib/brush";
+import { pickWatches } from "@/components/stats/pick";
 
 // Canvas, not SVG. 795 watches at 20 stops each is 15,900 rects, and the SVG
 // barcode next door already draws 795 of them.
@@ -98,7 +100,7 @@ export function PosterBarcodeBlurb() {
 }
 
 export function PosterBarcode() {
-  const { filtered, setSelected, heartLens } = useExplorer();
+  const { filtered, setSelection, heartLens, activeStory, storyResult, filters } = useExplorer();
   const { tokens } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // x and figW travel with the watch: both come off the same getBoundingClientRect
@@ -152,20 +154,28 @@ export function PosterBarcode() {
       // exists for a mark carrying no categorical color, and it reaches 3.70:1.
       const noSlice = tokens.ink.mark;
 
+      // Heart lens filters the watch set (line 121); story dims stripes outside
+      // the selection. When both apply, the lens wins: the barcode only contains
+      // hearted watches, so dimming inside that set is the story operating on the
+      // lens's output, not competing with it.
+      const storyKeys = activeStory && storyResult?.selection ? storyResult.selection : null;
       const bw = w / watches.length;
       watches.forEach((wt, i) => {
         const stops = stopsByFilm.get(wt.tmdb_id) ?? [];
         const x = i * bw;
+        const dimmed = storyKeys != null && !storyKeys.has(watchKey(wt));
+        if (dimmed) ctx.globalAlpha = 0.25;
         if (stops.length === 0) {
           ctx.fillStyle = noSlice;
           ctx.fillRect(x, 0, Math.ceil(bw) + 0.5, H);
-          return;
+        } else {
+          const sh = H / stops.length;
+          stops.forEach((c, k) => {
+            ctx.fillStyle = c;
+            ctx.fillRect(x, k * sh, Math.ceil(bw) + 0.5, Math.ceil(sh) + 0.5);
+          });
         }
-        const sh = H / stops.length;
-        stops.forEach((c, k) => {
-          ctx.fillStyle = c;
-          ctx.fillRect(x, k * sh, Math.ceil(bw) + 0.5, Math.ceil(sh) + 0.5);
-        });
+        if (dimmed) ctx.globalAlpha = 1;
       });
     };
 
@@ -173,7 +183,7 @@ export function PosterBarcode() {
     const ro = new ResizeObserver(draw);
     ro.observe(canvas);
     return () => ro.disconnect();
-  }, [watches, stopsByFilm, tokens]);
+  }, [watches, stopsByFilm, tokens, activeStory, storyResult]);
 
   if (watches.length === 0) return null;
 
@@ -203,7 +213,10 @@ export function PosterBarcode() {
         onMouseLeave={() => setHover(null)}
         onClick={(e) => {
           const hit = at(e.clientX);
-          if (hit) setSelected(hit.w.tmdb_id);
+          if (hit) {
+            const filmWatches = watches.filter((w) => w.tmdb_id === hit.w.tmdb_id);
+            pickWatches(filmWatches, filters.selection, setSelection);
+          }
         }}
       />
 
@@ -270,7 +283,10 @@ export function PosterBarcode() {
           affordance. Static now, so unlike the readout it used to hold there is
           nothing left that can change height under the pointer. */}
       <figcaption className="mt-2 text-sm" style={{ color: tokens.ink.muted }}>
-        {watches.length} watches. Hover for the film.
+        {activeStory && storyResult?.selection
+          ? `${storyResult.selection.size} of ${watches.length} ${watches.length === 1 ? "watch" : "watches"}.`
+          : `${watches.length} ${watches.length === 1 ? "watch" : "watches"}.`}
+        {" "}Tap or hover for the film.
       </figcaption>
     </figure>
   );

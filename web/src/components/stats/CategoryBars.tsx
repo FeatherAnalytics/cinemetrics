@@ -7,6 +7,7 @@ import { valueLabelFill } from "@/lib/barChart";
 import { quantile } from "@/lib/statsChart";
 import { useAnimatedValues } from "@/lib/useAnimatedValues";
 import { useWidth } from "@/lib/useWidth";
+import { a11yMark } from "./pick";
 
 const W0 = 720; // pre-measurement width, matching the usual desktop column
 const W_MIN = 300;
@@ -155,7 +156,7 @@ export function CategoryBars({
 
   return (
     <div ref={ref}>
-      <svg width={W} height={H} role="img" style={{ maxWidth: "100%" }}>
+      <svg width={W} height={H} role={onPick ? "group" : "img"} aria-label={onPick ? "Category chart" : undefined} style={{ maxWidth: "100%" }}>
         {/* Backdrop tint sits behind everything, at the lowest contrast that still
             separates: one flat band, no border, no second color. */}
         {[...hot].map((i) => (
@@ -199,6 +200,7 @@ export function CategoryBars({
               onClick={onPick ? () => onPick(i) : undefined}
               onMouseEnter={onHover ? () => onHover(i) : undefined}
               onMouseLeave={onHover ? () => onHover(null) : undefined}
+              {...(onPick ? a11yMark(() => onPick(i), `${b.label}, ${fmt(b.value)}`, active === i) : {})}
             />
             {/* The label rides its own bar, inside when there is room, exactly
                 as it does on every horizontal bar chart here: same 11px, same

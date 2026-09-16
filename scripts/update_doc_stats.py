@@ -219,6 +219,15 @@ def collect_stats() -> dict[str, str]:
         stats["p_weekday"] = _fmt_p(story["p_weekday"])
         stats["p_genre"] = _fmt_p(story["p_genre"])
 
+    eval_json = ROOT / "web" / "public" / "data" / "recs-eval.json"
+    if eval_json.exists():
+        ev = json.loads(eval_json.read_text())
+        bl = ev.get("balanced_liked", {})
+        if bl.get("median_rank") is not None:
+            stats["eval_median_rank"] = f"{bl['median_rank']:,}"
+        if bl.get("hit_100") is not None:
+            stats["eval_hit_100"] = f"{round(bl['hit_100'] * 100)}"
+
     return stats
 
 

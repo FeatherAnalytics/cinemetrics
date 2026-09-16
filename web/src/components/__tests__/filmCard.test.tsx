@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { csvParse } from "d3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FilmCard } from "@/components/FilmCard";
-import { explainRecommendation } from "@/lib/explainClient";
+import type { Reason } from "@/lib/explainClient";
 import { DARK, INK } from "@/lib/palette";
 import type { CandidateMetadata } from "@/lib/recommend";
 import { ThemeProvider, useTheme } from "@/lib/theme";
@@ -53,7 +53,7 @@ function hexToRgb(hex: string): string {
 function Card(props: { metadata: CandidateMetadata; reasons?: { type: string; text: string }[] }) {
   return (
     <ThemeProvider>
-      <FilmCard metadata={props.metadata} score={0.42} reasons={props.reasons ?? []} />
+      <FilmCard metadata={props.metadata} score={0.42} cosineScore={0.42} reasons={props.reasons ?? []} />
     </ThemeProvider>
   );
 }
@@ -126,9 +126,10 @@ describe("FilmCard", () => {
     }
     const pair = [...byDirector.values()].find((rows) => rows.length > 1)!;
     const target = asCandidate(pair[1]);
-    const reasons = explainRecommendation(asCandidate(pair[0]), target, {
-      [target.genres.split(", ")[0]]: 6,
-    });
+    const reasons: Reason[] = [
+      { type: "director", text: `directed by ${pair[0].director}` },
+      { type: "genre", text: `${target.genres.split(", ")[0]}, like 5 films you rated 80+` },
+    ];
     expect(reasons.length).toBeGreaterThan(1);
 
     render(<Card metadata={target} reasons={reasons} />);
@@ -139,12 +140,15 @@ describe("FilmCard", () => {
     }
   });
 
-  it("shows at most three genre pills", () => {
-    const row = seed.find((r) => (r.genres ?? "").split(", ").length > 3)!;
+  it("shows at most four genres plus overflow count", () => {
+    const row = seed.find((r) => (r.genres ?? "").split(", ").length > 4)!;
     const meta = asCandidate(row);
     render(<Card metadata={meta} />);
-    const shown = meta.genres.split(", ").filter((g) => screen.queryByText(g) !== null);
-    expect(shown).toHaveLength(3);
+    const allGenres = meta.genres.split(", ");
+    const overflow = allGenres.length - 4;
+    if (overflow > 0) {
+      expect(screen.getByText(new RegExp(`\\+${overflow}`))).toBeTruthy();
+    }
   });
 
   it("recolors with the theme instead of freezing a palette value at import", () => {
@@ -156,7 +160,7 @@ describe("FilmCard", () => {
     render(
       <ThemeProvider>
         <Toggle />
-        <FilmCard metadata={asCandidate(withPoster[0])} score={0.42} reasons={reasons} />
+        <FilmCard metadata={asCandidate(withPoster[0])} score={0.42} cosineScore={0.42} reasons={reasons} />
       </ThemeProvider>,
     );
     expect(screen.getByText(reasons[0].text).style.color).toBe(hexToRgb(INK.secondary));

@@ -15,7 +15,7 @@ import {
 } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
-import { accentFor, isPicked, pickWatches } from "./pick";
+import { a11yMark, accentFor, isPicked, pickWatches } from "./pick";
 
 const W0 = 720;
 const W_MIN = 380;
@@ -165,7 +165,7 @@ export function ViewingsToDate() {
       <svg
         width={W}
         height={H}
-        role="img"
+        role="group"
         aria-label="Viewings to date"
         style={{ maxWidth: "100%" }}
         onMouseMove={onMove}
@@ -174,13 +174,13 @@ export function ViewingsToDate() {
         {ticksEvery(scaleMax, TICK_STEP).map((v) => (
           <g key={v}>
             <line x1={ML} y1={y(v)} x2={W - MR} y2={y(v)} stroke={tokens.ink.grid} strokeOpacity={0.4} />
-            <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={9} fill={tokens.ink.muted}>
+            <text x={ML - 6} y={y(v) + 3} textAnchor="end" fontSize={11} fill={tokens.ink.muted}>
               {v}
             </text>
           </g>
         ))}
         {LEAP_OFFSETS.map((off, m) => (
-          <text key={m} x={x(off)} y={H - 6} textAnchor="start" fontSize={8} fill={tokens.ink.muted}>
+          <text key={m} x={x(off)} y={H - 6} textAnchor="start" fontSize={11} fill={tokens.ink.muted}>
             {MONTH_ABBR[m]}
           </text>
         ))}
@@ -224,6 +224,7 @@ export function ViewingsToDate() {
               key={l.year}
               style={{ cursor: "pointer" }}
               onClick={() => pickWatches(l.watches, filters.selection, setSelection)}
+              {...a11yMark(() => pickWatches(l.watches, filters.selection, setSelection), `${l.year}, ${l.shown} watches`, on)}
             >
               <rect
                 x={legX - 3}

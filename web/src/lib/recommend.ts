@@ -2,9 +2,9 @@ export type CandidateMetadata = {
   title: string;
   year: number | null;
   genres: string;
-  keywords: string;
-  director: string;
-  actors: string;
+  keywords?: string;
+  director?: string;
+  actors?: string;
   runtime: number | null;
   rated: string;
   language: string;
@@ -28,6 +28,7 @@ export type EmbeddingData = {
   dims: number;
   vectors: Record<number, SparseVec>;
   metadata: Record<number, CandidateMetadata>;
+  featureNames?: string[];
 };
 
 // Wire format for embeddings-v2.json: each vector is an [indices, values] pair.
@@ -39,7 +40,8 @@ type EmbeddingFileV2 = {
 
 export type Recommendation = {
   tmdb_id: number;
-  score: number; // cosine similarity (0-1)
+  score: number;
+  cosineScore: number;
   metadata: CandidateMetadata;
 };
 
@@ -113,9 +115,11 @@ export function topNSimilar(
     if (excludeIds.has(id)) continue;
     const meta = data.metadata[id];
     if (!meta) continue;
+    const cos = sparseCosine(sourceVec, vec);
     scored.push({
       tmdb_id: id,
-      score: sparseCosine(sourceVec, vec),
+      score: cos,
+      cosineScore: cos,
       metadata: meta,
     });
   }
@@ -158,6 +162,15 @@ export function tasteVector(
   return taste.some((v) => v !== 0) ? taste : null;
 }
 
+/** Mean of available normalized critic scores (metascore/100, rt/100, imdb/10), or pool mean when none. */
+export function criticPrior(meta: CandidateMetadata, poolMean: number): number {
+  const scores: number[] = [];
+  if (meta.metascore != null) scores.push(meta.metascore / 100);
+  if (meta.rt_rating != null) scores.push(meta.rt_rating / 100);
+  if (meta.imdb_rating != null) scores.push(meta.imdb_rating / 10);
+  return scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : poolMean;
+}
+
 /** Score every candidate not in excludeIds by cosine similarity to `taste`. */
 export function scoreByTaste(
   taste: number[],
@@ -173,13 +186,41 @@ export function scoreByTaste(
     if (excludeIds.has(id)) continue;
     const meta = data.metadata[id];
     if (!meta) continue;
+    const cos = Math.max(0, denseSparseCosine(taste, tasteNorm, vec));
     scored.push({
       tmdb_id: id,
-      score: Math.max(0, denseSparseCosine(taste, tasteNorm, vec)),
+      score: cos,
+      cosineScore: cos,
       metadata: meta,
     });
   }
   return scored;
+}
+
+/** Score candidates by cosine(taste, film) + λ · prior(film). */
+export function scoreWithPrior(
+  taste: number[],
+  data: EmbeddingData,
+  excludeIds: Set<number>,
+  lambda: number,
+): Recommendation[] {
+  const base = scoreByTaste(taste, data, excludeIds);
+  if (lambda === 0) return base;
+  const poolMean = computePoolMean(base.map((r) => r.metadata));
+  for (const r of base) {
+    r.score = r.cosineScore + lambda * criticPrior(r.metadata, poolMean);
+  }
+  return base;
+}
+
+function computePoolMean(metas: CandidateMetadata[]): number {
+  let sum = 0;
+  let n = 0;
+  for (const m of metas) {
+    const p = criticPrior(m, NaN);
+    if (!isNaN(p)) { sum += p; n++; }
+  }
+  return n > 0 ? sum / n : 0.5;
 }
 
 export function filterRecommendations(
@@ -211,6 +252,44 @@ export function decodeEmbeddings(file: EmbeddingFileV2): EmbeddingData {
   return { dims: file.dims, vectors, metadata: file.metadata };
 }
 
+/** Parse the v3 binary format: per film uint32 tmdb_id, uint16 nnz, nnz×uint16 indices, nnz×float16 values. */
+export function parseV3Binary(buf: ArrayBuffer): Record<number, SparseVec> {
+  const view = new DataView(buf);
+  const vectors: Record<number, SparseVec> = {};
+  let offset = 0;
+  while (offset < buf.byteLength) {
+    const tmdbId = view.getUint32(offset, true);
+    const nnz = view.getUint16(offset + 4, true);
+    offset += 6;
+    const idx: number[] = new Array(nnz);
+    for (let i = 0; i < nnz; i++) {
+      idx[i] = view.getUint16(offset, true);
+      offset += 2;
+    }
+    const f16 = new Uint16Array(buf, offset, nnz);
+    const val: number[] = new Array(nnz);
+    for (let i = 0; i < nnz; i++) {
+      val[i] = float16ToNumber(f16[i]);
+    }
+    offset += nnz * 2;
+    vectors[tmdbId] = { idx, val };
+  }
+  return vectors;
+}
+
+function float16ToNumber(h: number): number {
+  const sign = (h >> 15) & 1;
+  const exp = (h >> 10) & 0x1f;
+  const frac = h & 0x3ff;
+  if (exp === 0) {
+    return (sign ? -1 : 1) * 2 ** -14 * (frac / 1024);
+  }
+  if (exp === 0x1f) {
+    return frac ? NaN : (sign ? -Infinity : Infinity);
+  }
+  return (sign ? -1 : 1) * 2 ** (exp - 15) * (1 + frac / 1024);
+}
+
 /**
  * Bumped whenever the artifact's CONTENT changes without the dataset changing.
  *
@@ -228,14 +307,25 @@ export async function loadEmbeddings(
   version: string,
 ): Promise<{ data: EmbeddingData }> {
   if (_cache) return _cache;
-  // The version param (derived from the dataset) busts the browser's HTTP
-  // cache whenever a data update deploys; between deploys the R2 object's
-  // Cache-Control lets repeat visits skip the download entirely.
-  const embRes = await fetch(
-    `${r2Url}/embeddings-v2.json?v=${encodeURIComponent(version)}-${EMBEDDINGS_BUILD}`,
-  );
-  if (!embRes.ok) throw new Error("Failed to load embeddings");
-  const data = decodeEmbeddings((await embRes.json()) as EmbeddingFileV2);
+  const v = `${encodeURIComponent(version)}-${EMBEDDINGS_BUILD}`;
+  const [binRes, metaRes, featRes] = await Promise.all([
+    fetch(`${r2Url}/embeddings-v3.bin?v=${v}`),
+    fetch(`${r2Url}/metadata-v3.json?v=${v}`),
+    fetch(`${r2Url}/features-v3.json?v=${v}`),
+  ]);
+  if (!binRes.ok || !metaRes.ok || !featRes.ok) throw new Error("Failed to load embeddings");
+  const [buf, meta, feat] = await Promise.all([
+    binRes.arrayBuffer(),
+    metaRes.json() as Promise<Record<number, CandidateMetadata>>,
+    featRes.json() as Promise<{ dims: number; names: string[] }>,
+  ]);
+  const vectors = parseV3Binary(buf);
+  const data: EmbeddingData = {
+    dims: feat.dims,
+    vectors,
+    metadata: meta,
+    featureNames: feat.names,
+  };
   _cache = { data };
   return _cache;
 }

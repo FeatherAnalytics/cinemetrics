@@ -5,6 +5,7 @@ import { useTheme } from "@/lib/theme";
 import { valueLabelFill } from "@/lib/barChart";
 import { insetRect, NO_DATA_STROKE } from "@/lib/statsChart";
 import { useWidth } from "@/lib/useWidth";
+import { a11yMark } from "@/components/stats/pick";
 
 const W0 = 720; // pre-measurement width, matching the usual desktop column
 const W_MIN = 300;
@@ -145,7 +146,7 @@ export function RateBars({
           </span>
         </div>
       )}
-      <svg width={W} height={H} role="img" style={{ maxWidth: "100%" }}>
+      <svg width={W} height={H} role={onPick ? "group" : "img"} aria-label={onPick ? "Rate bars" : undefined} style={{ maxWidth: "100%" }}>
         {[0, 0.5, 1].map((v) => (
           <g key={`t-${v}`}>
             <line x1={ML} y1={y(v)} x2={W - MR} y2={y(v)} stroke={tokens.ink.grid} strokeOpacity={0.4} />
@@ -218,6 +219,7 @@ export function RateBars({
                 fill="transparent"
                 style={{ cursor: onPick && b.n > 0 ? "pointer" : "default" }}
                 onClick={onPick && b.n > 0 ? () => onPick(i) : undefined}
+                {...(onPick && b.n > 0 ? a11yMark(() => onPick(i), `${b.label}, ${b.n}`, false) : {})}
               />
               {b.n > 0 && (
                 <text

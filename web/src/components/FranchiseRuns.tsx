@@ -114,6 +114,7 @@ export function FranchiseRuns() {
   const { tokens } = useTheme();
   const [showAll, setShowAll] = useState(false);
   const [hover, setHover] = useState<{ x: number; y: number; w: EnrichedWatch } | null>(null);
+  const [rovingIdx, setRovingIdx] = useState(-1);
 
   const { main, minor, x0, x1 } = useMemo(() => {
     // Rewatch-mode is ignored so a franchise row always shows its whole run.
@@ -217,11 +218,21 @@ export function FranchiseRuns() {
     <figure className="relative m-0">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full"
+        className="w-full chart-mark"
         style={{ touchAction: "none" }}
-        role="img"
-        aria-label="One row per franchise; dots are watches over time, height is my rating. Drag to brush a selection."
         {...handlers}
+        role="group"
+        tabIndex={0}
+        aria-label="One row per franchise. Arrow keys navigate marks, Enter selects."
+        aria-activedescendant={rovingIdx >= 0 ? `fr-mark-${rovingIdx}` : undefined}
+        onKeyDown={(e) => {
+          const allDots = rows.flatMap((r) => r.watches);
+          if (!allDots.length) return;
+          if (e.key === "ArrowRight") { e.preventDefault(); setRovingIdx((i) => Math.min(i + 1, allDots.length - 1)); }
+          else if (e.key === "ArrowLeft") { e.preventDefault(); setRovingIdx((i) => Math.max(i - 1, 0)); }
+          else if ((e.key === "Enter" || e.key === " ") && rovingIdx >= 0 && rovingIdx < allDots.length) { e.preventDefault(); setSelected(allDots[rovingIdx].tmdb_id); }
+        }}
+        onFocus={() => { if (rovingIdx < 0) setRovingIdx(0); }}
       >
         {years.map((Y) => {
           const xx = x(Date.UTC(Y, 0, 1));

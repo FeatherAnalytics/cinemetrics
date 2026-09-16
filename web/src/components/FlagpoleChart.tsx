@@ -12,7 +12,7 @@ import {
   THIN_N,
   type YearStars,
 } from "@/lib/yearQuality";
-import { accentFor, isPicked, pickWatches } from "./stats/pick";
+import { a11yMark, accentFor, isPicked, pickWatches } from "./stats/pick";
 
 const W0 = 720;
 const W_MIN = 300;
@@ -249,7 +249,7 @@ export function FlagpoleChart() {
       <svg
         width={W}
         height={H}
-        role="img"
+        role="group"
         style={{ maxWidth: "100%" }}
         aria-label={`Rating distribution for each release year holding at least ${THIN_N} films, ${
           years[0].year
@@ -331,6 +331,7 @@ export function FlagpoleChart() {
                 onMouseEnter={() => setHover({ year: b.year, bin: null })}
                 onMouseLeave={() => setHover(null)}
                 onClick={pick}
+                {...a11yMark(pick, `${b.year}, ${b.watches.length} watches`, sel)}
               />
               <line
                 x1={px(i)}

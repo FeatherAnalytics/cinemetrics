@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useMemo,
   useReducer,
   type ReactNode,
   type Dispatch,
@@ -18,7 +19,16 @@ export type RecommendState = {
   genre: string | null;
   filters: RecommendationFilters;
   hideRated: boolean;
+  lambda: number;
 };
+
+function readLambda(): number {
+  try {
+    const v = localStorage.getItem("cinemetrics-recs-lambda");
+    if (v != null) { const n = Number(v); if (!isNaN(n)) return n; }
+  } catch { /* private browsing */ }
+  return 2;
+}
 
 export const initialRecommendState: RecommendState = {
   open: false,
@@ -27,6 +37,7 @@ export const initialRecommendState: RecommendState = {
   genre: null,
   filters: {},
   hideRated: true,
+  lambda: 2,
 };
 
 type Action =
@@ -35,7 +46,8 @@ type Action =
   | { type: "OPEN_GENRE_RECOMMEND"; genre: string }
   | { type: "CLOSE" }
   | { type: "SET_LANGUAGE"; language: "en" | "non-en" | undefined }
-  | { type: "TOGGLE_HIDE_RATED" };
+  | { type: "TOGGLE_HIDE_RATED" }
+  | { type: "SET_LAMBDA"; lambda: number };
 
 export function recommendReducer(state: RecommendState, action: Action): RecommendState {
   switch (action.type) {
@@ -69,6 +81,9 @@ export function recommendReducer(state: RecommendState, action: Action): Recomme
       return { ...state, filters: { ...state.filters, language: action.language } };
     case "TOGGLE_HIDE_RATED":
       return { ...state, hideRated: !state.hideRated };
+    case "SET_LAMBDA":
+      try { localStorage.setItem("cinemetrics-recs-lambda", String(action.lambda)); } catch { /* private browsing */ }
+      return { ...state, lambda: action.lambda };
     default:
       return state;
   }
@@ -82,7 +97,8 @@ type RecommendContextValue = {
 const RecommendCtx = createContext<RecommendContextValue | null>(null);
 
 export function RecommendProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(recommendReducer, initialRecommendState);
+  const init = useMemo(() => ({ ...initialRecommendState, lambda: readLambda() }), []);
+  const [state, dispatch] = useReducer(recommendReducer, init);
   return (
     <RecommendCtx.Provider value={{ state, dispatch }}>
       {children}

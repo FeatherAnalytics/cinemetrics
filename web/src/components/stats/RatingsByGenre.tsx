@@ -11,7 +11,7 @@ import { useTheme } from "@/lib/theme";
 import { GENRE_ALPHA, mean, tukey, type BoxBounds } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
 import { useWidth } from "@/lib/useWidth";
-import { accentFor, isPicked, pickWatches } from "./pick";
+import { a11yMark, accentFor, isPicked, pickWatches } from "./pick";
 
 const W0 = 720;
 const W_MIN = 300;
@@ -119,7 +119,7 @@ export function RatingsByGenre() {
         {bySecondary ? "second genre · " : ""}median spread{" "}
         <span style={{ color: tokens.ink.primary }}>{(spread / 20).toFixed(2)}★</span>
       </div>
-      <svg width={W} height={H} role="img" aria-label="Rating distribution by genre" style={{ maxWidth: "100%" }}>
+      <svg width={W} height={H} role="group" aria-label="Rating distribution by genre" style={{ maxWidth: "100%" }}>
         {[0, 20, 40, 60, 80, 100].map((t) => (
           <g key={t}>
             <line x1={ML} y1={y(t)} x2={W - 12} y2={y(t)} stroke={tokens.ink.grid} strokeOpacity={0.4} />
@@ -180,6 +180,11 @@ export function RatingsByGenre() {
                 fill="transparent"
                 style={{ cursor: "pointer" }}
                 onClick={() => pickWatches(r.watches, filters.selection, setSelection)}
+                {...a11yMark(
+                  () => pickWatches(r.watches, filters.selection, setSelection),
+                  `${r.genre}, ${r.watches.length} watches`,
+                  isPicked(r.watches, filters.selection),
+                )}
               />
               <text
                 x={cx}

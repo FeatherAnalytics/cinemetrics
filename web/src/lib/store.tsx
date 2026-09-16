@@ -307,13 +307,15 @@ const Ctx = createContext<ExplorerValue | null>(null);
 export function ExplorerProvider({
   data,
   children,
+  initialStory,
 }: {
   data: Dataset;
   children: ReactNode;
+  initialStory?: string;
 }) {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [activeStory, setActiveStory] = useState<string | null>(null);
+  const [activeStory, setActiveStory] = useState<string | null>(initialStory ?? null);
   const [storyResult, setStoryResult] = useState<StoryResult | null>(null);
 
   const derived = useMemo(() => {
@@ -433,12 +435,11 @@ export function ExplorerProvider({
     [derived.films, derived.all, derived.watchlist],
   );
 
-  // --- URL sync: hydrate once from the query string, then mirror state back
-  // into it (replaceState, debounced) so filtered views are shareable links.
-  // Reading window.location must wait for the client (the page is prerendered
-  // with default state), so this is a genuine external-system sync: the
-  // one-time setState after mount is intentional.
+  // --- URL sync: hydrate once from the query string, then mirror state back.
+  // Discrete changes (chip toggles, story) push a history entry; continuous
+  // ones (text, range drags) replace the current entry so Back skips them.
   const hydrated = useRef(false);
+  const pushNeeded = useRef(false);
   /* eslint-disable react-hooks/set-state-in-effect --
      one-time hydration from the query string after mount */
   useEffect(() => {
@@ -450,11 +451,13 @@ export function ExplorerProvider({
       runtimeBounds: derived.runtimeBounds,
     };
     const parsed = parseUrlState(new URLSearchParams(window.location.search), bounds);
-    if (parsed.story) {
-      const story = getStoryById(parsed.story);
+    const pathStory = window.location.pathname.match(/\/s\/([^/]+)/)?.[1] ?? null;
+    const storyId = parsed.story ?? pathStory ?? initialStory ?? null;
+    if (storyId) {
+      const story = getStoryById(storyId);
       if (!story) return;
       const result = story.compute(derived.films, derived.all, derived.watchlist);
-      setActiveStory(parsed.story);
+      setActiveStory(storyId);
       setStoryResult(result);
       setFilters({ ...EMPTY_FILTERS, ...result.filters, selection: result.selection ?? null });
     } else if (Object.keys(parsed.filters).length > 0) {
@@ -471,13 +474,54 @@ export function ExplorerProvider({
         releaseYearBounds: derived.releaseYearBounds,
         runtimeBounds: derived.runtimeBounds,
       });
-      const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
-      window.history.replaceState(null, "", url);
+      const base = activeStory
+        ? `${window.location.pathname.replace(/\/s\/[^/]+$/, "")}/s/${activeStory}`.replace(/\/+/g, "/")
+        : window.location.pathname.replace(/\/s\/[^/]+$/, "") || "/";
+      const hash = window.location.hash;
+      const existing = new URLSearchParams(window.location.search);
+      const dive = existing.get("dive");
+      const fullQs = qs || (dive ? `dive=${dive}` : "");
+      const url = fullQs ? `${base}?${fullQs}${hash}` : `${base}${hash}`;
+      if (pushNeeded.current) {
+        pushNeeded.current = false;
+        window.history.pushState(null, "", url);
+      } else {
+        window.history.replaceState(null, "", url);
+      }
     }, 250);
     return () => clearTimeout(t);
   }, [filters, activeStory, derived]);
 
+  useEffect(() => {
+    const onPop = () => {
+      const bounds = {
+        yearBounds: derived.yearBounds,
+        releaseYearBounds: derived.releaseYearBounds,
+        runtimeBounds: derived.runtimeBounds,
+      };
+      const parsed = parseUrlState(new URLSearchParams(window.location.search), bounds);
+      const pathStory = window.location.pathname.match(/\/s\/([^/]+)/)?.[1] ?? null;
+      const storyId = parsed.story ?? pathStory;
+      if (storyId) {
+        const story = getStoryById(storyId);
+        if (story) {
+          const result = story.compute(derived.films, derived.all, derived.watchlist);
+          setActiveStory(storyId);
+          setStoryResult(result);
+          setFilters({ ...EMPTY_FILTERS, ...result.filters, selection: result.selection ?? null });
+        }
+      } else {
+        setActiveStory(null);
+        setStoryResult(null);
+        setFilters({ ...EMPTY_FILTERS, ...parsed.filters });
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [derived]);
+
   const setStory = (id: string | null) => {
+    pushNeeded.current = true;
     if (id == null) {
       setActiveStory(null);
       setStoryResult(null);
@@ -552,6 +596,7 @@ export function ExplorerProvider({
       selectedId,
       toggleGenre: (g) => {
         exitStoryOnFilter();
+        pushNeeded.current = true;
         setFilters((f) => {
           const genres = new Set(f.genres);
           if (genres.has(g)) genres.delete(g);
@@ -583,14 +628,17 @@ export function ExplorerProvider({
       // every other click-to-filter chart here uses.
       setGenreTag: (g) => {
         exitStoryOnFilter();
+        pushNeeded.current = true;
         setFilters((f) => ({ ...f, genreTag: f.genreTag === g ? null : g }));
       },
       setKeyword: (k) => {
         exitStoryOnFilter();
+        pushNeeded.current = true;
         setFilters((f) => ({ ...f, keyword: f.keyword === k ? null : k }));
       },
       setRewatch: (r) => {
         exitStoryOnFilter();
+        pushNeeded.current = true;
         setFilters((f) => ({ ...f, rewatch: r }));
       },
       setText: (field, value) => {
@@ -599,18 +647,22 @@ export function ExplorerProvider({
       },
       setCountry: (iso) => {
         exitStoryOnFilter();
+        pushNeeded.current = true;
         setFilters((f) => ({ ...f, country: f.country === iso ? null : iso }));
       },
       setLanguage: (code) => {
         exitStoryOnFilter();
+        pushNeeded.current = true;
         setFilters((f) => ({ ...f, language: f.language === code ? null : code }));
       },
       setRated: (rated) => {
         exitStoryOnFilter();
+        pushNeeded.current = true;
         setFilters((f) => ({ ...f, rated: f.rated === rated ? null : rated }));
       },
       setFranchise: (name) => {
         exitStoryOnFilter();
+        pushNeeded.current = true;
         setFilters((f) => ({ ...f, franchise: f.franchise === name ? null : name }));
       },
       setSelected: (id) => setSelectedId((cur) => (cur === id ? null : id)),

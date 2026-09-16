@@ -43,4 +43,11 @@ describe("recommendReducer", () => {
     const next2 = recommendReducer(next, { type: "TOGGLE_HIDE_RATED" });
     expect(next2.hideRated).toBe(true);
   });
+
+  it("sets lambda", () => {
+    const next = recommendReducer(base, { type: "SET_LAMBDA", lambda: 0 });
+    expect(next.lambda).toBe(0);
+    const next2 = recommendReducer(next, { type: "SET_LAMBDA", lambda: 4 });
+    expect(next2.lambda).toBe(4);
+  });
 });

@@ -12,6 +12,7 @@ import { heartDim } from "@/lib/heartLens";
 import { favColor, StarMarker } from "@/lib/favMarker";
 import type { EnrichedWatch } from "@/lib/types";
 import { ChartTakeaway } from "./ChartTakeaway";
+import { useRovingFocus } from "@/lib/useRovingFocus";
 
 const MARGIN_LEFT = 55;
 const MARGIN_TOP = 8;
@@ -46,6 +47,7 @@ export function SwimLaneChart() {
   } = useExplorer();
   const { tokens } = useTheme();
   const [hover, setHover] = useState<{ x: number; y: number; w: EnrichedWatch } | null>(null);
+  const [rovingIdx, setRovingIdx] = useState(-1);
   const monthFocus = storyResult?.monthFocus ?? null;
   const showYearMeans = storyResult?.yearMeans ?? false;
 
@@ -278,13 +280,38 @@ export function SwimLaneChart() {
   );
 
   return (
-    <figure className="relative m-0">
+    <figure className="relative m-0 overflow-x-auto">
+      <div
+        className="pointer-events-none absolute right-2 top-2 rounded bg-black/50 px-2 py-0.5 text-[10px] text-white md:hidden"
+        aria-hidden
+      >
+        scroll →
+      </div>
       <svg
         viewBox={`0 0 ${BASE_WIDTH} ${viewBoxHeight}`}
-        className="w-full"
-        style={{ touchAction: "none" }}
-        role="img"
-        aria-label="Swim lane chart of every watch by date. One row per year, January to December. Drag to brush a selection."
+        className="w-full chart-mark"
+        style={{ minWidth: 600, touchAction: "none" }}
+        role="group"
+        tabIndex={0}
+        aria-label="Swim lane chart. Arrow keys navigate marks, Enter selects."
+        aria-activedescendant={rovingIdx >= 0 ? `swim-mark-${rovingIdx}` : undefined}
+        onKeyDown={(e) => {
+          const visible = points.filter((p) => p.op > 0.1);
+          if (!visible.length) return;
+          if (e.key === "ArrowRight") {
+            e.preventDefault();
+            setRovingIdx((i) => Math.min(i + 1, visible.length - 1));
+          } else if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            setRovingIdx((i) => Math.max(i - 1, 0));
+          } else if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            if (rovingIdx >= 0 && rovingIdx < visible.length) {
+              setSelected(visible[rovingIdx].w.tmdb_id);
+            }
+          }
+        }}
+        onFocus={() => { if (rovingIdx < 0) setRovingIdx(0); }}
         {...handlers}
       >
         {/* Lane backgrounds */}

@@ -7,7 +7,8 @@ import { useTheme } from "@/lib/theme";
 import { BAR_H, GAP, valueLabelFill } from "@/lib/barChart";
 import { mean } from "@/lib/statsChart";
 import type { EnrichedWatch } from "@/lib/types";
-import { accentFor, isPicked, pickWatches } from "./pick";
+import { useWidth } from "@/lib/useWidth";
+import { a11yMark, accentFor, isPicked, pickWatches } from "./pick";
 
 // Geometry copied from "What travels well" so the two charts are the same
 // object seen twice, not two charts that resemble each other. BAR_H and GAP come
@@ -127,17 +128,51 @@ export function useMostRewatched(limit = TOP_N): RewatchSummary {
  * The absolute totals live in the blurb rather than here, so the same numbers
  * are not printed twice on one screen.
  */
+function CompactRewatched({ rows, tokens, accent, filters, setSelection }: {
+  rows: Film[];
+  tokens: ReturnType<typeof useTheme>["tokens"];
+  accent: string;
+  filters: ReturnType<typeof useExplorer>["filters"];
+  setSelection: ReturnType<typeof useExplorer>["setSelection"];
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      {rows.map((film) => (
+        <button
+          key={film.tmdb_id}
+          className="flex items-center justify-between rounded px-2 py-1.5 text-left text-[12px]"
+          style={{
+            background: isPicked(film.watches, filters.selection) ? `${accent}22` : "transparent",
+            color: tokens.ink.primary,
+          }}
+          onClick={() => pickWatches(film.watches, filters.selection, setSelection)}
+        >
+          <span className="min-w-0 truncate">{clipTitle(film.title)}</span>
+          <span className="ml-2 flex-shrink-0 font-mono text-[11px]" style={{ color: tokens.ink.muted }}>
+            {film.watches.length}× {film.rating != null ? `· ${(film.rating / 20).toFixed(1)}★` : ""}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function MostRewatched() {
   const { filters, setSelection } = useExplorer();
   const { tokens } = useTheme();
   const { rows, tailFilms, tailMin, tailMax } = useMostRewatched();
-  // Hover is the same contract as "What travels well": the row lifts its own
-  // fill from 0.72 to 0.9, and once something is selected every other row drops
-  // to 0.35. No tooltip, no growth, no color change. These two charts are the
-  // same object seen twice, so they have to answer the cursor the same way.
+  const [ref, width] = useWidth(720);
   const [hover, setHover] = useState<number | null>(null);
   const accent = accentFor(filters.genres, tokens);
   if (!rows.length) return null;
+
+  if (width < 500) {
+    return (
+      <div ref={ref}>
+        <CompactRewatched rows={rows} tokens={tokens} accent={accent} filters={filters} setSelection={setSelection} />
+      </div>
+    );
+  }
 
   const HEIGHT = 20 + (rows.length + (tailFilms > 0 ? 1 : 0)) * (BAR_H + GAP);
   const maxN = Math.max(...rows.map((r) => r.watches.length));
@@ -146,11 +181,12 @@ export function MostRewatched() {
   const ratingLen = (r: number) => (r / 100) * RATING_W;
 
   return (
-    <figure className="m-0">
+    <figure ref={ref} className="m-0 overflow-x-auto">
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        style={{ minWidth: 500 }}
         className="w-full"
-        role="img"
+        role="group"
         aria-label="Films ranked by how many times they were watched, colored by genre. Viewings bars grow rightward from the title; mirrored bars grow leftward from the right edge showing my average rating for that film."
       >
         {/* Column headers */}
@@ -202,6 +238,7 @@ export function MostRewatched() {
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
               onClick={() => pickWatches(f.watches, filters.selection, setSelection)}
+              {...a11yMark(() => pickWatches(f.watches, filters.selection, setSelection), `${f.title}, ${f.watches.length} viewings`, on)}
             >
               {/* Row hit area, so the whole line is clickable */}
               <rect x={0} y={y} width={WIDTH} height={BAR_H} fill="transparent" />

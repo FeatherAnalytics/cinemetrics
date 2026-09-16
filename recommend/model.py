@@ -111,6 +111,7 @@ def build_v3_metadata(films: list[dict]) -> dict[int, dict]:
             "title": _clean(f.get("title")) or "",
             "year": _clean(f.get("year") or f.get("release_year")),
             "genres": _clean(f.get("genres")) or "",
+            "director": _clean(f.get("director")) or "",
             "runtime": _clean(f.get("runtime") or f.get("runtime_min")),
             "rated": _clean(f.get("rated")) or "",
             "language": _clean(f.get("language") or f.get("original_language")) or "",

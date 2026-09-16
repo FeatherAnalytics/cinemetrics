@@ -34,8 +34,8 @@ export function yAt(rating: number | null, rowTop: number, lo: number, hi: numbe
   return bot - ((rating - lo) / (hi - lo || 1)) * (bot - top);
 }
 
-export function xAt(t: number, x0: number, x1: number): number {
-  return LABEL + ((t - x0) / (x1 - x0 || 1)) * (W - LABEL - RIGHT);
+export function xAt(t: number, x0: number, x1: number, w: number = W): number {
+  return LABEL + ((t - x0) / (x1 - x0 || 1)) * (w - LABEL - RIGHT);
 }
 
 /**
@@ -75,6 +75,7 @@ export function DotRow({
   rightLabel,
   leader,
   onSelect,
+  width,
 }: {
   watches: EnrichedWatch[];
   rowTop: number;
@@ -95,10 +96,11 @@ export function DotRow({
   leader: boolean;
   /** Set when the whole row is clickable. The franchise chart clicks per dot instead. */
   onSelect?: () => void;
+  /** Override the module-level W for useWidth-driven charts. */
+  width?: number;
 }) {
-  // x is the date and never tweens. Memoised on numbers only: the hook compares
-  // its target by identity, and the parent re-renders on every hover.
-  const xs = useMemo(() => watches.map((w) => xAt(w.d.getTime(), x0, x1)), [watches, x0, x1]);
+  const rowW = width ?? W;
+  const xs = useMemo(() => watches.map((w) => xAt(w.d.getTime(), x0, x1, rowW)), [watches, x0, x1, rowW]);
   const ys = useMemo(
     () => watches.map((w) => yAt(w.rating, rowTop, lo, hi)),
     [watches, rowTop, lo, hi],
@@ -111,13 +113,13 @@ export function DotRow({
   return (
     <g style={onSelect ? { cursor: "pointer" } : undefined} onClick={onSelect}>
       {selected && (
-        <rect x={0} y={rowTop} width={W} height={ROWH} fill={tokens.ui.selected} fillOpacity={0.06} />
+        <rect x={0} y={rowTop} width={rowW} height={ROWH} fill={tokens.ui.selected} fillOpacity={0.06} />
       )}
       <text
         x={LABEL - 8}
         y={labelY}
         fill={selected ? tokens.ink.primary : tokens.ink.muted}
-        fontSize={9}
+        fontSize={11}
         textAnchor="end"
         dominantBaseline="middle"
       >
@@ -133,7 +135,7 @@ export function DotRow({
       {watches.map((w, j) => dot(w, j, xs[j], drawnY[j]))}
       {rightLabel != null && (
         <text
-          x={W - 4}
+          x={rowW - 4}
           y={labelY}
           fill={leader ? tokens.ink.primary : tokens.ink.muted}
           fontSize={9}

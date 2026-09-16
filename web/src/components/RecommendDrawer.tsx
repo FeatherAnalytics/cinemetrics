@@ -7,15 +7,15 @@ import {
   loadEmbeddings,
   topNSimilar,
   filterRecommendations,
-  scoreByTaste,
+  scoreWithPrior,
   tasteVector,
   type Recommendation,
   type CandidateMetadata,
 } from "@/lib/recommend";
 import type { Filters } from "@/lib/store";
 import {
-  explainRecommendation,
-  computeGenreAffinities,
+  contrastiveExplain,
+  type ExplainContext,
   type Reason,
 } from "@/lib/explainClient";
 import { FilmCard } from "./FilmCard";
@@ -23,13 +23,40 @@ import { hairline, useTheme } from "@/lib/theme";
 
 import embeddingsVersion from "../../public/data/embeddings-version.json";
 
+type EvalRow = { median_rank: number | null; hit_100: number | null };
+type EvalData = {
+  pool_size: number;
+  popular_pool_size?: number;
+  cosine_liked?: EvalRow;
+  balanced_liked?: EvalRow;
+  safe_liked?: EvalRow;
+  random_liked?: EvalRow;
+  imdb_liked?: EvalRow;
+  popular_cosine_liked?: EvalRow;
+  popular_balanced_liked?: EvalRow;
+  popular_safe_liked?: EvalRow;
+  popular_random_liked?: EvalRow;
+  popular_imdb_liked?: EvalRow;
+};
+
+let _evalCache: EvalData | null | false = null;
+async function loadEval(): Promise<EvalData | null> {
+  if (_evalCache !== null) return _evalCache || null;
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/data/recs-eval.json`);
+    if (!res.ok) { _evalCache = false; return null; }
+    _evalCache = await res.json();
+    return _evalCache || null;
+  } catch { _evalCache = false; return null; }
+}
+
 const R2_URL = process.env.NEXT_PUBLIC_R2_URL || "";
 
 function matchesDashboardFilters(meta: CandidateMetadata, dashFilters: Filters): boolean {
   const genres = meta.genres ? meta.genres.split(", ").map((g) => g.trim()) : [];
   if (dashFilters.genres.size > 0 && !genres.some((g) => dashFilters.genres.has(g as never))) return false;
-  if (dashFilters.director && !(meta.director || "").toLowerCase().includes(dashFilters.director.toLowerCase())) return false;
-  if (dashFilters.actor && !(meta.actors || "").toLowerCase().includes(dashFilters.actor.toLowerCase())) return false;
+  if (dashFilters.director && meta.director != null && !(meta.director).toLowerCase().includes(dashFilters.director.toLowerCase())) return false;
+  if (dashFilters.actor && meta.actors != null && !(meta.actors).toLowerCase().includes(dashFilters.actor.toLowerCase())) return false;
   if (dashFilters.releaseYearRange) {
     const y = meta.year;
     if (y == null || y < dashFilters.releaseYearRange[0] || y > dashFilters.releaseYearRange[1]) return false;
@@ -82,17 +109,18 @@ export function weightedSample(pool: Recommendation[], n: number): Recommendatio
 }
 
 async function fetchRecs(
-  state: { mode: string; sourceTmdbId: number | null; filters: Record<string, unknown>; genre: string | null; hideRated: boolean },
+  state: { mode: string; sourceTmdbId: number | null; filters: Record<string, unknown>; genre: string | null; hideRated: boolean; lambda: number },
   ratedIds: Set<number>,
   films: Map<number, { tmdb_id: number; genres: string[]; director: string | null; actors: string | null; keywords: string[] }>,
   watches: { tmdb_id: number; rating: number | null }[],
   dashFilters: Filters,
-): Promise<{ recs: Recommendation[]; reasons: Record<number, Reason[]>; boostCount: number }> {
-  if (!R2_URL) return { recs: [], reasons: {}, boostCount: 0 };
+): Promise<{ recs: Recommendation[]; reasons: Record<number, Reason[]>; boostCount: number; skippedFilters: string[] }> {
+  if (!R2_URL) return { recs: [], reasons: {}, boostCount: 0, skippedFilters: [] };
   const { data } = await loadEmbeddings(R2_URL, embeddingsVersion.version);
   const TARGET = 10;
   let finalRecs: Recommendation[] = [];
   let boostCount = 0;
+  const taste = tasteVector(data, watches);
 
   if (state.mode === "similar" && state.sourceTmdbId) {
     const excludeIds = state.hideRated
@@ -108,13 +136,12 @@ async function fetchRecs(
     // Score candidates against the user's taste vector (rating-weighted mean of
     // their rated films' embeddings) so "recommended for you" is earned, not
     // random. weightedSample keeps variety; the scores steer it.
-    const taste = tasteVector(data, watches);
     let pool: Recommendation[] = taste
-      ? scoreByTaste(taste, data, excludeIds)
+      ? scoreWithPrior(taste, data, excludeIds, state.lambda)
       : Object.keys(data.vectors)
           .map(Number)
           .filter((id) => !excludeIds.has(id) && data.metadata[id])
-          .map((id) => ({ tmdb_id: id, score: 0, metadata: data.metadata[id] }));
+          .map((id) => ({ tmdb_id: id, score: 0, cosineScore: 0, metadata: data.metadata[id] }));
     pool = filterRecommendations(pool, {
       ...state.filters,
       genre: state.mode === "genre-recommend" ? (state.genre ?? undefined) : undefined,
@@ -133,14 +160,105 @@ async function fetchRecs(
     }
   }
 
-  const genreAffinities = computeGenreAffinities([...films.values()] as never[], watches);
-  const sourceData = state.sourceTmdbId ? data.metadata[state.sourceTmdbId] ?? undefined : undefined;
+  const explainCtx: ExplainContext | null = taste && data.featureNames ? {
+    taste,
+    featureNames: data.featureNames,
+    watches: watches.filter((w) => w.rating != null) as { tmdb_id: number; rating: number }[],
+    vectors: data.vectors,
+    metadata: data.metadata,
+  } : null;
   const reasons: Record<number, Reason[]> = {};
   for (const r of finalRecs) {
-    reasons[r.tmdb_id] = explainRecommendation(sourceData, r.metadata, genreAffinities);
+    const vec = data.vectors[r.tmdb_id];
+    reasons[r.tmdb_id] = explainCtx && vec
+      ? contrastiveExplain(vec, r.metadata, explainCtx)
+      : [];
   }
 
-  return { recs: finalRecs, reasons, boostCount };
+  const skippedFilters: string[] = [];
+  if (dashFilters.director && finalRecs.some((r) => r.metadata.director == null)) {
+    skippedFilters.push("director");
+  }
+  if (dashFilters.actor && finalRecs.some((r) => r.metadata.actors == null)) {
+    skippedFilters.push("actor");
+  }
+  return { recs: finalRecs, reasons, boostCount, skippedFilters };
+}
+
+function CredibilityPanel({ tokens }: { tokens: ReturnType<typeof useTheme>["tokens"] }) {
+  const [evalData, setEvalData] = useState<EvalData | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { loadEval().then(setEvalData); }, []);
+  if (!evalData) return null;
+
+  function renderTable(label: string, poolSize: number, data: { label: string; data?: EvalRow }[]) {
+    const valid = data.filter((r) => r.data?.median_rank != null);
+    if (!valid.length) return null;
+    return (
+      <div className="mt-2">
+        <div className="mb-1 text-[10px] font-medium" style={{ color: tokens.ink.secondary }}>{label}</div>
+        <table className="w-full text-[11px]" style={{ color: tokens.ink.secondary }}>
+          <thead>
+            <tr>
+              <th className="text-left font-medium pb-1">Ranker</th>
+              <th className="text-right font-medium pb-1">Median rank</th>
+              <th className="text-right font-medium pb-1">Hit@100</th>
+            </tr>
+          </thead>
+          <tbody>
+            {valid.map((r) => (
+              <tr key={r.label}>
+                <td className="py-0.5">{r.label}</td>
+                <td className="text-right py-0.5">{r.data!.median_rank?.toLocaleString()}</td>
+                <td className="text-right py-0.5">
+                  {r.data!.hit_100 != null ? `${Math.round(r.data!.hit_100 * 100)}%` : "–"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return (
+    <details
+      className="mt-4 border-t pt-3"
+      style={{ borderColor: hairline(tokens.ink.primary, 12) }}
+      open={open}
+      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
+    >
+      <summary
+        className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.15em]"
+        style={{ color: tokens.ink.muted }}
+      >
+        How good is this?
+      </summary>
+      {renderTable(`Full pool (${evalData.pool_size?.toLocaleString()} films)`, evalData.pool_size, [
+        { label: "Cosine only (λ=0)", data: evalData.cosine_liked },
+        { label: "Balanced (λ=2)", data: evalData.balanced_liked },
+        { label: "Safe picks (λ=4)", data: evalData.safe_liked },
+        { label: "IMDb rating", data: evalData.imdb_liked },
+        { label: "Random", data: evalData.random_liked },
+      ])}
+      {evalData.popular_pool_size != null && renderTable(
+        `Films people have seen (${evalData.popular_pool_size.toLocaleString()} with 1k+ votes)`,
+        evalData.popular_pool_size,
+        [
+          { label: "Cosine only (λ=0)", data: evalData.popular_cosine_liked },
+          { label: "Balanced (λ=2)", data: evalData.popular_balanced_liked },
+          { label: "Safe picks (λ=4)", data: evalData.popular_safe_liked },
+          { label: "IMDb rating", data: evalData.popular_imdb_liked },
+          { label: "Random", data: evalData.popular_random_liked },
+        ],
+      )}
+      <p className="mt-2 text-[11px] leading-relaxed" style={{ color: tokens.ink.muted }}>
+        Content features alone explain little of the variance in my ratings (R&sup2;&nbsp;0.04 vs
+        0.21 for critic scores). The held-out numbers show how often a liked film lands in
+        the top 100 of each pool.
+      </p>
+    </details>
+  );
 }
 
 type Status = "loading" | "ready" | "error";
@@ -160,6 +278,7 @@ export function RecommendDrawer() {
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [reasonsMap, setReasonsMap] = useState<Record<number, Reason[]>>({});
   const [boostCount, setBoostCount] = useState(0);
+  const [skippedFilters, setSkippedFilters] = useState<string[]>([]);
   const [shuffleCount, setShuffleCount] = useState(0);
   const [status, setStatus] = useState<Status>("loading");
 
@@ -222,6 +341,7 @@ export function RecommendDrawer() {
         setRecs(result.recs);
         setReasonsMap(result.reasons);
         setBoostCount(result.boostCount);
+        setSkippedFilters(result.skippedFilters);
         setStatus("ready");
       })
       .catch(() => {
@@ -255,7 +375,7 @@ export function RecommendDrawer() {
     runtimeRange?.join("-") ?? "",
     ratingRange?.join("-") ?? "",
   ].join("|");
-  const currentKey = `${state.mode}:${state.sourceTmdbId}:${state.genre}:${state.filters.language}:${shuffleCount}:${dashSig}`;
+  const currentKey = `${state.mode}:${state.sourceTmdbId}:${state.genre}:${state.filters.language}:${state.lambda}:${shuffleCount}:${dashSig}`;
   if (state.open && R2_URL && currentKey !== reqKey) {
     setReqKey(currentKey);
     setStatus("loading");
@@ -329,6 +449,9 @@ export function RecommendDrawer() {
 
           <p className="mb-3 text-[11px]" style={{ color: tokens.ink.muted }}>
             Based on my ratings and taste.
+            {skippedFilters.length > 0 && (
+              <span> {skippedFilters.join(" and ")} filter not applied (data unavailable).</span>
+            )}
           </p>
 
           <div className="mb-3 flex flex-wrap gap-2">
@@ -363,6 +486,32 @@ export function RecommendDrawer() {
             >
               Shuffle
             </button>
+          </div>
+
+          <div
+            className="mb-3 flex rounded-lg border overflow-hidden"
+            style={{ borderColor: hairline(tokens.ink.primary, 20) }}
+            role="group"
+            aria-label="Critic influence"
+          >
+            {([
+              { label: "Deep cuts", value: 0 },
+              { label: "Balanced", value: 2 },
+              { label: "Safe picks", value: 4 },
+            ] as const).map(({ label, value }) => (
+              <button
+                key={value}
+                onClick={() => dispatch({ type: "SET_LAMBDA", lambda: value })}
+                className="flex-1 px-2 py-1 text-[10px] font-medium"
+                style={{
+                  background: state.lambda === value ? tokens.ui.active : "transparent",
+                  color: state.lambda === value ? tokens.ui.activeText : tokens.ink.secondary,
+                }}
+                aria-pressed={state.lambda === value}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {effectiveStatus === "loading" && (
@@ -428,6 +577,7 @@ export function RecommendDrawer() {
                     <FilmCard
                       metadata={r.metadata}
                       score={r.score}
+                      cosineScore={r.cosineScore}
                       reasons={reasonsMap[r.tmdb_id] ?? []}
                       onWatchlist={watchlistIds.has(r.tmdb_id)}
                     />
@@ -436,6 +586,8 @@ export function RecommendDrawer() {
               ))}
             </div>
           )}
+
+          <CredibilityPanel tokens={tokens} />
         </div>
       </aside>
     </>

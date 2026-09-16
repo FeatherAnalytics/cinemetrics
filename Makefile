@@ -1,4 +1,4 @@
-.PHONY: setup dev build test lint export update docs doc-stats clean
+.PHONY: setup dev build test lint export update eval docs doc-stats clean
 
 setup:
 	uv sync
@@ -13,6 +13,7 @@ build:
 	uv run python scripts/export_web.py
 	uv run python scripts/compute_story_stats.py
 	uv run python scripts/train_embeddings.py
+	uv run python scripts/eval_recs.py
 	cd web && npm run build
 
 test:
@@ -39,6 +40,9 @@ candidates:
 
 train:
 	uv run python scripts/train_embeddings.py
+
+eval:
+	uv run python scripts/eval_recs.py
 
 retrain:
 	uv run python scripts/train_embeddings.py --force
