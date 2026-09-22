@@ -1,72 +1,72 @@
 {
-  "pool_size": 48145,
+  "pool_size": 48445,
   "rated_count": 683,
   "cosine_liked": {
     "n": 307,
-    "median_rank": 15941,
+    "median_rank": 16065,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0003
   },
   "cosine_disliked": {
     "n": 67,
-    "median_rank": 17805,
+    "median_rank": 17944,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0003
   },
   "lambda_0.5_liked": {
     "n": 307,
-    "median_rank": 8399,
+    "median_rank": 8478,
     "hit_10": 0.003,
     "hit_100": 0.033,
     "mrr": 0.002
   },
   "lambda_0.5_disliked": {
     "n": 67,
-    "median_rank": 20355,
+    "median_rank": 20517,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0002
   },
   "lambda_1_liked": {
     "n": 307,
-    "median_rank": 5315,
+    "median_rank": 5365,
     "hit_10": 0.007,
     "hit_100": 0.039,
     "mrr": 0.0022
   },
   "lambda_1_disliked": {
     "n": 67,
-    "median_rank": 20274,
+    "median_rank": 20440,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0001
   },
   "balanced_liked": {
     "n": 307,
-    "median_rank": 4118,
+    "median_rank": 4159,
     "hit_10": 0.003,
     "hit_100": 0.026,
-    "mrr": 0.0019
+    "mrr": 0.0018
   },
   "balanced_disliked": {
     "n": 67,
-    "median_rank": 21068,
+    "median_rank": 21237,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0002
   },
   "safe_liked": {
     "n": 307,
-    "median_rank": 3924,
+    "median_rank": 3962,
     "hit_10": 0.003,
     "hit_100": 0.029,
     "mrr": 0.0018
   },
   "safe_disliked": {
     "n": 67,
-    "median_rank": 21407,
+    "median_rank": 21588,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0002
@@ -87,19 +87,19 @@
   },
   "imdb_liked": {
     "n": 307,
-    "median_rank": 5005,
+    "median_rank": 5035,
     "hit_10": 0.0,
     "hit_100": 0.003,
-    "mrr": 0.0006
+    "mrr": 0.0005
   },
   "imdb_disliked": {
     "n": 67,
-    "median_rank": 21398,
+    "median_rank": 21593,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0001
   },
-  "popular_pool_size": 3335,
+  "popular_pool_size": 3337,
   "popular_cosine_liked": {
     "n": 307,
     "median_rank": 1488,
@@ -149,5 +149,5 @@
     "hit_100": 0.098,
     "mrr": 0.0061
   },
-  "date": "2026-09-21"
+  "date": "2026-09-22"
 }
