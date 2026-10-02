@@ -7,7 +7,7 @@
 
 This is the dbt layer behind [featheranalytics.dev/cinemetrics](https://featheranalytics.dev/cinemetrics),
 a personal film analytics dashboard built from eight years of Letterboxd watch
-history: 809 viewings of 683 films.
+history: 810 viewings of 684 films.
 
 ## How to read this
 
@@ -44,7 +44,7 @@ not-null test is a warning rather than an error because coverage is incomplete b
   5.0.
 - **Ratings use two scales.** `rating_100` is 0–100 and is the authoritative one.
   `star_rating` is 0–5, derived as `rating_100 / 20` where the source did not supply it. The
-  factor of exactly 20 is measured across the 680 rows that arrived carrying
+  factor of exactly 20 is measured across the 681 rows that arrived carrying
   both values, not assumed.
 - **"Rewatches" and "returns" are different counts.** 214 rows are flagged
   as rewatches, but 88 of those are films whose first viewing predates the
