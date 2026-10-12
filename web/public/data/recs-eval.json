@@ -1,72 +1,72 @@
 {
-  "pool_size": 54020,
+  "pool_size": 54316,
   "rated_count": 684,
   "cosine_liked": {
     "n": 307,
-    "median_rank": 18155,
+    "median_rank": 18257,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0003
   },
   "cosine_disliked": {
     "n": 67,
-    "median_rank": 20180,
+    "median_rank": 20307,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0002
   },
   "lambda_0.5_liked": {
     "n": 307,
-    "median_rank": 9584,
+    "median_rank": 9629,
     "hit_10": 0.003,
     "hit_100": 0.033,
     "mrr": 0.0021
   },
   "lambda_0.5_disliked": {
     "n": 67,
-    "median_rank": 23045,
+    "median_rank": 23167,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0002
   },
   "lambda_1_liked": {
     "n": 307,
-    "median_rank": 6002,
+    "median_rank": 6031,
     "hit_10": 0.007,
     "hit_100": 0.039,
     "mrr": 0.0021
   },
   "lambda_1_disliked": {
     "n": 67,
-    "median_rank": 22840,
+    "median_rank": 22960,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0001
   },
   "balanced_liked": {
     "n": 307,
-    "median_rank": 4625,
+    "median_rank": 4639,
     "hit_10": 0.003,
     "hit_100": 0.026,
     "mrr": 0.0018
   },
   "balanced_disliked": {
     "n": 67,
-    "median_rank": 23743,
+    "median_rank": 23862,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0001
   },
   "safe_liked": {
     "n": 307,
-    "median_rank": 4387,
+    "median_rank": 4399,
     "hit_10": 0.003,
     "hit_100": 0.029,
     "mrr": 0.0017
   },
   "safe_disliked": {
     "n": 67,
-    "median_rank": 24106,
+    "median_rank": 24232,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0002
@@ -87,29 +87,29 @@
   },
   "imdb_liked": {
     "n": 307,
-    "median_rank": 5569,
+    "median_rank": 5595,
     "hit_10": 0.0,
     "hit_100": 0.003,
     "mrr": 0.0005
   },
   "imdb_disliked": {
     "n": 67,
-    "median_rank": 24533,
+    "median_rank": 24693,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0001
   },
-  "popular_pool_size": 3434,
+  "popular_pool_size": 3437,
   "popular_cosine_liked": {
     "n": 307,
-    "median_rank": 1539,
+    "median_rank": 1541,
     "hit_10": 0.007,
     "hit_100": 0.049,
     "mrr": 0.0028
   },
   "popular_lambda_0.5_liked": {
     "n": 307,
-    "median_rank": 1103,
+    "median_rank": 1104,
     "hit_10": 0.01,
     "hit_100": 0.068,
     "mrr": 0.006
@@ -149,5 +149,5 @@
     "hit_100": 0.098,
     "mrr": 0.0061
   },
-  "date": "2026-10-11"
+  "date": "2026-10-12"
 }
