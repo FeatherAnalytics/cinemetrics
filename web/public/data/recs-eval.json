@@ -1,105 +1,105 @@
 {
-  "pool_size": 56919,
+  "pool_size": 57208,
   "rated_count": 684,
   "cosine_liked": {
     "n": 307,
-    "median_rank": 19011,
+    "median_rank": 19089,
     "hit_10": 0.0,
     "hit_100": 0.0,
-    "mrr": 0.0003
+    "mrr": 0.0002
   },
   "cosine_disliked": {
     "n": 67,
-    "median_rank": 21153,
+    "median_rank": 21249,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0002
   },
   "lambda_0.5_liked": {
     "n": 307,
-    "median_rank": 9990,
+    "median_rank": 10027,
     "hit_10": 0.003,
     "hit_100": 0.033,
     "mrr": 0.002
   },
   "lambda_0.5_disliked": {
     "n": 67,
-    "median_rank": 24126,
+    "median_rank": 24235,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0002
   },
   "lambda_1_liked": {
     "n": 307,
-    "median_rank": 6244,
+    "median_rank": 6264,
     "hit_10": 0.007,
     "hit_100": 0.039,
-    "mrr": 0.0021
+    "mrr": 0.002
   },
   "lambda_1_disliked": {
     "n": 67,
-    "median_rank": 23933,
+    "median_rank": 24037,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0001
   },
   "balanced_liked": {
     "n": 307,
-    "median_rank": 4798,
+    "median_rank": 4812,
     "hit_10": 0.003,
-    "hit_100": 0.026,
+    "hit_100": 0.023,
     "mrr": 0.0017
   },
   "balanced_disliked": {
     "n": 67,
-    "median_rank": 24898,
+    "median_rank": 25013,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0001
   },
   "safe_liked": {
     "n": 307,
-    "median_rank": 4536,
+    "median_rank": 4546,
     "hit_10": 0.003,
     "hit_100": 0.029,
     "mrr": 0.0015
   },
   "safe_disliked": {
     "n": 67,
-    "median_rank": 25288,
+    "median_rank": 25405,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0002
   },
   "random_liked": {
     "n": 307,
-    "median_rank": 27667,
+    "median_rank": 28078,
     "hit_10": 0.0,
     "hit_100": 0.003,
     "mrr": 0.0002
   },
   "random_disliked": {
     "n": 67,
-    "median_rank": 23527,
+    "median_rank": 24808,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0001
   },
   "imdb_liked": {
     "n": 307,
-    "median_rank": 5811,
+    "median_rank": 5832,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0005
   },
   "imdb_disliked": {
     "n": 67,
-    "median_rank": 25713,
+    "median_rank": 25780,
     "hit_10": 0.0,
     "hit_100": 0.0,
     "mrr": 0.0001
   },
-  "popular_pool_size": 3484,
+  "popular_pool_size": 3485,
   "popular_cosine_liked": {
     "n": 307,
     "median_rank": 1567,
@@ -149,5 +149,5 @@
     "hit_100": 0.098,
     "mrr": 0.0061
   },
-  "date": "2026-10-21"
+  "date": "2026-10-22"
 }
