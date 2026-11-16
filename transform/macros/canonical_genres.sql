@@ -19,10 +19,19 @@
   so the delimiters are matched explicitly rather than trusting a bare replace.
 #}
 {% macro canonical_genres(column) %}
-    trim(both ', ' from
-        replace(
-            replace(', ' || {{ column }} || ', ', ', Science Fiction, ', ', Sci-Fi, '),
-            ', Science-Fiction, ', ', Sci-Fi, '
-        )
+    {%- set genre_list -%}
+        string_split(trim(both ', ' from
+            replace(
+                replace(', ' || {{ column }} || ', ', ', Science Fiction, ', ', Sci-Fi, '),
+                ', Science-Fiction, ', ', Sci-Fi, '
+            )
+        ), ', ')
+    {%- endset %}
+    {#- TMDB occasionally repeats a genre ("Drama, Drama, Family"), and the
+        rename above can collide two spellings. Keep the first occurrence so
+        genre order survives and bridge_film_genre stays unique. #}
+    array_to_string(
+        list_filter({{ genre_list }}, (g, i) -> list_position({{ genre_list }}, g) = i),
+        ', '
     )
 {% endmacro %}
